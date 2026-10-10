@@ -39,8 +39,13 @@ const browser = await puppeteer.launch({
 const page = await browser.newPage()
 await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
 const pageErrors = []
+const requestFailures = []
 page.on('pageerror', e => pageErrors.push('pageerror: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') pageErrors.push(`console.error: ${m.text().slice(0, 200)}`) })
+page.on('requestfailed', req => {
+  const target = new URL(req.url())
+  requestFailures.push(`${target.origin}${target.pathname}: ${req.failure()?.errorText}`)
+})
 
 // ---- optional real-time screencast -------------------------------------------
 const frames = []
@@ -150,6 +155,7 @@ async function scrollIntoView(selectorOrHandle) {
 }
 
 // ================================================================================
+try {
 await page.goto(url, { waitUntil: 'networkidle2' })
 await sleep(2000)
 // First-run notice (DSH 0.1.x enables its Continue button only after a delay): wait for it to be clickable.
@@ -437,5 +443,13 @@ const report = { at: new Date().toISOString(), url: url.replace(/token=[^&]+/, '
 writeFileSync(path.join(outDir, 'e2e-report.json'), JSON.stringify(report, null, 2))
 const failed = results.filter(r => !r.ok)
 console.log(`\n${results.length - failed.length}/${results.length} checks passed`)
-await browser.close()
-process.exit(failed.length ? 1 : 0)
+process.exitCode = failed.length ? 1 : 0
+} catch (error) {
+  await shot('failure.png').catch(() => {})
+  const diagnostics = { pageErrors, requestFailures, results }
+  writeFileSync(path.join(outDir, 'failure.json'), JSON.stringify(diagnostics, null, 2))
+  console.error('Browser failure diagnostics:', JSON.stringify(diagnostics))
+  throw error
+} finally {
+  await browser.close()
+}
