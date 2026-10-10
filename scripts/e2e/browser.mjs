@@ -184,20 +184,29 @@ await sleep(600)
 
 // 2) Dashboard, streamed progressively.
 await caption('2 · "Show me a sales dashboard" → a native dashboard streams in')
+await page.evaluate(() => {
+  const state = { parts: 0 }
+  const observer = new MutationObserver(() => {
+    for (const shell of document.querySelectorAll('.diui-shell[data-state=generating]')) {
+      const parts = shell.querySelectorAll('.diui-stat').length
+      if (parts > 0 && parts < 4) state.parts = parts
+    }
+  })
+  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-state'] })
+  window.__e2eDashboardStream = { state, stop: () => observer.disconnect() }
+})
 await send('Show me a sales dashboard for this year')
-let streamedParts = 0
-const sawStreaming = await waitFor(async () => {
-  const s = await page.$$eval('.diui-shell[data-state=generating] .diui-stat', x => x.length).catch(() => 0)
-  if (s > 0 && s < 4) { streamedParts = s; await shot('1-render-streaming.png'); return true }
-  return false
-}, 15000, 60)
+const streamedParts = await waitFor(() => page.evaluate(() => window.__e2eDashboardStream.state.parts), 20000, 60)
+if (streamedParts) writeFileSync(`${mockLog}.dashboard-preview`, 'observed')
+if (streamedParts) await shot('1-render-streaming.png')
+await page.evaluate(() => { window.__e2eDashboardStream.stop(); delete window.__e2eDashboardStream })
 await waitIdle()
 await sleep(400)
 const dash = await page.evaluate(() => {
   const tail = [...document.querySelectorAll('.diui-tail .diui-shell')].at(-1)
   return tail && { stats: tail.querySelectorAll('.diui-stat').length, tabs: [...tail.querySelectorAll('[role=tab]')].map(t => t.textContent), bars: tail.querySelectorAll('.diui-chart-svg rect').length }
 })
-check('2a. dashboard streams progressively (partial components visible mid-stream)', sawStreaming, `stats visible mid-stream: ${streamedParts}`)
+check('2a. dashboard streams progressively (partial components visible mid-stream)', streamedParts > 0, `stats visible mid-stream: ${streamedParts ?? 0}`)
 check('2b. dashboard settles beneath the reply with KPIs, tabs and chart', dash && dash.stats === 4 && dash.tabs.length === 4 && dash.bars >= 8, JSON.stringify(dash))
 await scrollIntoView('.diui-tail .diui-chart-svg')
 const bar = await page.$('.diui-tail .diui-chart-svg rect:not(.diui-hover-band)')
@@ -285,6 +294,7 @@ await page.evaluate(title => {
 }, SPHERE_TITLE)
 await send('Plot the surface x²+y²+z²=2Rz in 3D and let me change R with a slider')
 const previewSeen = await waitFor(() => page.evaluate(() => window.__e2eSphereTransition.state.previewSeen), 20000, 50)
+if (previewSeen) writeFileSync(`${mockLog}.sphere-preview`, 'observed')
 if (previewSeen) await shot('5-widget-preview.png')
 const sameFrame = await waitFor(() => page.evaluate(() => window.__e2eSphereTransition.state.finalizedSame), 15000, 50)
 await page.evaluate(() => { window.__e2eSphereTransition.stop(); delete window.__e2eSphereTransition })
@@ -420,7 +430,10 @@ await scrollIntoView(sphere.handle)
 await shot('11-dark.png')
 await shellShot('11b-dark-dashboard.png', 'Quarterly sales (sample data)')
 await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
-await sleep(1500)
+// Changing mobile/touch emulation reloads the page. Wait for the restored
+// dashboard instead of measuring before DSH has replayed the session.
+await waitFor(() => page.$('.diui-tail .diui-grid'), 30000)
+await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
 const overflow = await page.evaluate(() => [...document.querySelectorAll('.diui-shell')].filter(s => s.scrollWidth > s.clientWidth + 1 || s.getBoundingClientRect().right > innerWidth + 1).length)
 const gridCols = await page.$eval('.diui-tail .diui-grid', g => getComputedStyle(g).gridTemplateColumns.split(' ').length).catch(() => -1)
 check('9b. phone width: no horizontal overflow; KPI grid reflows', overflow === 0 && gridCols > 0 && gridCols <= 2, `overflowing=${overflow} kpiColumns=${gridCols}`)
