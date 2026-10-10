@@ -8,7 +8,7 @@
  * Grammar: numbers, identifiers (variables, `pi`, `e`), calls to the functions
  * in {@link FUNCTIONS}, `+ - * / % ^ **`, unary minus, parentheses, and
  * implicit multiplication after a number or `)` (`2x`, `3(x+1)`, `(x+1)(x-1)`).
- * @module dsh-intelligent-ui/catalog/expr
+ * @module deepseek-harness-intelligent-ui/catalog/expr
  */
 
 /** Allowed functions and their arity (`-1` = one or more). */

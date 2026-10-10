@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # DSH packages track the compatibility matrix by hand (src/compat.js, ci.yml).
+    ignore:
+      - dependency-name: '@deepseek-ai/*'
+    groups:
+      dev-dependencies:
+        dependency-type: development

@@ -1,6 +1,6 @@
 {
-  "name": "dsh-intelligent-ui",
-  "version": "0.1.0",
+  "name": "deepseek-harness-intelligent-ui",
+  "version": "0.2.0",
   "description": "DeepSeek Harness Intelligent UI: generative, interactive UI in the chat (declarative component catalog + sandboxed streaming HTML widgets), inspired by CopilotKit OpenIntelligentUI.",
   "keywords": [
     "deepseek-harness",
@@ -10,6 +10,15 @@
     "intelligent-ui"
   ],
   "license": "MIT",
+  "author": "dreamfarer-space",
+  "homepage": "https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues"
+  },
   "type": "module",
   "exports": {
     ".": "./src/plugin.js",
@@ -18,7 +27,11 @@
     "./locale/*.json": "./locale/*.json",
     "./package.json": "./package.json"
   },
+  "bin": {
+    "deepseek-harness-intelligent-ui": "./bin/cli.mjs"
+  },
   "files": [
+    "bin",
     "src",
     "client",
     "locale",
@@ -26,7 +39,8 @@
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",
     "README.md",
-    "README.zh-CN.md"
+    "README.zh-CN.md",
+    "CHANGELOG.md"
   ],
   "dsh": {
     "bundle": {
@@ -50,18 +64,36 @@
     "typecheck": "tsc -p tsconfig.json",
     "e2e:mock": "node scripts/e2e/mock-deepseek.mjs 3199 e2e-mock.log",
     "e2e:browser": "node scripts/e2e/browser.mjs",
-    "e2e:all": "node scripts/e2e/run-all.mjs"
+    "e2e:all": "node scripts/e2e/run-all.mjs",
+    "version": "node scripts/build-client.mjs && git add client/client.js",
+    "prepublishOnly": "node scripts/build-client.mjs && git diff --exit-code -- client/client.js && vitest run",
+    "release:check": "node scripts/ci/release-check.mjs",
+    "smoke": "node scripts/ci/smoke.mjs"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "~4.0.4",
-    "@deepseek-ai/dsh": "0.2.0-rc.1",
-    "@deepseek-ai/dsh-llm": "0.2.0-rc.1"
+    "@deepseek-ai/cordis": "~4.0.4 || >=4.0.5-alpha.0 <4.1.0-0",
+    "@deepseek-ai/dsh": ">=0.1.7-rc.1 <0.3.0-0",
+    "@deepseek-ai/dsh-llm": ">=0.1.7-rc.1 <0.3.0-0"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-llm": {
+      "optional": true
+    }
   },
   "dependencies": {
-    "@deepseek-ai/schemastery": "3.18.4"
+    "@deepseek-ai/schemastery": "3.18.4",
+    "semver": "^7.7.2"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.4",
+    "@deepseek-ai/dsh": "0.2.0-rc.1",
+    "@deepseek-ai/dsh-llm": "0.2.0-rc.1",
     "@types/react": "18.3.12",
     "@types/react-dom": "18.3.1",
     "esbuild": "0.25.10",
@@ -75,5 +107,8 @@
   },
   "engines": {
     "node": ">=22.13.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

@@ -9,6 +9,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import puppeteer from 'puppeteer-core'
+import { findChrome } from './dsh-web.mjs'
 
 const [url, outDir, mockLog] = process.argv.slice(2)
 const RECORD = process.argv.includes('--record')
@@ -27,11 +28,13 @@ function check(name, ok, detail = '') {
 const mock = () => readFileSync(mockLog, 'utf8').trim().split('\n').map(l => JSON.parse(l)).filter(e => e.decision)
 
 const browser = await puppeteer.launch({
-  executablePath: process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  executablePath: findChrome(),
   headless: true,
   defaultViewport: { width: 1280, height: 860 },
   // Software WebGL so three.js renders in headless Chrome.
-  args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader', '--hide-scrollbars'],
+  args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader', '--hide-scrollbars',
+    // GitHub's Linux runners disallow the unprivileged user namespaces Chrome's sandbox needs.
+    ...(process.platform === 'linux' && process.env.CI ? ['--no-sandbox'] : [])],
 })
 const page = await browser.newPage()
 await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
@@ -149,8 +152,18 @@ async function scrollIntoView(selectorOrHandle) {
 // ================================================================================
 await page.goto(url, { waitUntil: 'networkidle2' })
 await sleep(2000)
-await page.evaluate(() => [...document.querySelectorAll('button')].find(b => /^(继续|Continue)$/.test(b.textContent.trim()))?.click())
-await sleep(600)
+// First-run notice (DSH 0.1.x enables its Continue button only after a delay): wait for it to be clickable.
+for (let i = 0; i < 40; i++) {
+  const state = await page.evaluate(() => {
+    const b = [...document.querySelectorAll('button')].find(x => /^(继续|Continue)$/.test(x.textContent.trim()))
+    if (!b) return 'none'
+    if (b.disabled || b.getAttribute('aria-disabled') === 'true') return 'disabled'
+    b.click()
+    return 'clicked'
+  })
+  if (state === 'none' && i > 0) break
+  await sleep(state === 'clicked' ? 600 : 500)
+}
 if (RECORD) await startRecording()
 await shot('0-home.png')
 

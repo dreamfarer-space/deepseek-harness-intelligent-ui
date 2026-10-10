@@ -3,7 +3,7 @@
  * OpenIntelligentUI's agent prompt (apps/agent/src/prompt.py) and its
  * visualization router, rewritten as a self-routing policy (no external
  * router) for DeepSeek models.
- * @module dsh-intelligent-ui/guidance
+ * @module deepseek-harness-intelligent-ui/guidance
  */
 import { RENDER_TOOL } from './tools/render.js';
 import { WIDGET_TOOL } from './tools/widget.js';

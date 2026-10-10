@@ -3,7 +3,7 @@
  * list; the Web client renders it natively inside the tool card. execute()
  * only validates and acknowledges — interactions come back later as ordinary
  * user messages, so the agent never blocks on the UI.
- * @module dsh-intelligent-ui/tools/render
+ * @module deepseek-harness-intelligent-ui/tools/render
  */
 import { catalogReference, COMPONENT_TYPES, validateTree } from '../catalog/catalog.js';
 import { clientPolicy } from '../config.js';

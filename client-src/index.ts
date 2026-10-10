@@ -58,7 +58,7 @@ export function apply(ctx: ClientCtx): void {
 
   ctx.effect(() => {
     const style = document.createElement('style')
-    style.dataset.owner = 'dsh-intelligent-ui'
+    style.dataset.owner = 'deepseek-harness-intelligent-ui'
     style.textContent = STYLES
     document.head.appendChild(style)
     return () => style.remove()

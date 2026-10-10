@@ -1,6 +1,6 @@
 /**
  * `/ui <request>`: ask this conversation's model to answer with generative UI.
- * @module dsh-intelligent-ui/commands
+ * @module deepseek-harness-intelligent-ui/commands
  */
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
 import { RENDER_TOOL } from './tools/render.js';

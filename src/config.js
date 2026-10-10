@@ -2,7 +2,7 @@
  * Plugin configuration (Schemastery). Every field is deployment-tunable; the
  * Plugins page renders this schema. Browser-relevant fields travel to the
  * client through each tool result's `presentationMeta` (see {@link clientPolicy}).
- * @module dsh-intelligent-ui/config
+ * @module deepseek-harness-intelligent-ui/config
  */
 import Schema from '@deepseek-ai/schemastery';
 
@@ -47,7 +47,7 @@ export const Config = Schema.object({
 export function resolveConfig(raw) {
   const merged = { ...DEFAULTS, ...(raw || {}) };
   for (const key of Object.keys(merged)) {
-    if (!(key in DEFAULTS)) throw new TypeError(`dsh-intelligent-ui: unknown config key "${key}"`);
+    if (!(key in DEFAULTS)) throw new TypeError(`deepseek-harness-intelligent-ui: unknown config key "${key}"`);
   }
   return merged;
 }

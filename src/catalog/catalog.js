@@ -6,7 +6,7 @@
  * flat node list: `{ root, components: [{ id, type, props, children }] }`.
  * Each catalog entry declares its props with a tiny spec language checked by
  * {@link validateProps}; `children` says whether the node may own children.
- * @module dsh-intelligent-ui/catalog
+ * @module deepseek-harness-intelligent-ui/catalog
  */
 
 import { checkExpression, FUNCTIONS } from './expr.js';

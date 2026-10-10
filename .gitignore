@@ -7,4 +7,8 @@ coverage/
 e2e-mock.log
 e2e-shots/
 dsh-temp-frames/
+.claude/
+CLAUDE.md
 
+*.tgz
+release-notes.md

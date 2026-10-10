@@ -1,0 +1,121 @@
+name: Release
+
+# Push a tag made by `npm version` (vX.Y.Z or vX.Y.Z-rc.N):
+#   preflight → full CI matrix → npm publish (with provenance) → smoke-test the
+#   published package on 3 OSes → GitHub Release with the changelog notes and tarball.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      dist-tag: ${{ steps.meta.outputs.dist-tag }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: node scripts/ci/release-check.mjs --tag "$GITHUB_REF_NAME"
+      - id: meta
+        run: |
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [[ "$version" == *-* ]]; then
+            echo "dist-tag=next" >> "$GITHUB_OUTPUT"; echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "dist-tag=latest" >> "$GITHUB_OUTPUT"; echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  ci:
+    needs: preflight
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: [preflight, ci]
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write # npm provenance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Publish ${{ needs.preflight.outputs.version }} as "${{ needs.preflight.outputs.dist-tag }}"
+        run: |
+          name=$(node -p "require('./package.json').name")
+          if npm view "$name@${{ needs.preflight.outputs.version }}" version >/dev/null 2>&1; then
+            echo "::notice::$name@${{ needs.preflight.outputs.version }} is already on npm; skipping publish"
+          else
+            npm publish --provenance --access public --tag "${{ needs.preflight.outputs.dist-tag }}"
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  verify-published:
+    needs: [preflight, publish]
+    name: published · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - run: npm ci --no-audit --no-fund
+      - run: npm install -g @deepseek-ai/dsh@latest --no-audit --no-fund
+      - name: Install the published package from the registry (registry propagation can lag)
+        run: |
+          spec="$(node -p "require('./package.json').name")@${{ needs.preflight.outputs.version }}"
+          for i in 1 2 3 4 5 6; do npm view "$spec" version && break; echo "waiting for $spec…"; sleep 20; done
+          node scripts/ci/smoke.mjs --spec "$spec"
+
+  github-release:
+    needs: [preflight, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: node scripts/ci/release-check.mjs --tag "$GITHUB_REF_NAME" --notes release-notes.md
+      - run: echo "TARBALL=$(npm pack --silent | tail -n1)" >> "$GITHUB_ENV"
+      - name: Create GitHub Release
+        run: |
+          args=(--title "$GITHUB_REF_NAME" --notes-file release-notes.md --verify-tag)
+          [[ "${{ needs.preflight.outputs.prerelease }}" == "true" ]] && args+=(--prerelease)
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$TARBALL" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "$TARBALL" "${args[@]}"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}

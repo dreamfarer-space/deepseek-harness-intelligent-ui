@@ -2,6 +2,8 @@
 
 English | [中文](README.zh-CN.md)
 
+[![CI](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/actions/workflows/ci.yml/badge.svg)](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/actions/workflows/ci.yml) [![npm](https://img.shields.io/npm/v/deepseek-harness-intelligent-ui)](https://www.npmjs.com/package/deepseek-harness-intelligent-ui)
+
 Generative, interactive UI for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH). Ask in plain language and the agent decides on its own whether to answer with text, with native components (dashboards, tables, charts, timelines, live function plots, KaTeX math, Mermaid diagrams, forms), or with a fully custom **sandboxed live widget** (Three.js scenes, canvas simulations, mini-apps). The UI renders progressively in the chat while the answer streams. Sliders, rotation, zoom, sorting and tabs respond instantly in the browser. Only explicit actions (a button, a form, `Bridge.sendPrompt`) go back to the agent.
 
 It ports the ideas of CopilotKit's [OpenIntelligentUI](https://github.com/CopilotKit/OpenIntelligentUI) (Open Generative UI + A2UI-style declarative components) onto DSH's own extension points. It needs no CopilotKit, LangGraph, or external router.
@@ -104,11 +106,35 @@ Fields follow the OpenIntelligentUI streaming contract, **in this order**: `titl
 
 ## Install
 
-Requires DeepSeek Harness `0.2.0-rc.1` and Node ≥ 22.13.
+You need [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) **0.1.7 – 0.2.x** (`>=0.1.7-rc.1 <0.3.0`) and Node.js ≥ 22.13, on Windows, Linux or macOS. Nothing is compiled during install. The package ships its prebuilt browser bundle and declares no install scripts.
 
 ```sh
-dsh plugin --profile web add file:/path/to/deepseek-harness-intelligent-ui
+dsh plugin --profile web add deepseek-harness-intelligent-ui
 ```
+
+To have your environment checked first, use the guided installer instead. It verifies Node, the `dsh` version, pnpm and the profile, then runs the same `dsh plugin add`:
+
+```sh
+npx deepseek-harness-intelligent-ui install            # --profile <name>, --dsh <path>, --dry-run
+npx deepseek-harness-intelligent-ui doctor             # diagnose only
+```
+
+| Task | Command |
+|---|---|
+| Upgrade | `dsh plugin --profile web add deepseek-harness-intelligent-ui@latest` |
+| Try a prerelease | `dsh plugin --profile web add deepseek-harness-intelligent-ui@next` |
+| Pin a version | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.2.0` |
+| Uninstall | `dsh plugin --profile web remove deepseek-harness-intelligent-ui` (or `npx deepseek-harness-intelligent-ui uninstall`) |
+| From a checkout | `dsh plugin --profile web add file:/path/to/deepseek-harness-intelligent-ui` |
+
+Supported DSH versions and the CI matrix are in [docs/compatibility.md](docs/compatibility.md).
+
+**Troubleshooting**
+
+- *`pnpm was not found`*: DSH installs plugins with pnpm. Run `corepack enable` (it ships with Node) or `npm i -g pnpm`.
+- *`… is incompatible with dsh X`*: your DSH is outside the supported range. Upgrade DSH (`npm i -g @deepseek-ai/dsh@latest`) or check [compatibility](docs/compatibility.md) for a plugin release that supports it.
+- *Upgrading from 0.1.x (`dsh-intelligent-ui` via `file:`)*: run `dsh plugin --profile web remove dsh-intelligent-ui` first. Both packages insert the same `intelligent-ui` row, and `doctor` reports the conflict.
+- *The UI does not appear*: restart DSH Web after installing, and make sure you started the profile you installed into (`dsh web`).
 
 Restart DSH Web afterwards. The bundle patch inserts the plugin row automatically. To change settings, add to your profile's `cordis.patch.yml`:
 
@@ -136,13 +162,28 @@ Restart DSH Web afterwards. The bundle patch inserts the plugin row automaticall
 ```sh
 npm install
 npm run build       # client-src/ → client/client.js (DSH __ModuleLoader__ factory; React and Cordis external)
-npm test            # vitest: 74 tests (catalog, expressions, tools, plugin mount, streaming parser, frame/CSP/bridge, state, theme, views, interruption, turn tail)
+npm test            # vitest: 107 tests (catalog, expressions, tools, plugin mount, streaming parser, frame/CSP/bridge, state, theme, views, interruption, turn tail, DSH compatibility gate, installer CLI)
 npm run typecheck
 npm run e2e:all     # build → install into a temp DSH home → mock model + real DSH Web → 24 browser checks
 npm run e2e:all -- --record   # also re-records docs/assets/demo.mp4 / demo.gif (needs ffmpeg)
+npm run e2e:all -- --spec ./deepseek-harness-intelligent-ui-<v>.tgz   # E2E the packed tarball instead of the checkout
+npm run smoke -- --spec ./deepseek-harness-intelligent-ui-<v>.tgz     # install smoke test (no browser): version gate, bundle row, DSH Web boot
 ```
 
-- **Layout:** `src/` is the Host half (plain ESM, no build). `client-src/` is the browser half (TSX, bundled with esbuild). `client/client.js` is committed so `file:` and git installs need no build step.
+The E2E runs on Windows, Linux and macOS. It finds Chrome per platform (set `CHROME_PATH` to override) and uses `DSH_BIN` to test another `dsh` binary. CI runs everything on all three OSes against every supported DSH line ([compatibility](docs/compatibility.md)).
+
+**Releasing** (maintainers):
+
+1. Add the notes under a new `## [x.y.z]` heading in [CHANGELOG.md](CHANGELOG.md).
+2. Run `npm version x.y.z` (or `npm version prerelease --preid rc`). This rebuilds `client/client.js` with the new version and tags the commit.
+3. Run `git push --follow-tags`. The tag triggers the Release workflow, which:
+   - runs the full CI matrix;
+   - publishes to npm with provenance (dist-tag `next` for prereleases);
+   - smoke-tests the published package on Windows, Linux and macOS;
+   - creates the GitHub Release with the changelog section and the tarball.
+4. Run `npm run release:check` to perform the same preflight locally.
+
+- **Layout:** `src/` is the Host half (plain ESM, no build). `client-src/` is the browser half (TSX, bundled with esbuild). `client/client.js` is committed and published so npm, `file:` and git installs need no build step. CI fails if it is stale. Never add a `prepare`/`postinstall` script, because DSH's pnpm blocks plugin build scripts.
 - **What the E2E checks** (`scripts/e2e/browser.mjs`, report in [`docs/e2e-report.json`](docs/e2e-report.json)):
   - Plain Q&A stays text.
   - The dashboard streams progressively.

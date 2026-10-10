@@ -2,6 +2,8 @@
 
 [English](README.md) | 中文
 
+[![CI](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/actions/workflows/ci.yml/badge.svg)](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/actions/workflows/ci.yml) [![npm](https://img.shields.io/npm/v/deepseek-harness-intelligent-ui)](https://www.npmjs.com/package/deepseek-harness-intelligent-ui)
+
 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）提供**生成式、可交互的 UI**。用户用自然语言提问，Agent 自行决定怎样作答：
 
 - 普通文本；
@@ -135,26 +137,63 @@
 
 ## 安装
 
-需要 DeepSeek Harness `0.2.0-rc.1`，Node ≥ 22.13。
+需要 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) **0.1.7 – 0.2.x**（`>=0.1.7-rc.1 <0.3.0`）和 Node.js ≥ 22.13，Windows、Linux、macOS 均可。安装过程不需要编译：npm 包自带预构建的浏览器端 bundle，也没有任何安装脚本。
 
 ```sh
-dsh plugin --profile web add file:/path/to/deepseek-harness-intelligent-ui
+dsh plugin --profile web add deepseek-harness-intelligent-ui
 ```
 
-安装后重启 DSH Web。bundle patch 会自动插入 `intelligent-ui` 这一行。要修改配置，在 profile 的 `cordis.patch.yml` 中添加 `- id: intelligent-ui` 和对应的 `config:`。配置项见英文 README 的表格。
+也可以用引导式安装器。它会先检查 Node、`dsh` 版本、pnpm 和 profile，检查通过后执行同样的 `dsh plugin add`：
+
+```sh
+npx deepseek-harness-intelligent-ui install            # 可选 --profile <名称>、--dsh <路径>、--dry-run
+npx deepseek-harness-intelligent-ui doctor             # 只诊断，不做修改
+```
+
+| 操作 | 命令 |
+|---|---|
+| 升级 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@latest` |
+| 试用预发布版 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@next` |
+| 固定版本 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.2.0` |
+| 卸载 | `dsh plugin --profile web remove deepseek-harness-intelligent-ui`（或 `npx deepseek-harness-intelligent-ui uninstall`） |
+| 从源码目录安装 | `dsh plugin --profile web add file:/path/to/deepseek-harness-intelligent-ui` |
+
+安装后需要重启 DSH Web。bundle patch 会自动插入 `intelligent-ui` 这一行。要修改配置，在 profile 的 `cordis.patch.yml` 中添加 `- id: intelligent-ui` 和对应的 `config:`，配置项见英文 README 的表格。支持的 DSH 版本和 CI 测试矩阵见 [docs/compatibility.md](docs/compatibility.md)。
+
+**常见问题**
+
+- *提示 `pnpm was not found`*：DSH 用 pnpm 安装插件。运行 `corepack enable`（Node 自带）或 `npm i -g pnpm`。
+- *提示 `… is incompatible with dsh X`*：当前 DSH 版本不在支持范围内。可以升级 DSH（`npm i -g @deepseek-ai/dsh@latest`），或在[兼容性文档](docs/compatibility.md)里找支持该版本的插件发行版。
+- *从 0.1.x 升级（以前用 `file:` 安装的 `dsh-intelligent-ui`）*：先运行 `dsh plugin --profile web remove dsh-intelligent-ui`。新旧两个包会插入同一个 `intelligent-ui` 行，`doctor` 能检测到这种冲突。
+- *界面没有出现*：安装后要重启 DSH Web，并确认启动的是安装插件时指定的 profile（`dsh web`）。
 
 ## 开发与验证
 
 ```sh
 npm install
 npm run build
-npm test                      # 74 个单元/组件测试
+npm test                      # 107 个单元/组件测试（含 DSH 兼容性检查与安装器 CLI）
 npm run typecheck
 npm run e2e:all               # 构建 → 安装到临时 DSH 目录 → mock 模型 + 真实 DSH Web → 24 项浏览器检查
 npm run e2e:all -- --record   # 同时重新录制 docs/assets/demo.mp4 / demo.gif（需要 ffmpeg）
+npm run e2e:all -- --spec ./deepseek-harness-intelligent-ui-<版本>.tgz   # 改为对 npm pack 打出的包做 E2E
+npm run smoke -- --spec ./deepseek-harness-intelligent-ui-<版本>.tgz     # 安装冒烟测试（不需要浏览器）
 ```
 
-E2E 检查项见 `scripts/e2e/browser.mjs`，最近一次报告在 [`docs/e2e-report.json`](docs/e2e-report.json)。
+E2E 可以在 Windows、Linux、macOS 上运行。它会按平台自动查找 Chrome（可用 `CHROME_PATH` 指定），`DSH_BIN` 可指定其他 `dsh` 可执行文件。检查项见 `scripts/e2e/browser.mjs`，最近一次报告在 [`docs/e2e-report.json`](docs/e2e-report.json)。GitHub Actions 会在三个系统上，针对每个受支持的 DSH 版本跑完全部测试。
+
+`client/client.js` 已提交到仓库并随包发布，所以 npm、`file:` 和 git 安装都不需要构建。不要添加 `prepare` 或 `postinstall` 脚本，因为 DSH 使用的 pnpm 会拦截插件的构建脚本。
+
+**发布流程**（维护者）：
+
+1. 在 [CHANGELOG.md](CHANGELOG.md) 中新增 `## [x.y.z]` 小节。
+2. 运行 `npm version x.y.z`（或 `npm version prerelease --preid rc`）。这一步会用新版本号重新构建 `client/client.js` 并打 tag。
+3. 运行 `git push --follow-tags`。tag 推送后，Release 工作流会依次执行：
+   - 运行完整的 CI 矩阵；
+   - 带 provenance 发布到 npm（预发布版使用 `next` 标签）；
+   - 在三个系统上对已发布的包做冒烟测试；
+   - 用 CHANGELOG 的对应小节和 tarball 创建 GitHub Release。
+4. 本地可以先运行 `npm run release:check` 做同样的预检。
 
 ## 真实模型路由与生成质量实测
 

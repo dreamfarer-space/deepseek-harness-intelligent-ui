@@ -2,4 +2,4 @@
 # Override settings from your profile patch with `- id: intelligent-ui` + `config:`.
 - insert:
     - id: intelligent-ui
-      name: dsh-intelligent-ui
+      name: deepseek-harness-intelligent-ui

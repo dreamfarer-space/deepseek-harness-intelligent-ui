@@ -5,6 +5,7 @@ import { parseArgs, scanPartialObject } from '../stream/partial-json.ts'
 import { useStashOnDrop } from '../interrupted.ts'
 import { argsRawOf, interrupted, refused, resultText, type ToolViewProps } from '../types/dsh.ts'
 import { WidgetFrame } from './WidgetFrame.tsx'
+import { usePartialArguments } from '../stream/args.ts'
 
 interface WidgetArgs {
   title: string
@@ -25,8 +26,8 @@ interface WidgetArgs {
  * generation keeps whatever preview was already visible.
  */
 export function WidgetView(props: ToolViewProps) {
-  // Bound for every phase; returns '' once the call is dispatched.
-  const partial = props.useToolCallArgumentsPartial?.() ?? ''
+  // Bound for every phase; returns '' once the call is dispatched (any supported DSH version).
+  const partial = usePartialArguments(props, 120)
   useStashOnDrop(props, partial)
   const streamed = useThrottled(props.phase === 'preparing' ? partial : '', 120)
   const settledRaw = argsRawOf(props)

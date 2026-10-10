@@ -3,7 +3,7 @@
  * "generateSandboxedUi" contract. The model streams HTML/CSS/JS that the Web
  * client renders live in a sandboxed (opaque-origin) iframe. Parameter ORDER
  * matters: the browser renders css → html → js as each field completes.
- * @module dsh-intelligent-ui/tools/widget
+ * @module deepseek-harness-intelligent-ui/tools/widget
  */
 import { clientPolicy } from '../config.js';
 

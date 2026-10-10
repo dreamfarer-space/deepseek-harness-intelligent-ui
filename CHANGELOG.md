@@ -1,0 +1,38 @@
+# Changelog
+
+All notable changes to this project are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
+[Semantic Versioning](https://semver.org/) (pre-1.0: a minor bump may break).
+
+## [Unreleased]
+
+## [0.2.0]
+
+### Changed
+
+- **Renamed the npm package to `deepseek-harness-intelligent-ui`** (`dsh-intelligent-ui` belongs to an unrelated project on npm). The bundle row id stays `intelligent-ui`, so existing `cordis.patch.yml` overrides keep working. Remove the old `file:` install with `dsh plugin --profile web remove dsh-intelligent-ui` before installing this one.
+- **Supports DeepSeek Harness `>=0.1.7-rc.1 <0.3.0`** instead of only `0.2.0-rc.1`, which DSH refused to install on `0.2.0-rc.2` and later. The peers are marked optional because DSH provides them, so pnpm no longer warns about "missing peers".
+
+### Added
+
+- Live streaming previews on DSH 0.2.1+. DSH 0.2.1 removed the `useToolCallArgumentsPartial` hook that tool views used to receive the streamed arguments. The views now fall back to the call's growing `args` view, so catalog UIs and widgets still render progressively and still survive a stopped generation.
+- One-command install from npm: `dsh plugin --profile web add deepseek-harness-intelligent-ui`.
+- `npx deepseek-harness-intelligent-ui install | uninstall | doctor`: checks Node, dsh (and that its version is supported), pnpm and the profile, then runs DSH's own plugin manager.
+- Cross-platform E2E (Windows, Linux, macOS). It also waits for DSH 0.1.x's delayed first-run notice.
+  - Chrome is detected per platform, process cleanup works on POSIX, and `--spec` installs a packed tarball or a registry version.
+- GitHub Actions:
+  - CI on 3 OSes × Node 22.13/24.
+  - A nightly compatibility matrix across DSH versions (install smoke test plus browser E2E).
+  - A tag-driven release that publishes to npm with provenance and creates the GitHub Release.
+
+## [0.1.0]
+
+### Added
+
+- Initial release:
+  - The declarative component catalog (`ui_render`) and sandboxed streaming HTML widgets (`ui_render_widget`).
+  - The `/ui` command and the guidance system-prompt section.
+
+[Unreleased]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/releases/tag/v0.1.0

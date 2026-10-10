@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags-ignore: ['**']
+  pull_request:
+  # Nightly: `latest` / `alpha` resolve at run time, so new DSH releases are caught early.
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    name: test · ${{ matrix.os }} · node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: ['22.13.0', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Build client bundle
+        run: npm run build
+      - name: Committed client/client.js is up to date
+        run: git diff --exit-code -- client/client.js || { echo "::error::client/client.js is stale — run 'npm run build' and commit it"; exit 1; }
+      - run: npm run typecheck
+      - run: npm test
+      - name: Package contents
+        run: node scripts/ci/check-pack.mjs
+
+  compat:
+    name: dsh ${{ matrix.dsh }} · ${{ matrix.os }}
+    needs: test
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    # Prerelease DSH lines are an early warning, not a merge gate.
+    continue-on-error: ${{ matrix.dsh == 'alpha' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        # Keep in sync with TESTED_DSH_VERSIONS in src/compat.js (dist-tags resolve at run time).
+        dsh: ['0.1.7-rc.2', '0.2.0-rc.1', 'latest', 'alpha']
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      # DSH's plugin manager installs plugins with pnpm.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - run: npm ci --no-audit --no-fund
+      - name: Install DeepSeek Harness ${{ matrix.dsh }}
+        run: |
+          npm install -g "@deepseek-ai/dsh@${{ matrix.dsh }}" --no-audit --no-fund
+          echo "DSH $(dsh --version)"
+      - name: Pack the plugin (exactly what npm users download)
+        run: echo "TARBALL=$(npm pack --silent | tail -n1)" >> "$GITHUB_ENV"
+      - name: Install smoke test
+        run: node scripts/ci/smoke.mjs --spec "./$TARBALL"
+      - name: Browser E2E (real DSH Web, scripted model)
+        run: node scripts/e2e/run-all.mjs --spec "./$TARBALL" --no-build --out e2e-shots
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-${{ matrix.os }}-dsh-${{ matrix.dsh }}
+          path: e2e-shots/
+          retention-days: 7

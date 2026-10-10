@@ -4,7 +4,7 @@
  * Registers the generative-UI tools (`ui_render`, `ui_render_widget`), the
  * `/ui` command and an optional system-prompt section. The browser half
  * (`./client`) renders each tool call in the `tool.call.toolview` slot.
- * @module dsh-intelligent-ui
+ * @module deepseek-harness-intelligent-ui
  */
 import { Config as ConfigSchema, resolveConfig } from './config.js';
 import { createRenderTool } from './tools/render.js';
@@ -12,7 +12,7 @@ import { createWidgetTool } from './tools/widget.js';
 import { GUIDANCE_ORDER, guidanceText } from './guidance.js';
 import { registerCommands } from './commands.js';
 
-export const name = 'dsh-intelligent-ui';
+export const name = 'deepseek-harness-intelligent-ui';
 export const inject = ['tools', 'commands'];
 export const Config = ConfigSchema;
 

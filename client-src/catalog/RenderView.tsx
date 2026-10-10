@@ -6,6 +6,7 @@ import { parseArgs, scanPartialObject } from '../stream/partial-json.ts'
 import { useStashOnDrop } from '../interrupted.ts'
 import { argsRawOf, interrupted, refused, resultText, type ToolViewProps } from '../types/dsh.ts'
 import { renderNode, type RenderEnv, type UiNode } from './components.tsx'
+import { usePartialArguments } from '../stream/args.ts'
 
 function isNode(v: unknown): v is UiNode {
   return !!v && typeof v === 'object' && typeof (v as UiNode).id === 'string' && typeof (v as UiNode).type === 'string'
@@ -46,8 +47,8 @@ function readTree(raw: string, partial: boolean): Tree | undefined {
  * from the streaming preview to the settled UI without a remount.
  */
 export function RenderView(props: ToolViewProps) {
-  // Bound for every phase; returns '' once the call is dispatched.
-  const partial = props.useToolCallArgumentsPartial?.() ?? ''
+  // Bound for every phase; returns '' once the call is dispatched (any supported DSH version).
+  const partial = usePartialArguments(props, 100)
   useStashOnDrop(props, partial)
   const streamed = useThrottled(props.phase === 'preparing' ? partial : '', 100)
   const settledRaw = argsRawOf(props)
