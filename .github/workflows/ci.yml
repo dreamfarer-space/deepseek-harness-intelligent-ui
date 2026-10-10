@@ -49,8 +49,7 @@ jobs:
 
   compat:
     name: dsh ${{ matrix.dsh }} · ${{ matrix.os }}
-    # Run independently so a queued macOS test does not block Linux/Windows
-    # compatibility checks. The workflow still fails if either matrix fails.
+    # Keep compatibility checks independent of queued test runners.
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     # Prerelease DSH lines are an early warning, not a merge gate.
