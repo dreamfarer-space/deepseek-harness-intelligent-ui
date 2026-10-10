@@ -2,7 +2,7 @@
 // run dsh, install the plugin into a throwaway DSH home, boot DSH Web against
 // the scripted mock model, find Chrome, and tear the processes down again.
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 export const WIN = process.platform === 'win32'
@@ -68,12 +68,21 @@ export function installPlugin(spec, dshHome, profile = 'web') {
  * @returns {Promise<{ child: import('node:child_process').ChildProcess, url: string, output: () => string }>}
  */
 export function startDshWeb({ dshHome, port, mockPort, timeoutMs = 120000 }) {
-  const child = start(DSH, ['--profile', 'web', '--no-open', '--port', String(port)], {
+  // CI hosts may have no system Documents directory (notably Linux without
+  // xdg-user-dir). Keep first-use workspace creation inside this test home.
+  const documents = path.join(dshHome, 'documents')
+  mkdirSync(documents, { recursive: true })
+  const patch = path.join(dshHome, 'e2e-workspace.patch.yml')
+  writeFileSync(patch, JSON.stringify([{ id: 'workspace-controller', config: { documentsDirectory: documents } }]))
+  const child = start(DSH, ['--profile', 'web', '--patch', patch, '--no-open', '--port', String(port)], {
     env: { ...process.env, DSH_HOME: dshHome, DEEPSEEK_API_KEY: 'mock', DEEPSEEK_BASE_URL: `http://127.0.0.1:${mockPort}` },
   })
   let log = ''
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`DSH Web did not start within ${timeoutMs / 1000}s\n${log.slice(-4000)}`)), timeoutMs)
+    const timer = setTimeout(() => {
+      kill(child)
+      reject(new Error(`DSH Web did not start within ${timeoutMs / 1000}s\n${log.slice(-4000)}`))
+    }, timeoutMs)
     const scan = (d) => {
       log += String(d)
       const m = /http:\/\/127\.0\.0\.1:\d+\/\?token=[^\s"']+/.exec(log)
@@ -81,6 +90,7 @@ export function startDshWeb({ dshHome, port, mockPort, timeoutMs = 120000 }) {
     }
     child.stdout.on('data', scan)
     child.stderr.on('data', scan)
+    child.on('error', err => { clearTimeout(timer); reject(err) })
     child.on('exit', code => { clearTimeout(timer); reject(new Error(`DSH exited with ${code}\n${log.slice(-4000)}`)) })
   })
 }

@@ -6,12 +6,11 @@
 //   --spec      what to install (default: this checkout). CI passes the packed .tgz so it tests what users get.
 // Env:   CHROME_PATH (default: detected per platform), DSH_BIN (default: dsh),
 //        E2E_MOCK_PORT (default 3199), E2E_WEB_PORT (default 3181)
-import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { freePorts, installPlugin, kill, run, startDshWeb } from './dsh-web.mjs'
+import { freePorts, installPlugin, kill, run, start, startDshWeb } from './dsh-web.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const arg = (name, fallback) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : fallback }
@@ -45,7 +44,7 @@ try {
   console.log('[3/5] start mock model and DSH Web')
   const mockLog = path.join(out, 'mock.log')
   rmSync(mockLog, { force: true })
-  children.push(spawn(process.execPath, [path.join(root, 'scripts/e2e/mock-deepseek.mjs'), String(MOCK_PORT), mockLog], { stdio: 'ignore' }))
+  children.push(start(process.execPath, [path.join(root, 'scripts/e2e/mock-deepseek.mjs'), String(MOCK_PORT), mockLog], { stdio: 'ignore' }))
   const web = await startDshWeb({ dshHome, port: WEB_PORT, mockPort: MOCK_PORT })
   children.push(web.child)
   await new Promise(r => setTimeout(r, 1500))
