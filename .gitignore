@@ -1,0 +1,10 @@
+node_modules/
+coverage/
+*.tsbuildinfo
+*.log
+.env
+.DS_Store
+e2e-mock.log
+e2e-shots/
+dsh-temp-frames/
+

@@ -1,0 +1,5 @@
+# Bundle layer: installing this package inserts the plugin row automatically.
+# Override settings from your profile patch with `- id: intelligent-ui` + `config:`.
+- insert:
+    - id: intelligent-ui
+      name: dsh-intelligent-ui
