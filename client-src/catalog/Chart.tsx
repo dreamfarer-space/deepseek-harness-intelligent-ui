@@ -1,4 +1,4 @@
-import { useState, type PointerEvent } from 'react'
+import { useState, type PointerEvent, type ReactElement } from 'react'
 
 /** Categorical palette readable on light and dark surfaces. */
 export const PALETTE = ['#4d6bfe', '#22a06b', '#f2a33a', '#e5484d', '#8e6cef', '#12a5c4', '#e0569b', '#7fae2e', '#f07a2e', '#6b7a90', '#1aa89a', '#b25fe0']
@@ -116,7 +116,7 @@ function Cartesian(props: ChartProps & { height: number; n: number; colorOf: (s:
   const xc = (i: number) => PAD.left + band * i + band / 2
   const labelEvery = Math.max(1, Math.ceil(n / 12))
   const unit = props.unit ? ` ${props.unit}` : ''
-  const marks: JSX.Element[] = []
+  const marks: ReactElement[] = []
 
   if (props.kind === 'bar') {
     const groupW = band * 0.72
