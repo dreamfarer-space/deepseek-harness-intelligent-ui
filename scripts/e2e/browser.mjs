@@ -39,8 +39,13 @@ const browser = await puppeteer.launch({
 const page = await browser.newPage()
 await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
 const pageErrors = []
+const requestFailures = []
 page.on('pageerror', e => pageErrors.push('pageerror: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') pageErrors.push(`console.error: ${m.text().slice(0, 200)}`) })
+page.on('requestfailed', req => {
+  const target = new URL(req.url())
+  requestFailures.push(`${target.origin}${target.pathname}: ${req.failure()?.errorText}`)
+})
 
 // ---- optional real-time screencast -------------------------------------------
 const frames = []
@@ -150,6 +155,7 @@ async function scrollIntoView(selectorOrHandle) {
 }
 
 // ================================================================================
+try {
 await page.goto(url, { waitUntil: 'networkidle2' })
 await sleep(2000)
 // First-run notice (DSH 0.1.x enables its Continue button only after a delay): wait for it to be clickable.
@@ -178,20 +184,29 @@ await sleep(600)
 
 // 2) Dashboard, streamed progressively.
 await caption('2 · "Show me a sales dashboard" → a native dashboard streams in')
+await page.evaluate(() => {
+  const state = { parts: 0 }
+  const observer = new MutationObserver(() => {
+    for (const shell of document.querySelectorAll('.diui-shell[data-state=generating]')) {
+      const parts = shell.querySelectorAll('.diui-stat').length
+      if (parts > 0 && parts < 4) state.parts = parts
+    }
+  })
+  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-state'] })
+  window.__e2eDashboardStream = { state, stop: () => observer.disconnect() }
+})
 await send('Show me a sales dashboard for this year')
-let streamedParts = 0
-const sawStreaming = await waitFor(async () => {
-  const s = await page.$$eval('.diui-shell[data-state=generating] .diui-stat', x => x.length).catch(() => 0)
-  if (s > 0 && s < 4) { streamedParts = s; await shot('1-render-streaming.png'); return true }
-  return false
-}, 15000, 60)
+const streamedParts = await waitFor(() => page.evaluate(() => window.__e2eDashboardStream.state.parts), 20000, 60)
+if (streamedParts) writeFileSync(`${mockLog}.dashboard-preview`, 'observed')
+if (streamedParts) await shot('1-render-streaming.png')
+await page.evaluate(() => { window.__e2eDashboardStream.stop(); delete window.__e2eDashboardStream })
 await waitIdle()
 await sleep(400)
 const dash = await page.evaluate(() => {
   const tail = [...document.querySelectorAll('.diui-tail .diui-shell')].at(-1)
   return tail && { stats: tail.querySelectorAll('.diui-stat').length, tabs: [...tail.querySelectorAll('[role=tab]')].map(t => t.textContent), bars: tail.querySelectorAll('.diui-chart-svg rect').length }
 })
-check('2a. dashboard streams progressively (partial components visible mid-stream)', sawStreaming, `stats visible mid-stream: ${streamedParts}`)
+check('2a. dashboard streams progressively (partial components visible mid-stream)', streamedParts > 0, `stats visible mid-stream: ${streamedParts ?? 0}`)
 check('2b. dashboard settles beneath the reply with KPIs, tabs and chart', dash && dash.stats === 4 && dash.tabs.length === 4 && dash.bars >= 8, JSON.stringify(dash))
 await scrollIntoView('.diui-tail .diui-chart-svg')
 const bar = await page.$('.diui-tail .diui-chart-svg rect:not(.diui-hover-band)')
@@ -253,19 +268,37 @@ await shot('4-form-sent.png')
 
 // 3/4) Three.js sphere with an R slider.
 await caption('4 · "Plot x²+y²+z²=2Rz, let me change R" → a live Three.js widget')
-await send('Plot the surface x²+y²+z²=2Rz in 3D and let me change R with a slider')
 const SPHERE_TITLE = 'Sphere x² + y² + z² = 2Rz'
-let previewHandle
-const previewSeen = await waitFor(async () => {
-  const h = await page.$(`iframe.diui-frame[title="${SPHERE_TITLE}"][data-mode=preview]`)
-  if (h) { previewHandle = h; await h.evaluate(e => { e.__e2eTag = 'preview' }); await shot('5-widget-preview.png'); return true }
-  return false
-}, 20000, 50)
-const sameFrame = await waitFor(async () => {
-  const mode = await previewHandle?.evaluate(e => e.isConnected && e.dataset.mode)
-  return mode === 'final' ? 'kept' : undefined
-}, 15000, 50)
-check('4a. widget previews while streaming, then finalizes in the same iframe (no rebuild)', previewSeen && sameFrame === 'kept', `preview=${previewSeen} final=${sameFrame}`)
+// Observe inside the page before sending: screenshots and driver polling can
+// miss the short final phase before the completed turn moves to its reply tail.
+await page.evaluate(title => {
+  let previewFrame
+  const state = { previewSeen: false, finalizedSame: false }
+  const isSphere = node => node instanceof HTMLIFrameElement && node.classList.contains('diui-frame') && node.title === title
+  const observe = (node, wasPreview = false) => {
+    if (!isSphere(node)) return
+    if (!previewFrame && (wasPreview || node.dataset.mode === 'preview')) {
+      previewFrame = node
+      state.previewSeen = true
+    }
+    if (node === previewFrame && node.dataset.mode === 'final') state.finalizedSame = true
+  }
+  const observer = new MutationObserver(records => {
+    for (const record of records) {
+      if (record.type === 'attributes') observe(record.target, record.attributeName === 'data-mode' && record.oldValue === 'preview')
+    }
+    document.querySelectorAll('iframe.diui-frame').forEach(node => observe(node))
+  })
+  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-mode', 'title'], attributeOldValue: true })
+  window.__e2eSphereTransition = { state, stop: () => observer.disconnect() }
+}, SPHERE_TITLE)
+await send('Plot the surface x²+y²+z²=2Rz in 3D and let me change R with a slider')
+const previewSeen = await waitFor(() => page.evaluate(() => window.__e2eSphereTransition.state.previewSeen), 20000, 50)
+if (previewSeen) writeFileSync(`${mockLog}.sphere-preview`, 'observed')
+if (previewSeen) await shot('5-widget-preview.png')
+const sameFrame = await waitFor(() => page.evaluate(() => window.__e2eSphereTransition.state.finalizedSame), 15000, 50)
+await page.evaluate(() => { window.__e2eSphereTransition.stop(); delete window.__e2eSphereTransition })
+check('4a. widget previews while streaming, then finalizes in the same iframe (no rebuild)', previewSeen && sameFrame, `preview=${previewSeen} final=${sameFrame}`)
 await waitIdle()
 await sleep(500)
 let sphere = await frameByTitle(SPHERE_TITLE)
@@ -397,7 +430,10 @@ await scrollIntoView(sphere.handle)
 await shot('11-dark.png')
 await shellShot('11b-dark-dashboard.png', 'Quarterly sales (sample data)')
 await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
-await sleep(1500)
+// Changing mobile/touch emulation reloads the page. Wait for the restored
+// dashboard instead of measuring before DSH has replayed the session.
+await waitFor(() => page.$('.diui-tail .diui-grid'), 30000)
+await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
 const overflow = await page.evaluate(() => [...document.querySelectorAll('.diui-shell')].filter(s => s.scrollWidth > s.clientWidth + 1 || s.getBoundingClientRect().right > innerWidth + 1).length)
 const gridCols = await page.$eval('.diui-tail .diui-grid', g => getComputedStyle(g).gridTemplateColumns.split(' ').length).catch(() => -1)
 check('9b. phone width: no horizontal overflow; KPI grid reflows', overflow === 0 && gridCols > 0 && gridCols <= 2, `overflowing=${overflow} kpiColumns=${gridCols}`)
@@ -437,5 +473,13 @@ const report = { at: new Date().toISOString(), url: url.replace(/token=[^&]+/, '
 writeFileSync(path.join(outDir, 'e2e-report.json'), JSON.stringify(report, null, 2))
 const failed = results.filter(r => !r.ok)
 console.log(`\n${results.length - failed.length}/${results.length} checks passed`)
-await browser.close()
-process.exit(failed.length ? 1 : 0)
+process.exitCode = failed.length ? 1 : 0
+} catch (error) {
+  await shot('failure.png').catch(() => {})
+  const diagnostics = { pageErrors, requestFailures, results }
+  writeFileSync(path.join(outDir, 'failure.json'), JSON.stringify(diagnostics, null, 2))
+  console.error('Browser failure diagnostics:', JSON.stringify(diagnostics))
+  throw error
+} finally {
+  await browser.close()
+}
