@@ -66,6 +66,7 @@ export function apply(ctx: ClientCtx): void {
 
   const injected = (sessionId: string): IntelligentUiInjected => ({
     sendPrompt: text => promptSession(ctx.sessions, sessionId, text),
+    sessionId,
   })
 
   for (const [key, view] of [[RENDER_TOOL, RenderView], [WIDGET_TOOL, WidgetView]] as const) {

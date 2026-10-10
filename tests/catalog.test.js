@@ -72,6 +72,23 @@ describe('validateTree', () => {
     ])).errors.join()).toMatch(/2 labels but 1 children/)
   })
 
+  it('checks Plot expressions and parameters, range fields and the new components', () => {
+    const plot = (props) => validateProps('Plot', props).join('\n')
+    expect(plot({ functions: [{ expr: 'a*sin(x)' }], params: [{ name: 'a', min: 0, max: 2, value: 1 }] })).toBe('')
+    expect(plot({ functions: [{ expr: 'a*sin(x)' }] })).toMatch(/unknown variable "a"/)
+    expect(plot({ functions: [{ expr: 'eval(x)' }] })).toMatch(/unknown function "eval"/)
+    expect(plot({ functions: [{ expr: 'x' }], params: [{ name: 'pi', min: 0, max: 1, value: 0 }] })).toMatch(/"pi" is reserved/)
+    expect(plot({ functions: [{ expr: 'x' }], params: [{ name: 'k', min: 0, max: 1, value: 5 }] })).toMatch(/within \[min, max\]/)
+    expect(plot({ functions: [{ expr: 'x' }], params: [{ name: '1k', min: 0, max: 1, value: 0 }] })).toMatch(/must be an identifier/)
+    expect(plot({ functions: [{ expr: 'x' }], xMin: 2, xMax: 1 })).toMatch(/xMin must be less than xMax/)
+    expect(validateProps('Form', { fields: [{ name: 'r', label: 'R', type: 'range' }] }).join()).toMatch(/range field needs numeric min < max/)
+    expect(validateProps('Form', { fields: [{ name: 'r', label: 'R', type: 'range', min: 0, max: 5, step: 0.5, default: 1 }] })).toEqual([])
+    expect(validateProps('Timeline', { items: [{ title: 'Kickoff', time: 'Mon', tone: 'success' }] })).toEqual([])
+    expect(validateProps('Math', { tex: 'x^2+y^2+z^2=2Rz' })).toEqual([])
+    expect(validateProps('Mermaid', { code: 'flowchart LR\n A-->B' })).toEqual([])
+    expect(validateProps('Math', {}).join()).toMatch(/tex: required/)
+  })
+
   it('rejects malformed payloads', () => {
     expect(validateTree(null).ok).toBe(false)
     expect(validateTree({ root: 'r', components: [] }).errors.join()).toMatch(/non-empty array/)

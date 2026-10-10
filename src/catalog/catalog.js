@@ -9,11 +9,13 @@
  * @module dsh-intelligent-ui/catalog
  */
 
+import { checkExpression, FUNCTIONS } from './expr.js';
+
 /** Tone vocabulary shared by text-ish components. */
 const TONES = ['default', 'muted', 'info', 'success', 'warning', 'error'];
 
 /** Field kinds a Form may contain. */
-export const FORM_FIELD_TYPES = ['text', 'number', 'select', 'checkbox', 'date', 'textarea'];
+export const FORM_FIELD_TYPES = ['text', 'number', 'range', 'select', 'checkbox', 'date', 'textarea'];
 
 /** Chart kinds the SVG renderer draws. */
 export const CHART_KINDS = ['bar', 'line', 'area', 'pie'];
@@ -28,6 +30,9 @@ export const LIMITS = Object.freeze({
   chartSeries: 12,
   formFields: 40,
   text: 20000,
+  plotFunctions: 8,
+  plotParams: 8,
+  timelineItems: 100,
 });
 
 /**
@@ -191,9 +196,75 @@ export const CATALOG = Object.freeze({
             default: { type: 'scalar' },
             min: { type: 'number' },
             max: { type: 'number' },
+            step: { type: 'number', min: 0 },
           },
         },
       },
+    },
+  },
+  Timeline: {
+    description: 'Vertical timeline of events/steps in order.',
+    children: false,
+    props: {
+      items: {
+        type: 'array', required: true, max: LIMITS.timelineItems,
+        items: {
+          type: 'object',
+          props: {
+            title: { type: 'string', required: true },
+            time: { type: 'string' },
+            text: { type: 'string' },
+            tone: { type: 'enum', values: TONES },
+          },
+        },
+      },
+    },
+  },
+  Plot: {
+    description: 'Function plot y = f(x) drawn natively. `params` become sliders the user drags; the curves update instantly in the browser (no message to you). Expressions use x, the param names, pi, e, + - * / ^, and functions like sin, cos, exp, ln, sqrt, abs.',
+    children: false,
+    props: {
+      functions: {
+        type: 'array', required: true, max: LIMITS.plotFunctions,
+        items: { type: 'object', props: { expr: { type: 'string', required: true, max: 500 }, label: { type: 'string' } } },
+      },
+      xMin: { type: 'number' },
+      xMax: { type: 'number' },
+      yMin: { type: 'number' },
+      yMax: { type: 'number' },
+      params: {
+        type: 'array', max: LIMITS.plotParams,
+        items: {
+          type: 'object',
+          props: {
+            name: { type: 'string', required: true },
+            label: { type: 'string' },
+            min: { type: 'number', required: true },
+            max: { type: 'number', required: true },
+            step: { type: 'number', min: 0 },
+            value: { type: 'number', required: true },
+          },
+        },
+      },
+      title: { type: 'string' },
+      xLabel: { type: 'string' },
+      yLabel: { type: 'string' },
+      height: { type: 'number', min: 160, max: 600 },
+    },
+  },
+  Math: {
+    description: 'LaTeX math typeset with KaTeX (block by default). Put related equations in one node (e.g. \\begin{aligned}...\\end{aligned}). In JSON, escape each backslash (\\\\frac).',
+    children: false,
+    props: {
+      tex: { type: 'string', required: true, max: 5000 },
+      display: { type: 'boolean' },
+    },
+  },
+  Mermaid: {
+    description: 'Diagram from Mermaid source (flowchart, sequenceDiagram, classDiagram, stateDiagram, erDiagram, gantt, timeline, mindmap, pie).',
+    children: false,
+    props: {
+      code: { type: 'string', required: true, max: LIMITS.text },
     },
   },
 });
@@ -295,6 +366,44 @@ function checkSemantics(type, props, path, errors) {
       if (f.type === 'select' && (!Array.isArray(f.options) || f.options.length === 0)) {
         errors.push(`${path}.fields[${i}].options: a select field needs options`);
       }
+      if (f.type === 'range' && !(typeof f.min === 'number' && typeof f.max === 'number' && f.min < f.max)) {
+        errors.push(`${path}.fields[${i}]: a range field needs numeric min < max`);
+      }
+    });
+  }
+  if (type === 'Plot') checkPlot(props, path, errors);
+}
+
+const IDENT = /^[A-Za-z_][A-Za-z_0-9]*$/;
+const RESERVED = new Set(['x', 'pi', 'e', 'tau', ...Object.keys(FUNCTIONS)]);
+
+function checkPlot(props, path, errors) {
+  const xMin = typeof props.xMin === 'number' ? props.xMin : -10;
+  const xMax = typeof props.xMax === 'number' ? props.xMax : 10;
+  if (!(xMin < xMax)) errors.push(`${path}: xMin must be less than xMax`);
+  if (typeof props.yMin === 'number' && typeof props.yMax === 'number' && !(props.yMin < props.yMax)) {
+    errors.push(`${path}: yMin must be less than yMax`);
+  }
+  const names = [];
+  if (Array.isArray(props.params)) {
+    props.params.forEach((pr, i) => {
+      if (!isPlainObject(pr) || typeof pr.name !== 'string') return;
+      const at = `${path}.params[${i}]`;
+      if (!IDENT.test(pr.name)) errors.push(`${at}.name: must be an identifier like "a" or "omega"`);
+      else if (RESERVED.has(pr.name)) errors.push(`${at}.name: "${pr.name}" is reserved`);
+      else if (names.includes(pr.name)) errors.push(`${at}.name: duplicate parameter "${pr.name}"`);
+      names.push(pr.name);
+      if (typeof pr.min === 'number' && typeof pr.max === 'number') {
+        if (!(pr.min < pr.max)) errors.push(`${at}: min must be less than max`);
+        else if (typeof pr.value === 'number' && (pr.value < pr.min || pr.value > pr.max)) errors.push(`${at}.value: must lie within [min, max]`);
+      }
+    });
+  }
+  if (Array.isArray(props.functions)) {
+    props.functions.forEach((f, i) => {
+      if (!isPlainObject(f) || typeof f.expr !== 'string') return;
+      const problem = checkExpression(f.expr, ['x', ...names]);
+      if (problem) errors.push(`${path}.functions[${i}].expr: ${problem}`);
     });
   }
 }
@@ -344,6 +453,12 @@ export function validateTree(args) {
     if (typeof node.id !== 'string' || node.id === '') { errors.push(`${at}.id: expected non-empty string`); return; }
     if (byId.has(node.id)) { errors.push(`${at}.id: duplicate id ${JSON.stringify(node.id)}`); return; }
     byId.set(node.id, node);
+    if (isPlainObject(node.props) && 'children' in node.props) {
+      if (node.children === undefined && Array.isArray(node.props.children)) {
+        node.children = node.props.children;
+      }
+      delete node.props.children;
+    }
     const entry = CATALOG[node.type];
     types[node.type] = (types[node.type] || 0) + 1;
     errors.push(...validateProps(node.type, node.props, `${at}(${node.id}).props`));

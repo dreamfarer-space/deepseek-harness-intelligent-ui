@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BridgeError, BridgeGuard, readFrameMessage } from '../bridge.ts'
 import type { WidgetPolicy } from '../policy.ts'
+import { getUiState, setUiState } from '../state.ts'
 import { onThemeChange, readTheme } from '../theme.ts'
-import { buildFrameDocument, themeCss } from './frame.ts'
+import { buildFrameDocument, codePayload, schemeOf, themeCss } from './frame.ts'
 import { processPartialHtml } from './partial-html.ts'
 
-/** Last known height per call, so the final frame opens at the preview's size. */
+/** Last known height per call, so a re-mounted frame opens at its previous size. */
 const heights = new Map<string, number>()
 
 function token(): string {
@@ -15,6 +16,7 @@ function token(): string {
 }
 
 export interface WidgetFrameProps {
+  /** State/height key; one per rendered surface. */
   callId: string
   mode: 'preview' | 'final'
   css: string
@@ -25,22 +27,33 @@ export interface WidgetFrameProps {
   policy: WidgetPolicy
   title: string
   sendPrompt: (text: string) => Promise<void>
+  /** Persist control values / UI.state / height for this callId (default true). */
+  persist?: boolean
+  /** Bump to rebuild the frame from scratch (manual reload after script errors). */
+  generation?: number
+  onSending?: (sending: boolean) => void
   onSent?: (ok: boolean, reason?: string) => void
   onErrors?: (errors: readonly string[]) => void
 }
 
 /**
- * One sandboxed widget iframe. In `preview` mode the document holds css +
- * bootstrap and body html is morphed in by postMessage as it streams; in
- * `final` mode the full document (with code) is built once.
+ * One sandboxed widget iframe. A frame first opened in `preview` mode holds
+ * css + bootstrap, receives streamed body html by postMessage, and is
+ * finalized in place when `mode` turns `final` (html + code are posted, the
+ * document is not rebuilt). A frame first opened in `final` mode (replay,
+ * reload) gets the complete document at once.
  */
 export function WidgetFrame(props: WidgetFrameProps) {
   const ref = useRef<HTMLIFrameElement>(null)
   const tok = useMemo(token, [])
-  const [theme, setTheme] = useState(() => readTheme())
-  const [height, setHeight] = useState(() => heights.get(props.callId) ?? clampHeight(props.initialHeight ?? 160, props.policy.maxHeight))
+  const persist = props.persist !== false
+  const theme = useRef(readTheme())
+  const [height, setHeight] = useState(() => heights.get(props.callId)
+    ?? (persist ? getUiState<number>(props.callId, 'height') : undefined)
+    ?? clampHeight(props.initialHeight ?? 160, props.policy.maxHeight))
   const ready = useRef(false)
-  const latestHtml = useRef(props.html)
+  /** Whether the frame has received (or was built with) the final code. */
+  const finalized = useRef(false)
   const errors = useRef<string[]>([])
   // Policies arrive as fresh objects (defaults while running, result meta once
   // settled); key by value so an equal policy never rebuilds the document.
@@ -50,37 +63,55 @@ export function WidgetFrame(props: WidgetFrameProps) {
   const live = useRef(props)
   live.current = props
 
-  // The document only changes when its static inputs change; preview html streams via postMessage.
-  const srcDoc = useMemo(() => buildFrameDocument({
-    token: tok,
-    mode: props.mode,
-    css: props.css,
-    html: props.mode === 'final' ? props.html : '',
-    jsFunctions: props.jsFunctions,
-    jsExpressions: props.jsExpressions,
-    theme,
-    policy,
-  // theme is applied live after mount; rebuilding on theme change would reset widget state.
+  // Built once per frame lifetime: later html/code/theme changes travel by
+  // postMessage so widget state survives. Only a different css or policy, or
+  // an explicit reload (generation), rebuilds the document.
+  const srcDoc = useMemo(() => {
+    const p = live.current
+    finalized.current = p.mode === 'final'
+    ready.current = false
+    errors.current = []
+    return buildFrameDocument({
+      token: tok,
+      mode: p.mode,
+      css: p.css,
+      html: p.mode === 'final' ? p.html : '',
+      jsFunctions: p.jsFunctions,
+      jsExpressions: p.jsExpressions,
+      theme: theme.current,
+      policy,
+      state: p.mode === 'final' && persist ? getUiState(p.callId, 'widget') : undefined,
+    })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [tok, props.mode, props.css, props.mode === 'final' ? props.html : '', props.jsFunctions, props.jsExpressions, policy])
+  }, [tok, props.css, policy, props.generation])
 
   const post = (msg: Record<string, unknown>) => {
     ref.current?.contentWindow?.postMessage({ ...msg, __diui: tok }, '*')
   }
 
-  useEffect(() => { ready.current = false; errors.current = [] }, [srcDoc])
+  const finalize = () => {
+    const p = live.current
+    if (finalized.current || !ready.current || p.mode !== 'final') return
+    finalized.current = true
+    post({ type: 'final', html: p.html, code: codePayload({ jsFunctions: p.jsFunctions, jsExpressions: p.jsExpressions, state: persist ? getUiState(p.callId, 'widget') : undefined }) })
+  }
 
   useEffect(() => onThemeChange(() => {
     const next = readTheme()
-    setTheme(next)
-    post({ type: 'theme', css: themeCss(next) })
+    // DSH mutates <html>/<body> attributes for many reasons; only real token changes are sent.
+    if (JSON.stringify(next) === JSON.stringify(theme.current)) return
+    theme.current = next
+    post({ type: 'theme', css: themeCss(next), scheme: schemeOf(next) })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [tok])
 
-  // Stream preview html.
+  // Stream preview html; switch to the final widget in place.
   useEffect(() => {
-    latestHtml.current = props.html
-    if (props.mode === 'preview' && ready.current) post({ type: 'html', html: processPartialHtml(props.html) })
+    if (props.mode === 'preview') {
+      if (ready.current && !finalized.current) post({ type: 'html', html: processPartialHtml(props.html) })
+    } else {
+      finalize()
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.html, props.mode])
 
@@ -94,16 +125,23 @@ export function WidgetFrame(props: WidgetFrameProps) {
       switch (msg.type) {
         case 'ready':
           ready.current = true
-          if (p.mode === 'preview') post({ type: 'html', html: processPartialHtml(latestHtml.current) })
+          if (!msg.final) {
+            if (p.mode === 'preview') post({ type: 'html', html: processPartialHtml(p.html) })
+            else finalize()
+          }
           break
         case 'resize': {
           const h = clampHeight(msg.height, p.policy.maxHeight)
           heights.set(p.callId, h)
+          if (persist && finalized.current) setUiState(p.callId, 'height', h)
           setHeight(h)
           break
         }
+        case 'state':
+          if (persist && finalized.current) setUiState(p.callId, 'widget', msg.state)
+          break
         case 'error':
-          if (p.mode === 'final') {
+          if (finalized.current) {
             errors.current = [...errors.current, `${msg.kind}: ${msg.message}`].slice(-20)
             p.onErrors?.(errors.current)
           }
@@ -116,10 +154,11 @@ export function WidgetFrame(props: WidgetFrameProps) {
     const handleRpc = async (id: number, method: string, params: Record<string, unknown>) => {
       const p = live.current
       try {
-        if (p.mode !== 'final') throw new BridgeError('unavailable', 'the widget is still generating')
+        if (!finalized.current || p.mode !== 'final') throw new BridgeError('unavailable', 'the widget is still generating')
         if (method === 'sendPrompt') {
           const text = guard.admitPrompt(params.text)
-          await p.sendPrompt(text)
+          p.onSending?.(true)
+          try { await p.sendPrompt(text) } finally { p.onSending?.(false) }
           p.onSent?.(true)
           post({ type: 'rpc-result', id, ok: true, value: { accepted: true } })
         } else if (method === 'openLink') {

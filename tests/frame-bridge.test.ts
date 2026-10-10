@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BridgeGuard, formatFormSubmission, readFrameMessage } from '../client-src/bridge.ts'
 import { DEFAULT_POLICY, policyFromMeta } from '../client-src/policy.ts'
-import { buildFrameDocument, contentSecurityPolicy, escapeForRawText, jsonForScript, safeOrigins } from '../client-src/widget/frame.ts'
+import { buildFrameDocument, codePayload, contentSecurityPolicy, escapeForRawText, jsonForScript, safeOrigins } from '../client-src/widget/frame.ts'
 
 const theme = { '--ui-text': '#111', '--ui-bad': 'x', '--ui-evil': 'red;}</style><script>' }
 
@@ -37,6 +37,33 @@ describe('frame document', () => {
   })
 })
 
+describe('frame runtime', () => {
+  const base = { token: 'tok', css: '', html: '<p>x</p>', policy: DEFAULT_POLICY }
+  it('carries the color scheme, persisted state and the UI runtime', () => {
+    const dark = buildFrameDocument({ ...base, mode: 'final', theme: { '--ui-text': '#eee', '--ui-scheme': 'dark' }, state: { controls: { r: '2' } } })
+    expect(dark).toContain('color-scheme:dark;')
+    expect(dark).toContain('doc.dataset.theme = "dark"')
+    expect(dark).toContain('"state":{"controls":{"r":"2"}}')
+    expect(dark).toContain('window.UI')
+    expect(dark).toContain('prefers-reduced-motion')
+    const light = buildFrameDocument({ ...base, mode: 'preview', theme: {} })
+    expect(light).toContain('color-scheme:light;')
+    expect(light).not.toContain('id="ui-code"')
+  })
+
+  it('emits a bootstrap that is valid JavaScript', () => {
+    const doc = buildFrameDocument({ ...base, mode: 'final', theme: {} })
+    const scripts = [...doc.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]!)
+    const bootstrap = scripts.find(s => s.includes('window.UI'))!
+    expect(() => new Function(bootstrap)).not.toThrow()
+    expect(bootstrap).toContain('/rgba?\\(([\\d.]+)')
+  })
+
+  it('builds the code payload a preview frame is finalized with', () => {
+    expect(codePayload({ jsFunctions: 'function f(){}', jsExpressions: ['f()'] })).toEqual({ functions: 'function f(){}', expressions: ['f()'], state: null })
+  })
+})
+
 describe('bridge guard', () => {
   it('refuses sends during the arm window, then rate-limits', () => {
     let now = 1000
@@ -65,6 +92,10 @@ describe('bridge guard', () => {
     expect(readFrameMessage({ __diui: 'tok', type: 'rpc', id: 1, method: 'sendPrompt', params: { text: 'a' } }, 'tok'))
       .toEqual({ type: 'rpc', id: 1, method: 'sendPrompt', params: { text: 'a' } })
     expect(readFrameMessage('junk', 'tok')).toBeUndefined()
+    expect(readFrameMessage({ __diui: 'tok', type: 'ready', final: true }, 'tok')).toEqual({ type: 'ready', final: true })
+    expect(readFrameMessage({ __diui: 'tok', type: 'state', state: { a: 1 } }, 'tok')).toEqual({ type: 'state', state: { a: 1 } })
+    expect(readFrameMessage({ __diui: 'tok', type: 'state', state: [1] }, 'tok')).toBeUndefined()
+    expect(readFrameMessage({ __diui: 'tok', type: 'state', state: { a: 1 } }, 'other')).toBeUndefined()
   })
 
   it('formats form submissions and reads policy meta defensively', () => {

@@ -2,84 +2,136 @@
 
 [English](README.md) | 中文
 
-为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）提供**生成式、可交互的 UI**。模型可以直接在对话中，用卡片、表格、图表、KPI、标签页、按钮、表单作答，也可以生成完全自定义的**沙箱实时组件**。界面随回答流式渲染；用户的点击和表单提交会作为下一条用户消息回到对话中。
+为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）提供**生成式、可交互的 UI**。用户用自然语言提问，Agent 自行决定怎样作答：
 
-本插件把 CopilotKit [OpenIntelligentUI](https://github.com/CopilotKit/OpenIntelligentUI) 的思路（Open Generative UI 加上 A2UI 风格的声明式组件）移植到 DSH 自带的扩展点上，不依赖 CopilotKit、LangGraph 或外部路由服务。
+- 普通文本；
+- 原生组件：看板、表格、图表、时间线、带滑块的函数图像、KaTeX 公式、Mermaid 流程图、表单；
+- 完全自定义的**沙箱实时组件**：Three.js 三维场景、Canvas 模拟、小应用。
 
-## 演示动画与视频
+界面随回答流式、渐进地出现。滑块、旋转、缩放、排序、切换标签页都在浏览器内即时响应，只有显式操作（按钮、表单、`Bridge.sendPrompt`）才会回到 Agent。
 
-### 完整交互演练动图
+本插件把 CopilotKit [OpenIntelligentUI](https://github.com/CopilotKit/OpenIntelligentUI) 的思路（Open Generative UI + A2UI 风格声明式组件）移植到 DSH 自带的扩展点上，不依赖 CopilotKit、LangGraph 或外部路由服务。
+
+## 演示
 
 ![DeepSeek Harness Intelligent UI 演示](docs/assets/demo.gif)
 
-> 🎥 **高清演示视频文件：** [docs/assets/demo.mp4](docs/assets/demo.mp4) (H.264 MP4 格式，支持下载或直接播放)
+🎥 **高清视频（H.264，约 2 分钟）：** [docs/assets/demo.mp4](docs/assets/demo.mp4)
 
-### 分步界面展示
+> **录制方式：** 演示视频录自真实的 DSH Web 0.2.0-rc.1，装好本插件后由 `npm run e2e:all -- --record` 自动驱动。
+>
+> **关于模型：** 背后的模型是 `scripts/e2e/` 中的**脚本化 mock**（当时没有 API Key），回答内容是预设的。画面中的流式渲染、交互、双向通信、持久化和隔离，都是插件在 DSH 中真实运行的结果。
+>
+> **在 GitHub 内联播放：** 把 `docs/assets/demo.mp4` 拖进 GitHub 的评论或 Release 编辑框，再把生成的 `https://github.com/user-attachments/assets/…` 链接单独一行粘贴到这里。GitHub 只对上传的附件内联播放视频，不支持仓库内的文件。
 
-| 1. 流式声明式看板 | 2. 主题化矢量图表 |
+| 看板流式出现并定稿 | Three.js 组件：R 滑块、旋转、缩放 |
 |:---:|:---:|
-| ![看板](docs/assets/screenshots/2-render-ready.png) | ![图表](docs/assets/screenshots/3-chart.png) |
-| *包含 Card、Grid、Stat 指标、Tabs、可排序列的 Table* | *原生 SVG 绘制的多系列对比曲线图* |
+| ![看板](docs/assets/screenshots/3-dashboard.png) | ![球面](docs/assets/screenshots/7-widget-rotated.png) |
+| *指标卡、栅格、标签页、带悬停提示的堆叠柱状图、可排序表格、时间线、表单* | *用 `UI.three()` 绘制 `x²+y²+z²=2Rz`，拖动滑块在本地即时改变曲面* |
 
-| 3. 可交互表单提交 | 4. 实时沙箱小部件 |
+| 公式、实时函数图像、Mermaid | 表单 → Agent → 新界面 |
 |:---:|:---:|
-| ![表单提交](docs/assets/screenshots/4-form-sent.png) | ![沙箱小部件](docs/assets/screenshots/6-widget-final.png) |
-| *表单字段值回流至 LLM 会话上下文* | *独立 iframe，含动态滑块、Canvas 与主题样式* |
+| ![数学](docs/assets/screenshots/9-math.png) | ![表单](docs/assets/screenshots/4-form-sent.png) |
 
-| 5. 小部件双向通信 Bridge | 6. 会话持久化与刷新重建 |
+| 流式预览（同一个 iframe 直接定稿） | 生成中途停止 |
 |:---:|:---:|
-| ![小部件联动](docs/assets/screenshots/7-widget-sent.png) | ![页面重载](docs/assets/screenshots/8-reload.png) |
-| *`Bridge.sendPrompt` 实时联动发送用户指令* | *刷新页面后无损从持久日志中恢复生成式组件* |
+| ![预览](docs/assets/screenshots/5-widget-preview.png) | ![停止](docs/assets/screenshots/10-stopped.png) |
 
-## 模型可用的能力
+| 深色主题 | 手机宽度（深色） | 刷新后恢复 |
+|:---:|:---:|:---:|
+| ![深色](docs/assets/screenshots/11b-dark-widget.png) | ![移动端](docs/assets/screenshots/12-mobile-dark.png) | ![刷新](docs/assets/screenshots/14-reload.png) |
 
-| 工具 | 适用场景 | 渲染方式 |
-|---|---|---|
-| `ui_render` | 结构化回答：对比、数据、看板、选项、收集输入 | 固定组件目录中的原生 React 组件，随 JSON 流式输出渐进渲染 |
-| `ui_render_widget` | 自定义可视化：模拟、动画、图解、计算器、3D | HTML/CSS/JS 运行在不同源的沙箱 iframe 中：先应用 CSS，HTML 实时 morph，最后执行 JS |
+## Agent 如何选择呈现方式
 
-- **命令：** `/ui <想展示的内容>` 让当前对话的模型用 UI 作答。
-- **系统提示：** 插件会注入一段说明，告诉模型何时用文本、组件目录或 widget。它取代了 OpenIntelligentUI 的外部路由。
+插件注入一段系统提示（`src/guidance.js`），让模型每一轮自行选择，用户无需输入任何命令：
 
-### 组件目录（`ui_render`）
+- **普通文本**：寒暄、简短事实、解释说明、要复制的代码、工作区内的编程任务。
+- **`ui_render`**：结构化内容，例如对比、数据、看板、流程、公式、可调参数的函数、选项、收集输入。
+- **`ui_render_widget`**：用户想探索、操作或观察组件目录画不出的东西，例如三维、模拟、动画、游戏、自定义工具。
+- **本地优先**：凡是能在浏览器里算出来的（滑块、旋转、缩放、筛选、排序、重新计算），都必须即时更新，不调用模型。
 
-`Card`、`Stack`、`Grid`、`Tabs`、`Text`（markdown 子集）、`Code`、`Alert`、`Badge`、`Divider`、`Stat`、`Progress`、`List`、`Table`（可排序）、`Chart`（柱状图、折线图、面积图、饼图；SVG 绘制，跟随主题）、`Button`（点击后发送一条消息）、`Form`（文本、数字、下拉、勾选、日期、多行文本；提交后把字段值作为消息发送）。
+`/ui <需求>` 命令仍然保留，用于强制以 UI 作答。
 
-DSH 的工具 schema 不支持递归，所以界面以**扁平节点列表加 id 引用**的形式传输。Host 端会先校验再确认，检查项包括：未知类型或属性、id 悬空或重复、环、一个节点有多个父节点、图表数据长度不一致等。发现问题时返回 `ok:false` 并附带出错路径，模型据此修正后重试。
+## 组件目录（`ui_render`）
 
-### 沙箱组件（`ui_render_widget`）
+| 类别 | 组件 |
+|---|---|
+| 布局 | `Card`、`Stack`、`Grid`、`Tabs`（支持键盘操作） |
+| 文本与提示 | `Text`（markdown 子集）、`Code`、`Alert`、`Badge`、`Divider` |
+| 数据 | `Stat`、`Progress`、`List`、`Table`（可排序）、`Timeline` |
+| 图表 | `Chart`（柱状、折线、面积、饼图；可堆叠，悬停提示，可点图例显隐系列） |
+| 数学与图示 | **`Plot`**、**`Math`**（KaTeX）、**`Mermaid`** |
+| 交互 | `Button`、`Form` |
 
-字段遵循 OpenIntelligentUI 的流式约定，**顺序固定**：`title`、`initialHeight`、`placeholderMessages`、`css`、`html`、`jsFunctions`、`jsExpressions`。渲染过程：
+- **`Plot`**：绘制 y = f(x)，参数滑块拖动后曲线即时重绘。表达式由安全编译器解析，不使用 `eval`。
+- **`Form`**：字段类型有文本、数字、**范围滑块**、下拉、勾选、日期、多行文本。
+- **`Button` 与 `Form`**：点击或提交后，内容作为下一条用户消息发给 Agent。
 
-1. `css` 完成前，显示占位文字。
-2. `css` 完成后，打开预览 iframe，把清洗过的部分 HTML 用 idiomorph 实时 morph 进去。
-3. 参数完整后重建 iframe：`jsFunctions` 执行一次，`jsExpressions` 按顺序逐条执行。
+**传输与校验：** DSH 的工具 schema 不支持递归，所以界面以**扁平节点列表加 id 引用**的形式传输。Host 先校验再确认，检查项包括：
 
-组件内可以使用：
+- 未知类型或属性；
+- id 悬空、重复或成环；
+- 一个节点有多个父节点；
+- 图表数据长度不一致；
+- `Plot` 表达式无法编译、参数默认值越界等。
 
-- `Bridge.sendPrompt({ text })` 和 `Bridge.openLink({ url })`；为兼容 OpenIntelligentUI，`Websandbox.connection.remote.*` 同样可用。
-- `--ui-*` 主题变量，跟随 DSH 的明暗主题。
-- 通过 importmap 从 esm.sh 引入的 `three`、`d3`、`chart.js/auto`、`gsap`、`canvas-confetti`。
+发现问题时返回 `ok:false` 并附带出错路径，模型据此修正后重试。
 
-### 显示位置
+**`Math` 与 `Mermaid` 的渲染：** 两者在与组件相同的沙箱中，从 CDN 白名单加载 KaTeX 或 Mermaid。第三方代码不在 DSH 页面中运行，宿主包体积保持在约 127 KB。CDN 不可用时，显示源码文本。
 
-回合进行中，UI 在工具调用中内联显示并流式更新。回合结束后，DSH 会把工具调用折叠进「用时 N 秒」的过程区。为了不让界面被折叠，插件通过 `conversation.chat.turnTail` 插槽，把成功的 UI **重新显示在回复下方**，内联处改为一行提示。两者都从持久化的会话日志推导，刷新页面后可以完整重建。
+## 沙箱组件（`ui_render_widget`）
+
+字段顺序固定：`title`、`initialHeight`、`placeholderMessages`、`css`、`html`、`jsFunctions`、`jsExpressions`。
+
+- **流式过程：**
+  1. `css` 完成前，显示占位文字。
+  2. `css` 完成后打开预览 iframe，把清洗过的部分 HTML 实时 morph 进去。
+  3. 参数完整后，在**同一个 iframe 内原地定稿**：morph 最终 HTML，然后执行代码。iframe 不重建，没有白屏闪烁，高度也不跳动。
+- **运行时辅助（全局 `UI`）：**
+  - `UI.three(el, opts)`：返回 renderer、场景、灯光和 OrbitControls（拖动旋转，滚轮或双指缩放），按需渲染并自适应尺寸。
+  - `UI.canvas(el, draw)`：高清 2D 画布，尺寸或主题变化时自动重绘。
+  - `UI.state` / `UI.setState()`：持久化状态；带 `id` 的输入控件会自动保存并恢复。
+  - `UI.color('accent')`：返回不透明的主题色，可直接用于 three.js 和 Canvas。
+  - `UI.onTheme(cb)`、`UI.scheme`、`UI.reducedMotion`：响应主题变化与减少动效偏好。
+  - 辅助样式类：`.ui-row`、`.ui-control`、`.ui-card`、`.ui-stage`。
+- **Bridge：**
+  - `Bridge.sendPrompt({ text })`：在宿主应答前，自动禁用触发它的按钮，防止重复提交。
+  - `Bridge.openLink({ url })`：打开链接。
+  - `Websandbox.connection.remote.*`：为兼容 OpenIntelligentUI 而保留。
+- **依赖库：** 通过 importmap 从 esm.sh 引入 `three`、`three/addons/…`、`d3`、`chart.js/auto`、`gsap`、`canvas-confetti`。
+- **错误恢复：** 出现脚本错误时显示错误数量，并提供“重新加载”和“让模型修复”两个按钮。后者会把错误信息发给 Agent。
+
+## 显示位置与状态保持
+
+- **显示位置：**
+  - 回合进行中，UI 在工具调用处内联显示。从准备、执行到结果，始终是同一个组件实例，交互状态不会丢。
+  - 回合结束后，插件通过 `conversation.chat.turnTail` 把 UI **重新显示在回复下方**，内联处改为一行提示。
+- **按工具调用保存的交互状态：** 当前标签页、表格排序、表单值、已提交锁定、Plot 滑块、组件控件值、`UI.state`、iframe 高度。这些状态保存在内存和 `localStorage` 中（有容量上限），移到回复下方或刷新页面后都会恢复。UI 本身则从持久化的会话日志重建。
+- **中途停止：**
+  - 已进入会话日志的调用：保留已完成的部分（组件的静态预览，或已生成的组件），并显示提示和“重新生成”按钮。
+  - 参数仍在流式输出时就被停止的调用：DSH 会整体丢弃它。插件会暂存已生成的内容，同样在被停止的回合下方显示。
 
 ## 安全模型
 
-- **隔离：** iframe 设置 `sandbox="allow-scripts allow-forms"` 并使用 `srcdoc`，**不加** `allow-same-origin`，因此组件无法访问 DSH 页面、cookie、存储或 API。
+- **隔离：**
+  - iframe 设置 `sandbox="allow-scripts allow-forms"` 并使用 `srcdoc`，**不加** `allow-same-origin`。
+  - E2E 在浏览器中实测：访问 `parent.document`、`localStorage`、`cookie` 均抛出 `SecurityError`，`fetch` 被拦截，`window.origin` 为 `"null"`。
 - **CSP：**
-  - `default-src 'none'`
-  - 脚本、样式、字体、图片只能来自 `cdnAllowlist`
-  - 默认 `connect-src 'none'`
-  - `form-action 'none'`
-- **消息校验：** 宿主只接受来自该 iframe 的 `contentWindow`、且带有随机 token 的消息。
+  - `default-src 'none'`；
+  - 脚本、样式、字体、图片只能来自 `cdnAllowlist`；
+  - 默认 `connect-src 'none'`；
+  - `form-action 'none'`、`base-uri 'none'`。
+- **消息校验：**
+  - 宿主只接受来自该 iframe 的 `contentWindow`、带随机 token、且格式合法的消息。
+  - 持久化的组件状态是有大小上限的 JSON。
+  - E2E 实测，从页面或 iframe 伪造的消息都会被丢弃。
 - **sendPrompt 限制：**
-  - 挂载后 1 秒内拒绝发送，防止加载时自动发送
-  - 2 秒内最多发送一次
-  - 长度受 `sendPromptMaxChars` 限制
-  - 以普通的排队用户消息发送
-- **openLink：** 只允许 https，并可用白名单进一步限制。
+  - 挂载后 1 秒内拒绝发送；
+  - 2 秒内最多发送一次；
+  - 长度受 `sendPromptMaxChars` 限制；
+  - 以普通的排队用户消息发送。
+- **openLink：** 只允许 https，可用白名单进一步限制。
+- **Plot 表达式：** 由分词器和解析器编译，只能调用固定的数学函数表，无法使用 `eval`、`Function` 或访问属性。
 
 ## 安装
 
@@ -89,15 +141,39 @@ DSH 的工具 schema 不支持递归，所以界面以**扁平节点列表加 id
 dsh plugin --profile web add file:/path/to/deepseek-harness-intelligent-ui
 ```
 
-安装后重启 DSH Web。bundle patch 会自动插入 `intelligent-ui` 这一行；要修改配置，在 profile 的 `cordis.patch.yml` 中添加 `- id: intelligent-ui` 和对应的 `config:`。配置项见英文 README 的表格。
+安装后重启 DSH Web。bundle patch 会自动插入 `intelligent-ui` 这一行。要修改配置，在 profile 的 `cordis.patch.yml` 中添加 `- id: intelligent-ui` 和对应的 `config:`。配置项见英文 README 的表格。
 
-## 开发
+## 开发与验证
 
 ```sh
-npm install && npm run build && npm test
+npm install
+npm run build
+npm test                      # 74 个单元/组件测试
+npm run typecheck
+npm run e2e:all               # 构建 → 安装到临时 DSH 目录 → mock 模型 + 真实 DSH Web → 24 项浏览器检查
+npm run e2e:all -- --record   # 同时重新录制 docs/assets/demo.mp4 / demo.gif（需要 ffmpeg）
 ```
 
-端到端测试使用脚本化的 DeepSeek Messages mock 服务，配合真实的 DSH Web 和真实的 DeepSeek 流式适配器，不需要 API Key。步骤见英文 README。
+E2E 检查项见 `scripts/e2e/browser.mjs`，最近一次报告在 [`docs/e2e-report.json`](docs/e2e-report.json)。
+
+## 真实模型路由与生成质量实测
+
+本插件的自主路由引导词与 UI 生成能力已直连官方 DeepSeek API（`deepseek-flash` 模型）完成全方位质量实测，共评估 15 个自然语言测试用例，覆盖 4 大核心类别（详细数据见 [`docs/real-model-eval-report.json`](docs/real-model-eval-report.json)）：
+
+- **A. 普通文本问答（4/4 PASS，通过率 100%）：** 包含欧拉公式定义、卡尔曼滤波原理解释、牛顿第三定律、机械臂奇异点概念。模型主动输出清晰纯文本，不滥用 UI，不产生多余卡片。
+- **B. 原生组件生成（5/5 PASS，通过率 100%）：** 包含多指标运营看板（24+ 原生组件组合）、新能源车对比可排列表格、季度多系列柱状图、满意度反馈交互表单、具身智能技术时间线。模型均**自主选择 `ui_render`**，组件树校验 `validateTree` 100% 合法。
+- **C. 自定义沙箱组件（4/4 PASS，通过率 100%）：** 包含三维球面 $x^2+y^2+z^2=2Rz$、阻尼振动滑块曲线、Three.js 交互式太阳系、单摆物理模拟器。模型均**自主选择 `ui_render_widget`**，HTML/CSS/JS 沙箱参数校验 `validateWidget` 全部通过。
+- **D. 多轮交互推理（2/2 PASS，通过率 100%）：** 验证表单提交数据后 Agent 能够继续结合参数进行推演，以及多轮修改表格时保留上下文与增量修改。
+
+```sh
+node scripts/run-real-model-suite.mjs [A|B|C|D|all]   # 运行真实模型测试套件（读取 DEEPSEEK_API_KEY）
+```
+
+## 已知限制
+
+- 沙箱组件、`Math` 和 `Mermaid` 需要能访问 CDN 白名单。离线时，`Math` 和 `Mermaid` 退回显示源码，`UI.three` 会报告脚本错误。
+- 交互状态保存在当前浏览器的 `localStorage` 中，不跨设备同步。
+- 对“流式中途被丢弃的调用”，插件按回合的起止时间归属。如果远程 DSH 主机与浏览器的时钟偏差较大，这张卡片可能不显示。已进入会话日志的调用不受影响。
 
 ## 致谢
 

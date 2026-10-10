@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type PointerEvent } from 'react'
 
 /** Categorical palette readable on light and dark surfaces. */
 export const PALETTE = ['#4d6bfe', '#22a06b', '#f2a33a', '#e5484d', '#8e6cef', '#12a5c4', '#e0569b', '#7fae2e', '#f07a2e', '#6b7a90', '#1aa89a', '#b25fe0']
@@ -42,6 +42,7 @@ export function formatNumber(v: number): string {
 
 export function Chart(props: ChartProps) {
   const [hidden, setHidden] = useState<ReadonlySet<number>>(new Set())
+  const [hover, setHover] = useState<number | undefined>(undefined)
   const series = props.series.filter((_, i) => !hidden.has(i))
   const n = props.labels.length
   if (n === 0 || props.series.length === 0) return <div className="diui-empty">{props.emptyText}</div>
@@ -54,6 +55,7 @@ export function Chart(props: ChartProps) {
           type="button"
           className="diui-legend-item"
           data-off={hidden.has(i) || undefined}
+          aria-pressed={!hidden.has(i)}
           onClick={() => props.kind !== 'pie' && setHidden((h) => {
             const next = new Set(h)
             if (next.has(i)) next.delete(i)
@@ -69,14 +71,28 @@ export function Chart(props: ChartProps) {
   return (
     <figure className="diui-chart">
       {props.title && <figcaption className="diui-chart-title">{props.title}</figcaption>}
-      {props.kind === 'pie' ? <Pie {...props} height={H} /> : <Cartesian {...props} series={series} height={H} colorOf={s => PALETTE[props.series.indexOf(s) % PALETTE.length]!} n={n} />}
+      {props.kind === 'pie'
+        ? <Pie {...props} height={H} />
+        : (
+            <div className="diui-plot-stage">
+              <Cartesian {...props} series={series} height={H} colorOf={s => PALETTE[props.series.indexOf(s) % PALETTE.length]!} n={n} hover={hover} onHover={setHover} />
+              {hover !== undefined && series.length > 0 && (
+                <div className="diui-tooltip" style={{ left: `${((PAD.left + ((W - PAD.left - PAD.right) / n) * (hover + 0.5)) / W) * 100}%` }}>
+                  <div className="diui-tooltip-head">{String(props.labels[hover] ?? '')}</div>
+                  {series.map(s => (
+                    <div key={s.name}><i style={{ background: PALETTE[props.series.indexOf(s) % PALETTE.length] }} />{s.name}: {formatNumber(s.values[hover] ?? 0)}{props.unit ? ` ${props.unit}` : ''}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
       {props.kind !== 'pie' && props.series.length > 1 && legend}
       {props.kind === 'pie' && <PieLegend labels={props.labels} values={props.series[0]?.values ?? []} unit={props.unit} />}
     </figure>
   )
 }
 
-function Cartesian(props: ChartProps & { height: number; n: number; colorOf: (s: ChartSeries) => string }) {
+function Cartesian(props: ChartProps & { height: number; n: number; colorOf: (s: ChartSeries) => string; hover?: number; onHover: (i: number | undefined) => void }) {
   const { series, n, height: H } = props
   const stacked = !!props.stacked && (props.kind === 'bar' || props.kind === 'area')
   let lo = 0
@@ -151,8 +167,16 @@ function Cartesian(props: ChartProps & { height: number; n: number; colorOf: (s:
     })
   }
 
+  const onMove = (e: PointerEvent<SVGSVGElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    if (r.width <= 0) return
+    const vx = ((e.clientX - r.left) / r.width) * W
+    const i = Math.floor((vx - PAD.left) / band)
+    props.onHover(i >= 0 && i < n ? i : undefined)
+  }
   return (
-    <svg className="diui-chart-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={props.title ?? 'chart'}>
+    <svg className="diui-chart-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={props.title ?? 'chart'} onPointerMove={onMove} onPointerLeave={() => props.onHover(undefined)}>
+      {props.hover !== undefined && <rect x={PAD.left + band * props.hover} y={PAD.top} width={band} height={ih} className="diui-hover-band" />}
       {ticks.map(t => (
         <g key={t}>
           <line x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} className={t === 0 ? 'diui-axis-zero' : 'diui-grid'} />

@@ -18,8 +18,9 @@ export function createRenderTool(config) {
   return {
     name: RENDER_TOOL,
     description: [
-      'Show the user an interactive UI (cards, tables, charts, KPI stats, tabs, buttons, forms) rendered natively in the chat.',
-      'Use it when structured or visual presentation answers better than prose: comparisons, data, dashboards, choices, input collection.',
+      'Show the user an interactive UI (cards, tables, charts, KPI stats, tabs, timelines, function plots with live sliders, math formulas, Mermaid diagrams, buttons, forms) rendered natively in the chat.',
+      'Use it when structured or visual presentation answers better than prose: comparisons, data, dashboards, processes, formulas, functions to explore, choices, input collection.',
+      'Sorting, tabs, chart hover and Plot sliders work locally in the browser; only Button clicks and Form submissions reach you.',
       'Send a FLAT list of components; containers reference children by id; `root` is the top component id.',
       'Button clicks and Form submissions arrive later as the user\'s next message — do not wait for them in this turn.',
       'After calling, add at most one short sentence; do not repeat the UI content in text.',

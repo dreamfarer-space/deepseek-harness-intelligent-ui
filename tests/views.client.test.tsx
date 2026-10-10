@@ -7,6 +7,7 @@ import { en } from '../client-src/locales.ts'
 import type { ToolViewProps } from '../client-src/types/dsh.ts'
 import { WidgetView } from '../client-src/widget/WidgetView.tsx'
 import { promptSession } from '../client-src/index.ts'
+import { getUiState, resetUiStateMemory } from '../client-src/state.ts'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -16,6 +17,8 @@ const t = ((key: keyof typeof en, vars?: Record<string, string | number>) =>
 let host: HTMLDivElement
 let root: Root
 beforeEach(() => {
+  localStorage.clear()
+  resetUiStateMemory()
   host = document.createElement('div')
   document.body.appendChild(host)
   root = createRoot(host)

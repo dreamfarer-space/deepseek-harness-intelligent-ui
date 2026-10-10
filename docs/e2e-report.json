@@ -1,0 +1,148 @@
+{
+  "at": "2026-10-10T06:54:39.622Z",
+  "url": "http://127.0.0.1:3181/?token=…",
+  "model": "scripted mock (scripts/e2e/mock-deepseek.mjs)",
+  "results": [
+    {
+      "name": "1. plain Q&A answers in text without UI",
+      "ok": true,
+      "detail": "shells before=0 after=0"
+    },
+    {
+      "name": "2a. dashboard streams progressively (partial components visible mid-stream)",
+      "ok": true,
+      "detail": "stats visible mid-stream: 3"
+    },
+    {
+      "name": "2b. dashboard settles beneath the reply with KPIs, tabs and chart",
+      "ok": true,
+      "detail": "{\"stats\":4,\"tabs\":[\"Revenue\",\"Regions\",\"Milestones\",\"Forecast\"],\"bars\":8}"
+    },
+    {
+      "name": "2c. chart hover shows a tooltip (local, no model call)",
+      "ok": true,
+      "detail": "Q1Online: 820 k$Retail: 300 k$"
+    },
+    {
+      "name": "2d. table sorts locally (descending growth → APAC first)",
+      "ok": true,
+      "detail": "APAC"
+    },
+    {
+      "name": "2e. timeline renders",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "5a. local tab/sort/hover interactions made no model calls",
+      "ok": true,
+      "detail": "calls 4 → 4"
+    },
+    {
+      "name": "5b. form submission reaches the agent with the values",
+      "ok": true,
+      "detail": "Form \"Request a forecast\" submitted:\n{\n  \"region\": \"All\",\n  \"quarters\": 6,\n  \"scenario\": \"Optimistic\",\n  \"seasonality\": "
+    },
+    {
+      "name": "5c. agent answers with a new UI; submit is locked against resubmission",
+      "ok": true,
+      "detail": "[\"render\",\"ready\",\"Forecast · All · Optimistic\"]"
+    },
+    {
+      "name": "4a. widget previews while streaming, then finalizes in the same iframe (no rebuild)",
+      "ok": true,
+      "detail": "preview=true final=kept"
+    },
+    {
+      "name": "4b. Three.js scene renders (WebGL canvas + mesh)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "3. R slider re-shapes x²+y²+z²=2Rz instantly in the browser (no model call)",
+      "ok": true,
+      "detail": "{\"R\":\"2.0\",\"scale\":2,\"z\":2}"
+    },
+    {
+      "name": "4c. Three.js scene rotates (drag) and zooms (wheel)",
+      "ok": true,
+      "detail": "rotate Δ=6.38 distance 8.37 → 5.78"
+    },
+    {
+      "name": "5d. Bridge.sendPrompt round-trip: widget button → agent → answer",
+      "ok": true,
+      "detail": "Explain the surface x²+y²+z²=2Rz at R = 2."
+    },
+    {
+      "name": "6a. Math (KaTeX) and Mermaid render in sandboxed frames",
+      "ok": true,
+      "detail": "katex=true mermaid=true"
+    },
+    {
+      "name": "6b. Plot sliders redraw the curve locally",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6c. earlier widgets/UIs keep their state while new ones arrive",
+      "ok": true,
+      "detail": "sphere={\"R\":\"2\",\"scale\":2} tabs=[\"Forecast\"]"
+    },
+    {
+      "name": "7a. stopped generation degrades gracefully (static preview + notice + regenerate)",
+      "ok": true,
+      "detail": "{\"state\":\"stopped\",\"notice\":\"生成已中断，以下为已生成部分的静态预览\",\"frame\":\"preview\",\"regenerate\":true}"
+    },
+    {
+      "name": "7b. regenerate after interruption produces a complete widget",
+      "ok": true,
+      "detail": "ready copies=1"
+    },
+    {
+      "name": "10. iframe isolation and message validation",
+      "ok": true,
+      "detail": "{\"parentDom\":\"SecurityError\",\"storage\":\"SecurityError\",\"fetch\":\"TypeError\",\"cookie\":\"SecurityError\",\"origin\":\"null\"} sandbox=\"allow-scripts allow-forms\" forgedDelivered=false"
+    },
+    {
+      "name": "9a. dark theme reaches host cards and sandboxed widgets",
+      "ok": true,
+      "detail": "{\"theme\":\"dark\",\"bg\":\"#151517\",\"scheme\":\"dark\"} host=rgb(21, 21, 23)"
+    },
+    {
+      "name": "9b. phone width: no horizontal overflow; KPI grid reflows",
+      "ok": true,
+      "detail": "overflowing=0 kpiColumns=1"
+    },
+    {
+      "name": "8. reload restores UIs and their interaction state",
+      "ok": true,
+      "detail": "shells=6 sphere={\"R\":\"2\",\"scale\":2} ui={\"tabs\":[\"Forecast\"],\"formLocked\":true,\"stopped\":1}"
+    },
+    {
+      "name": "no plugin errors in the page console",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "pageErrors": [
+    "console.error: Connecting to 'https://esm.sh/' violates the following Content Security Policy directive: \"connect-src 'none'\". The action has been blocked.",
+    "console.error: Fetch API cannot load https://esm.sh/. Refused to connect because it violates the document's Content Security Policy."
+  ],
+  "decisions": [
+    "text",
+    "no-ui-tools",
+    "dashboard",
+    "after-tool",
+    "forecast",
+    "after-tool",
+    "sphere",
+    "after-tool",
+    "explain-sphere",
+    "math",
+    "after-tool",
+    "slow",
+    "slow",
+    "after-tool"
+  ],
+  "frames": 1886
+}

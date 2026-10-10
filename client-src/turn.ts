@@ -91,7 +91,11 @@ export const uiTurnDefinition = {
 
 /** Turn-tail owner props (ui-chat TurnTailOwnerProps, structurally). */
 export interface TurnTailOwner {
-  readonly turn: { readonly end?: { readonly seq: number }; readonly data: { get: (key: string) => unknown } }
+  readonly turn: {
+    readonly start?: { readonly time: number }
+    readonly end?: { readonly seq: number; readonly time?: number }
+    readonly data: { get: (key: string) => unknown }
+  }
   readonly seq: number
 }
 

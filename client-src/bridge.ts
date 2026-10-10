@@ -83,7 +83,8 @@ export type FrameMessage =
   | { type: 'rpc'; id: number; method: string; params: Record<string, unknown> }
   | { type: 'resize'; height: number }
   | { type: 'error'; kind: string; message: string }
-  | { type: 'ready' }
+  | { type: 'ready'; final: boolean }
+  | { type: 'state'; state: Record<string, unknown> }
 
 /** Narrow an untrusted postMessage payload. */
 export function readFrameMessage(data: unknown, token: string): FrameMessage | undefined {
@@ -100,7 +101,11 @@ export function readFrameMessage(data: unknown, token: string): FrameMessage | u
     case 'error':
       return { type: 'error', kind: String(m.kind ?? ''), message: String(m.message ?? '').slice(0, 500) }
     case 'ready':
-      return { type: 'ready' }
+      return { type: 'ready', final: m.final === true }
+    case 'state':
+      return m.state && typeof m.state === 'object' && !Array.isArray(m.state)
+        ? { type: 'state', state: m.state as Record<string, unknown> }
+        : undefined
     default:
       return undefined
   }

@@ -27,6 +27,8 @@ export type Translate = (key: IntelligentUiKey, vars?: Record<string, string | n
 export interface IntelligentUiInjected {
   /** Queue one user message in this session. */
   sendPrompt: (text: string) => Promise<void>
+  /** The session this surface belongs to. */
+  sessionId?: string
 }
 
 interface CommonProps extends IntelligentUiInjected {
@@ -52,6 +54,11 @@ export function argsRawOf(props: ToolViewProps): string {
 /** Result text blocks joined (validation errors live here when ok=false). */
 export function resultText(block: ToolResultNode): string {
   return block.content.map(c => (c.type === 'text' ? c.text ?? '' : '')).join('\n').trim()
+}
+
+/** The turn was stopped before (or while) this call ran. */
+export function interrupted(block: ToolResultNode): boolean {
+  return block.error?.code === 'interrupted'
 }
 
 /** `meta.ok === false` marks a validation refusal (the model will retry). */

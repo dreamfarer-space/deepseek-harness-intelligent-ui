@@ -17,19 +17,37 @@ export const GUIDANCE_ORDER = 3200;
  */
 export function guidanceText(config) {
   if (!config.enableCatalog && !config.enableWidget) return '';
-  const lines = ['# Intelligent UI', 'You can answer with interactive UI rendered directly in the chat. Pick the presentation per turn:'];
-  lines.push('- Plain text: conversational replies, short facts, explanations, code the user will copy, and anything a UI would not improve.');
+  const lines = [
+    '# Intelligent UI',
+    'You can answer with interactive UI rendered directly in the chat. Choose the presentation yourself on every turn; never ask the user which format they want, and do not mention the tool names.',
+    '',
+    'Answer in plain text (no UI tool) for:',
+    '- greetings, chit-chat, opinions, short facts, definitions, yes/no answers, a single number or date;',
+    '- conceptual explanations, principles, theories, and knowledge Q&A (e.g. "什么是...", "解释一下...", "原理是什么");',
+    '- explanations, arguments and step-by-step reasoning that read best as prose;',
+    '- code the user will copy, shell commands, and software-engineering work in the workspace (reading, editing, running code);',
+    '- anything where the user asked for text, a list or a short answer.',
+  ];
   if (config.enableCatalog) {
-    lines.push(`- \`${RENDER_TOOL}\`: structured content — comparisons and data (Table), numbers over categories/time (Chart), KPIs (Stat), options to choose from (Button), collecting several inputs (Form), grouped overviews (Card/Grid/Tabs). Cheap and reliable: prefer it whenever it fits.`);
+    lines.push('', `Use \`${RENDER_TOOL}\` (native components) as the primary choice for structured data and UI:`);
+    lines.push('- Always use `ui_render` for dashboards, KPI metrics (Stat), sortable tables (Table), standard charts (bar, line, area, stacked series Chart), interactive forms (Form), timelines (Timeline), flowcharts/sequences (Mermaid), formulas (Math), and parametric curve exploration (Plot).');
+    lines.push('- Combine them into rich dashboards using Card, Grid, and Tabs.');
+    lines.push('- Always prefer `ui_render` for standard charts, tables, forms, or dashboards; it is faster, responsive, and natively styled.');
   }
   if (config.enableWidget) {
-    lines.push(`- \`${WIDGET_TOOL}\`: custom visuals the catalog cannot express — interactive simulations, animations, diagrams, maps, 3D, games, calculators with live feedback. Emit fields strictly in order (title, initialHeight, placeholderMessages, css, html, jsFunctions, jsExpressions). Keep it self-contained, responsive (width 100%), accessible, and styled with the --ui-* theme variables.`);
+    lines.push('', `Use \`${WIDGET_TOOL}\` (custom HTML/CSS/JS sandbox) when the user wants to explore, manipulate or watch something the catalog cannot draw:`);
+    lines.push('- 3D scenes, meshes, and surfaces (Three.js, WebGL); dynamic math/physics simulators (e.g. pendulum, particle collision); interactive games; or custom freehand canvas animations.');
+    lines.push('- Whenever the user asks to display or explore in 3D, simulate, or build an interactive widget, ALWAYS call `ui_render_widget` to render it live. NEVER output raw HTML/JS/CSS code blocks in markdown prose.');
+    lines.push('- Requests such as "3D", "Three.js", "simulate physics", "dynamic simulator", "game" call for a widget. Do not use for standard business charts or dashboards.');
   }
-  lines.push('Rules:');
-  lines.push('- One UI call per answer is usually enough; update by calling again with the full new UI rather than describing changes.');
-  lines.push('- Interactions (button clicks, form submissions, Bridge.sendPrompt) reach you as the user\'s NEXT message. Never trigger them automatically, and do not wait for them in the current turn.');
-  lines.push('- Real data only: never invent numbers to fill a chart; if data is missing, say so or ask.');
-  lines.push('- Do not repeat the UI\'s content in prose afterwards; one short sentence of context is enough.');
+  lines.push('', 'Interaction design:');
+  lines.push('- Everything that can be computed in the browser happens there: sliders, toggles, rotation, zoom, filtering, sorting and recomputing formulas update the UI instantly without a message to you.');
+  lines.push('- Send a message to yourself (Button, Form, Bridge.sendPrompt) only for explicit user requests that need you: an explanation, new data, a decision, the next step. Interactions reach you as the user\'s NEXT message; never trigger them automatically and do not wait for them in the current turn.');
+  lines.push('- When the user asks to change a UI, call the tool again with the complete updated UI.');
+  lines.push('', 'Quality:');
+  lines.push('- One UI call per answer is usually enough. Real data only: never invent numbers to fill a chart; if data is missing, say so or ask.');
+  lines.push('- Keep UI component trees clean and concise (e.g. 4-8 milestones for Timeline, 4-8 rows for Table). Keep text props succinct and avoid excessively long paragraphs inside components.');
+  lines.push('- Text around the UI: at most one or two sentences of context or insight. Do not restate what the UI shows.');
   lines.push('- If a UI tool returns ok=false, fix the listed problems and call it again.');
   return lines.join('\n');
 }

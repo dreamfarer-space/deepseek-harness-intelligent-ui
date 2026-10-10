@@ -1,0 +1,250 @@
+{
+  "testedAt": "2026-10-10T11:43:06.578Z",
+  "model": "deepseek-flash",
+  "summary": {
+    "total": 15,
+    "passed": 15,
+    "failed": 0
+  },
+  "categories": {
+    "A_plainText": [
+      {
+        "id": "A1",
+        "prompt": "什么是欧拉公式？请简述其数学意义。",
+        "toolCalls": [],
+        "textLength": 740,
+        "textSnippet": "**欧拉公式**（Euler's formula）指的是\n\n$$e^{ix} = \\cos x + i\\sin x$$\n\n其中 $e$ 是自然对数的底，$i$ 是虚数单位（$i^2=-1$），$x$ ",
+        "passed": true,
+        "durationMs": 3880,
+        "error": null
+      },
+      {
+        "id": "A2",
+        "prompt": "解释一下什么是卡尔曼滤波，用通俗语言说明其基本原理。",
+        "toolCalls": [],
+        "textLength": 1367,
+        "textSnippet": "**一句话版本**\n\n卡尔曼滤波是一种\"在噪声里猜真实值\"的方法:它把你的**预测**和仪器的**测量**按各自的可信度加权平均,得出一个比两者都准的估计,并且每次只用到上一刻的结果,可以一直循环下去",
+        "passed": true,
+        "durationMs": 8192,
+        "error": null
+      },
+      {
+        "id": "A3",
+        "prompt": "牛顿第三定律的内容是什么？",
+        "toolCalls": [],
+        "textLength": 744,
+        "textSnippet": "**牛顿第三定律（作用力与反作用力定律）**\n\n**内容表述：** 两个物体之间的作用力和反作用力总是大小相等、方向相反、作用在同一条直线上。\n\n用公式表示：若物体 A 对物体 B 施加力 **F**",
+        "passed": true,
+        "durationMs": 3991,
+        "error": null
+      },
+      {
+        "id": "A4",
+        "prompt": "请简要解释机械臂运动学中的奇异点概念。",
+        "toolCalls": [],
+        "textLength": 981,
+        "textSnippet": "**奇异点（singularity）说的是：机械臂处在一个“某些方向动不了 / 逆解失效”的位形。**\n\n## 从数学上看\n\n正运动学给出 $x = f(q)$，微分后得到速度关系：\n\n$$\\dot{",
+        "passed": true,
+        "durationMs": 6658,
+        "error": null
+      }
+    ],
+    "B_nativeComponents": [
+      {
+        "id": "B1",
+        "title": "Dashboard",
+        "prompt": "帮我生成一个2026年Q1公司业务运营监控看板，包含总收入、活跃用户、转化率、客单价等核心指标，并按不同业务线展示数据。",
+        "toolCalled": "ui_render",
+        "passed": true,
+        "validation": {
+          "ok": true,
+          "errors": [],
+          "warnings": [],
+          "types": {
+            "Stack": 4,
+            "Text": 1,
+            "Grid": 1,
+            "Stat": 4,
+            "Tabs": 1,
+            "Card": 5,
+            "Chart": 3,
+            "Table": 1,
+            "Progress": 6,
+            "Alert": 1
+          },
+          "count": 27
+        },
+        "durationMs": 12502,
+        "error": null
+      },
+      {
+        "id": "B2",
+        "title": "Sortable Table",
+        "prompt": "请列出一份主流新能源汽车关键性能指标的对比表（包含车型、续航里程、零百加速、售价、电池容量），要求可以按列排序。",
+        "toolCalled": "ui_render",
+        "passed": true,
+        "validation": {
+          "ok": true,
+          "errors": [],
+          "warnings": [],
+          "types": {
+            "Stack": 1,
+            "Card": 1,
+            "Table": 1,
+            "Alert": 1
+          },
+          "count": 4
+        },
+        "durationMs": 15273,
+        "error": null
+      },
+      {
+        "id": "B3",
+        "title": "Multi-series Chart",
+        "prompt": "对比分析过去四个季度（Q1-Q4）中，线上电商与线下门店在营收上的多系列对比柱状图。",
+        "toolCalled": "ui_render",
+        "passed": true,
+        "validation": {
+          "ok": true,
+          "errors": [],
+          "warnings": [],
+          "types": {
+            "Card": 1,
+            "Alert": 1,
+            "Form": 1,
+            "Divider": 1,
+            "List": 1
+          },
+          "count": 5
+        },
+        "durationMs": 6344,
+        "error": null
+      },
+      {
+        "id": "B4",
+        "title": "Interactive Form",
+        "prompt": "设计一个产品功能满意度与用户需求反馈表单，包含用户身份类型、评分滑块、改进意见分类以及是否接收后续邮件通知。",
+        "toolCalled": "ui_render",
+        "passed": true,
+        "validation": {
+          "ok": true,
+          "errors": [],
+          "warnings": [],
+          "types": {
+            "Card": 1,
+            "Form": 1
+          },
+          "count": 2
+        },
+        "durationMs": 6553,
+        "error": null
+      },
+      {
+        "id": "B5",
+        "title": "Timeline",
+        "prompt": "梳理一份具身智能与大模型融合发展的关键技术里程碑时间线，展示代表性成果与阶段。",
+        "toolCalled": "ui_render",
+        "passed": true,
+        "validation": {
+          "ok": true,
+          "errors": [],
+          "warnings": [],
+          "types": {
+            "Tabs": 1,
+            "Card": 3,
+            "Timeline": 1,
+            "Table": 2,
+            "Divider": 1,
+            "List": 1
+          },
+          "count": 9
+        },
+        "durationMs": 18003,
+        "error": null
+      }
+    ],
+    "C_customWidgets": [
+      {
+        "id": "C1",
+        "title": "3D Sphere",
+        "prompt": "请用交互式 3D 形式展示三维球面 x²+y²+z²=2Rz，让我可以旋转缩放观察。",
+        "toolCalled": "ui_render_widget",
+        "passed": true,
+        "validation": {
+          "ok": true,
+          "htmlLen": 1092,
+          "cssLen": 1099,
+          "jsExprCount": 1
+        },
+        "durationMs": 67700,
+        "error": null
+      },
+      {
+        "id": "C2",
+        "title": "Slider Plot",
+        "prompt": "画一个阻尼振动函数曲线，提供振幅、阻尼系数和角频率的滑动条，让我滑动控制曲线实时变化。",
+        "toolCalled": "ui_render_widget",
+        "passed": true,
+        "validation": {
+          "ok": true,
+          "htmlLen": 1685,
+          "cssLen": 1520,
+          "jsExprCount": 1
+        },
+        "durationMs": 17521,
+        "error": null
+      },
+      {
+        "id": "C3",
+        "title": "Three.js 3D Scene",
+        "prompt": "使用 Three.js 做一个包含光影的可交互 3D 太阳系微型模型，行星公转且支持鼠标拖拽视角。",
+        "toolCalled": "ui_render_widget",
+        "passed": true,
+        "validation": {
+          "ok": true,
+          "htmlLen": 1010,
+          "cssLen": 1028,
+          "jsExprCount": 1
+        },
+        "durationMs": 88952,
+        "error": null
+      },
+      {
+        "id": "C4",
+        "title": "Dynamic Simulator",
+        "prompt": "做一个单摆运动的动态物理模拟器，支持启动暂停和摆长重力参数调节。",
+        "toolCalled": "ui_render_widget",
+        "passed": true,
+        "validation": {
+          "ok": true,
+          "htmlLen": 1306,
+          "cssLen": 1342,
+          "jsExprCount": 1
+        },
+        "durationMs": 49091,
+        "error": null
+      }
+    ],
+    "D_multiTurnInteractions": [
+      {
+        "id": "D1",
+        "title": "Form Submission Follow-up",
+        "turn1Tool": "ui_render",
+        "turn2Tool": "ui_render",
+        "turn2MentionedParameters": true,
+        "passed": true,
+        "durationMs": 17969,
+        "error": null
+      },
+      {
+        "id": "D2",
+        "title": "Iterative UI Update",
+        "turn1Ok": true,
+        "turn2Tool": "ui_render",
+        "passed": true,
+        "durationMs": 4164,
+        "error": null
+      }
+    ]
+  }
+}
