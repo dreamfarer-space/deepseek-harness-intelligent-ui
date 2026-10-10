@@ -104,7 +104,20 @@ createServer((req, res) => {
         return sse(res, toolEvents(model, 'ui_render', forecast(values), 36), 30)
       }
       case 'math': return sse(res, toolEvents(model, 'ui_render', MATH, 36), 35)
-      case 'sphere': return sse(res, toolEvents(model, 'ui_render_widget', SPHERE, 40), 40)
+      case 'sphere': {
+        // Leave the completed HTML visible in preview before the JS arrives.
+        const checkpoint = JSON.stringify(SPHERE).indexOf(',"jsFunctions":')
+        let streamed = 0
+        let paused = false
+        return sse(res, toolEvents(model, 'ui_render_widget', SPHERE, 40), event => {
+          streamed += event.delta.partial_json.length
+          if (!paused && streamed >= checkpoint) {
+            paused = true
+            return 1500
+          }
+          return 40
+        })
+      }
       case 'slow': return sse(res, toolEvents(model, 'ui_render_widget', SLOW, 24), 220)
       case 'explain-sphere': return sse(res, textEvents(model, explainSphere(lastText)), 20)
       case 'regenerate': return sse(res, toolEvents(model, 'ui_render_widget', SLOW, 80), 15)

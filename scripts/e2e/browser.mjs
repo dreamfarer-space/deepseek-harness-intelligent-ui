@@ -259,19 +259,36 @@ await shot('4-form-sent.png')
 
 // 3/4) Three.js sphere with an R slider.
 await caption('4 · "Plot x²+y²+z²=2Rz, let me change R" → a live Three.js widget')
-await send('Plot the surface x²+y²+z²=2Rz in 3D and let me change R with a slider')
 const SPHERE_TITLE = 'Sphere x² + y² + z² = 2Rz'
-let previewHandle
-const previewSeen = await waitFor(async () => {
-  const h = await page.$(`iframe.diui-frame[title="${SPHERE_TITLE}"][data-mode=preview]`)
-  if (h) { previewHandle = h; await h.evaluate(e => { e.__e2eTag = 'preview' }); await shot('5-widget-preview.png'); return true }
-  return false
-}, 20000, 50)
-const sameFrame = await waitFor(async () => {
-  const mode = await previewHandle?.evaluate(e => e.isConnected && e.dataset.mode)
-  return mode === 'final' ? 'kept' : undefined
-}, 15000, 50)
-check('4a. widget previews while streaming, then finalizes in the same iframe (no rebuild)', previewSeen && sameFrame === 'kept', `preview=${previewSeen} final=${sameFrame}`)
+// Observe inside the page before sending: screenshots and driver polling can
+// miss the short final phase before the completed turn moves to its reply tail.
+await page.evaluate(title => {
+  let previewFrame
+  const state = { previewSeen: false, finalizedSame: false }
+  const isSphere = node => node instanceof HTMLIFrameElement && node.classList.contains('diui-frame') && node.title === title
+  const observe = (node, wasPreview = false) => {
+    if (!isSphere(node)) return
+    if (!previewFrame && (wasPreview || node.dataset.mode === 'preview')) {
+      previewFrame = node
+      state.previewSeen = true
+    }
+    if (node === previewFrame && node.dataset.mode === 'final') state.finalizedSame = true
+  }
+  const observer = new MutationObserver(records => {
+    for (const record of records) {
+      if (record.type === 'attributes') observe(record.target, record.attributeName === 'data-mode' && record.oldValue === 'preview')
+    }
+    document.querySelectorAll('iframe.diui-frame').forEach(node => observe(node))
+  })
+  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-mode', 'title'], attributeOldValue: true })
+  window.__e2eSphereTransition = { state, stop: () => observer.disconnect() }
+}, SPHERE_TITLE)
+await send('Plot the surface x²+y²+z²=2Rz in 3D and let me change R with a slider')
+const previewSeen = await waitFor(() => page.evaluate(() => window.__e2eSphereTransition.state.previewSeen), 20000, 50)
+if (previewSeen) await shot('5-widget-preview.png')
+const sameFrame = await waitFor(() => page.evaluate(() => window.__e2eSphereTransition.state.finalizedSame), 15000, 50)
+await page.evaluate(() => { window.__e2eSphereTransition.stop(); delete window.__e2eSphereTransition })
+check('4a. widget previews while streaming, then finalizes in the same iframe (no rebuild)', previewSeen && sameFrame, `preview=${previewSeen} final=${sameFrame}`)
 await waitIdle()
 await sleep(500)
 let sphere = await frameByTitle(SPHERE_TITLE)
