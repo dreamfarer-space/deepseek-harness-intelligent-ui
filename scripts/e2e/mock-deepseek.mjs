@@ -4,12 +4,27 @@
 // streaming adapter, tool dispatch, session log and Web client all run.
 // Usage: node scripts/e2e/mock-deepseek.mjs [port] [log-file]
 import { createServer } from 'node:http'
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, existsSync } from 'node:fs'
 import { DASHBOARD, explainSphere, forecast, MATH, SLOW, SPHERE } from './scenarios.mjs'
 
 const PORT = Number(process.argv[2] || 3199)
 const LOG = process.argv[3]
+const WAIT_FOR_PREVIEW = process.argv.includes('--wait-for-preview')
 const log = (o) => { const s = JSON.stringify(o); console.log(s); if (LOG) appendFileSync(LOG, s + '\n') }
+
+function previewDelay(kind) {
+  if (!WAIT_FOR_PREVIEW || !LOG) return 1500
+  // Hold only the mock stream until the driver observes the real partial UI.
+  // Bound the wait so a missing preview remains a test failure, not a hang.
+  return new Promise(resolve => {
+    const deadline = Date.now() + 20000
+    const poll = () => {
+      if (existsSync(`${LOG}.${kind}-preview`) || Date.now() >= deadline) resolve(40)
+      else setTimeout(poll, 100)
+    }
+    poll()
+  })
+}
 
 function sse(res, events, delayOf) {
   res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
@@ -21,7 +36,8 @@ function sse(res, events, delayOf) {
     if (i >= events.length) return res.end()
     const e = events[i++]
     res.write(`event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`)
-    setTimeout(tick, e.type === 'content_block_delta' ? (typeof delayOf === 'function' ? delayOf(e) : delayOf) : 5)
+    const delay = e.type === 'content_block_delta' ? (typeof delayOf === 'function' ? delayOf(e) : delayOf) : 5
+    Promise.resolve(delay).then(ms => { if (!closed) setTimeout(tick, ms) })
   }
   tick()
 }
@@ -92,7 +108,7 @@ createServer((req, res) => {
           streamed += event.delta.partial_json.length
           if (!paused && streamed >= checkpoint) {
             paused = true
-            return 1500
+            return previewDelay('dashboard')
           }
           return 40
         })
@@ -113,7 +129,7 @@ createServer((req, res) => {
           streamed += event.delta.partial_json.length
           if (!paused && streamed >= checkpoint) {
             paused = true
-            return 1500
+            return previewDelay('sphere')
           }
           return 40
         })
