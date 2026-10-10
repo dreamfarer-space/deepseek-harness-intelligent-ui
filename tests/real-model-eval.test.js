@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { EventEmitter } from 'node:events'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import https from 'node:https'
 import { callChat, getApiKey, config } from '../scripts/test-real-model.mjs'
 import { checkedCalls, checkNativeCase, checkUpdatedTable, incorporatesSubmission, toolHistory } from '../scripts/eval/assertions.mjs'
@@ -109,7 +109,7 @@ describe('real-model API client and command', () => {
         ['A', 0, { total: 4, passed: 4, failed: 0 }],
         ['B', 1, { total: 5, passed: 0, failed: 5 }],
       ]) {
-        const result = spawnSync(process.execPath, ['--import', preload, suite, category], {
+        const result = spawnSync(process.execPath, ['--import', pathToFileURL(preload).href, suite, category], {
           cwd: dir, env: { ...process.env, DEEPSEEK_API_KEY: 'offline-test-key' }, encoding: 'utf8',
         })
         expect(result.status, result.stderr).toBe(code)
