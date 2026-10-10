@@ -246,5 +246,15 @@
         "error": null
       }
     ]
+  },
+  "evaluationVersion": 1,
+  "audit": {
+    "status": "historical-results-not-valid-under-current-assertions",
+    "knownFalsePositive": "B3 passed schema validation but validation.types contains no Chart.",
+    "limitations": [
+      "Original tool argument payloads were not retained; other cases cannot be rescored from this report.",
+      "No browser execution of real-model generated widgets was performed by this evaluator."
+    ],
+    "rerunRequired": true
   }
 }
