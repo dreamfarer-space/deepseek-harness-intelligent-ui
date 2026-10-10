@@ -21,7 +21,7 @@ function sse(res, events, delayOf) {
     if (i >= events.length) return res.end()
     const e = events[i++]
     res.write(`event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`)
-    setTimeout(tick, e.type === 'content_block_delta' ? delayOf : 5)
+    setTimeout(tick, e.type === 'content_block_delta' ? (typeof delayOf === 'function' ? delayOf(e) : delayOf) : 5)
   }
   tick()
 }
@@ -81,7 +81,22 @@ createServer((req, res) => {
     log({ at: new Date().toISOString(), decision, uiTools: tools.filter(t => t.startsWith('ui_')), toolCount: tools.length, guidance: system.includes('# Intelligent UI'), lastText: lastText.slice(0, 200), toolResult: toolResult ? textOf(toolResult.content).slice(0, 300) : undefined })
     const model = b.model
     switch (decision) {
-      case 'dashboard': return sse(res, toolEvents(model, 'ui_render', DASHBOARD, 36), 40)
+      case 'dashboard': {
+        // Make the partial-tree checkpoint observable even on a busy CI host.
+        // Keep the stream open after the first Stat is complete; the browser
+        // must still render it before the remaining components arrive.
+        const checkpoint = JSON.stringify(DASHBOARD).indexOf(',{"id":"k2"')
+        let streamed = 0
+        let paused = false
+        return sse(res, toolEvents(model, 'ui_render', DASHBOARD, 36), event => {
+          streamed += event.delta.partial_json.length
+          if (!paused && streamed >= checkpoint) {
+            paused = true
+            return 1500
+          }
+          return 40
+        })
+      }
       case 'forecast': {
         const json = /\{[\s\S]*\}/.exec(lastText)
         let values = {}
