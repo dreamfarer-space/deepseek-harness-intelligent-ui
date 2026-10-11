@@ -195,18 +195,27 @@ E2E 可以在 Windows、Linux、macOS 上运行。它会按平台自动查找 Ch
    - 用 CHANGELOG 的对应小节和 tarball 创建 GitHub Release。
 4. 本地可以先运行 `npm run release:check` 做同样的预检。
 
-## 真实模型路由与生成质量实测
+## 真实模型评测
 
-本插件的自主路由引导词与 UI 生成能力已直连官方 DeepSeek API（`deepseek-flash` 模型）完成全方位质量实测，共评估 15 个自然语言测试用例，覆盖 4 大核心类别（详细数据见 [`docs/real-model-eval-report.json`](docs/real-model-eval-report.json)）：
+API 测试套件覆盖 15 个提示词，检查模型路由、工具参数格式，以及部分指定组件和数据。它**不会在浏览器中执行模型生成的组件**，也不验证数据事实、视觉质量、物理正确性或交互行为。独立浏览器 E2E 使用脚本化模型回复。
 
-- **A. 普通文本问答（4/4 PASS，通过率 100%）：** 包含欧拉公式定义、卡尔曼滤波原理解释、牛顿第三定律、机械臂奇异点概念。模型主动输出清晰纯文本，不滥用 UI，不产生多余卡片。
-- **B. 原生组件生成（5/5 PASS，通过率 100%）：** 包含多指标运营看板（24+ 原生组件组合）、新能源车对比可排列表格、季度多系列柱状图、满意度反馈交互表单、具身智能技术时间线。模型均**自主选择 `ui_render`**，组件树校验 `validateTree` 100% 合法。
-- **C. 自定义沙箱组件（4/4 PASS，通过率 100%）：** 包含三维球面 $x^2+y^2+z^2=2Rz$、阻尼振动滑块曲线、Three.js 交互式太阳系、单摆物理模拟器。模型均**自主选择 `ui_render_widget`**，HTML/CSS/JS 沙箱参数校验 `validateWidget` 全部通过。
-- **D. 多轮交互推理（2/2 PASS，通过率 100%）：** 验证表单提交数据后 Agent 能够继续结合参数进行推演，以及多轮修改表格时保留上下文与增量修改。
+仓库保留的[历史报告](docs/real-model-eval-report.json)来自旧判分器，其中 15/15 不能作为当前通过率：B3 没有 Chart，却被判为通过。报告已标注此问题；其他用例需在新规则下重新运行，不能据此继续宣称全量通过。
+
+新版要求组件可从根节点到达，B2 必须有可排序表格，B3 必须有四季度多系列柱状图，B4 表单必须有滑块和复选框，原生 C2 Plot 必须有参数滑块。多轮测试会校验所有工具调用并逐个回复，要求后续内容包含提交的 APAC、4 个季度和乐观情景，并核对三个型号的屏幕尺寸及原表格数据。这些自动断言不代表完整质量评估。
+
+运行前设置环境变量 `DEEPSEEK_API_KEY`，不再读取固定路径的凭据文件：
 
 ```sh
-node scripts/run-real-model-suite.mjs [A|B|C|D|all]   # 运行真实模型测试套件（读取 DEEPSEEK_API_KEY）
+export DEEPSEEK_API_KEY='<你的密钥>'
+node scripts/run-real-model-suite.mjs all   # 可选 A、B、C、D 或 all
 ```
+
+```powershell
+$env:DEEPSEEK_API_KEY = '<你的密钥>'
+node scripts/run-real-model-suite.mjs all
+```
+
+每次仅将本次用例写入 `docs/real-model-eval-report.json`，分类运行不混入旧结果。断言或 API 请求失败时返回退出码 1；类别错误或密钥缺失会在改写报告前退出。请勿将密钥提交到 git。
 
 ## 已知限制
 

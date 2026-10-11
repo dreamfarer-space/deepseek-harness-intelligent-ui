@@ -162,7 +162,7 @@ Restart DSH Web afterwards. The bundle patch inserts the plugin row automaticall
 ```sh
 npm install
 npm run build       # client-src/ → client/client.js (DSH __ModuleLoader__ factory; React and Cordis external)
-npm test            # vitest: 107 tests (catalog, expressions, tools, plugin mount, streaming parser, frame/CSP/bridge, state, theme, views, interruption, turn tail, DSH compatibility gate, installer CLI)
+npm test            # vitest (catalog, expressions, tools, plugin mount, streaming parser, frame/CSP/bridge, state, theme, views, interruption, turn tail, DSH compatibility gate, installer CLI)
 npm run typecheck
 npm run e2e:all     # build → install into a temp DSH home → mock model + real DSH Web → 24 browser checks
 npm run e2e:all -- --record   # also re-records docs/assets/demo.mp4 / demo.gif (needs ffmpeg)
@@ -205,16 +205,25 @@ The E2E runs on Windows, Linux and macOS. It finds Chrome per platform (set `CHR
 
 ## Real-model Evaluation
 
-The self-routing guidance and UI generation quality were evaluated against the official DeepSeek API (`deepseek-flash`), covering 15 distinct natural-language prompts across 4 categories (detailed report in [`docs/real-model-eval-report.json`](docs/real-model-eval-report.json)):
+The API suite checks model routing, tool-argument schemas, and selected requested components or data across 15 prompts. It does **not** execute model-generated widgets in a browser or verify factual data, visual quality, physics, or interaction behavior. The separate browser E2E uses scripted model responses.
 
-- **A. Plain Text Q&A (4/4 PASS, 100%):** Math definitions, Kalman filter concepts, Newton's third law, robot kinematics singularities. The model answers concisely in text without invoking UI tools or creating spurious cards.
-- **B. Native Components (`ui_render`, 5/5 PASS, 100%):** Executive business dashboards (24+ components), sortable EV performance comparison tables, multi-series quarterly revenue bar charts, feedback rating forms, and robotics milestone timelines. The model autonomously selects `ui_render`, passing full `validateTree` checks.
-- **C. Custom Sandboxed Widgets (`ui_render_widget`, 4/4 PASS, 100%):** 3D surface $x^2+y^2+z^2=2Rz$, damped oscillator slider plot, Three.js solar system scene, and dynamic pendulum physics simulator. The model autonomously chooses `ui_render_widget` with valid HTML/CSS/JS code passing `validateWidget`.
-- **D. Multi-turn Interaction Flow (2/2 PASS, 100%):** Form submission parameter reasoning and multi-turn iterative UI modification with context preservation.
+The checked-in [historical report](docs/real-model-eval-report.json) was produced by the earlier evaluator. Its 15/15 result is not a current pass rate: B3 was incorrectly accepted despite containing no Chart. Other cases need a new run under the stricter assertions; the original report is retained with an audit note.
+
+The current suite requires rendered components (not orphan nodes), a sortable table for B2, a four-quarter multi-series bar chart for B3, range/checkbox form controls for B4, and parameter sliders for a native C2 Plot. Multi-turn cases validate all tool calls, acknowledge each call, require the submitted APAC/4/Optimistic parameters, and check all three requested screen sizes while retaining existing table values. These are automated assertions, not a complete quality assessment.
+
+Set `DEEPSEEK_API_KEY` in the environment before running; no credentials file is read:
 
 ```sh
-node scripts/run-real-model-suite.mjs [A|B|C|D|all]   # Run the evaluation suite (requires DEEPSEEK_API_KEY)
+export DEEPSEEK_API_KEY='<your-key>'
+node scripts/run-real-model-suite.mjs all   # A, B, C, D or all
 ```
+
+```powershell
+$env:DEEPSEEK_API_KEY = '<your-key>'
+node scripts/run-real-model-suite.mjs all
+```
+
+Each invocation writes only that run's cases to `docs/real-model-eval-report.json`. A partial run does not merge older cases into a new timestamp. Failed assertions/API calls exit with code 1; an invalid category or missing key fails before changing the report. Keep keys out of git.
 
 ## Limitations
 

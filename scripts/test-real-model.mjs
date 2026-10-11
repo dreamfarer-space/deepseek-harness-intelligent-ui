@@ -1,4 +1,3 @@
-import fs from 'node:fs';
 import https from 'node:https';
 import { createRenderTool } from '../src/tools/render.js';
 import { createWidgetTool } from '../src/tools/widget.js';
@@ -7,20 +6,14 @@ import { resolveConfig } from '../src/config.js';
 import { validateTree } from '../src/catalog/catalog.js';
 import { validateWidget } from '../src/tools/widget.js';
 
-// 1. Read API Key safely without logging it
-function getApiKey() {
-  const credPath = 'D:/DSH/.credentials.yaml';
-  if (!fs.existsSync(credPath)) {
-    throw new Error('Credentials file not found: ' + credPath);
-  }
-  const content = fs.readFileSync(credPath, 'utf8');
-  const match = content.match(/DEEPSEEK_API_KEY:\s*(\S+)/);
-  if (!match) throw new Error('DEEPSEEK_API_KEY not found in .credentials.yaml');
-  return match[1].replace(/['\"]/g, '');
+// Read credentials only when a request is made; importing the client is safe.
+export function getApiKey(env = process.env) {
+  const key = env.DEEPSEEK_API_KEY?.trim();
+  if (!key) throw new Error('Set DEEPSEEK_API_KEY to run real-model evaluation.');
+  return key;
 }
 
-const API_KEY = getApiKey();
-const MODEL = 'deepseek-flash'; // Official model name verified
+export const MODEL = 'deepseek-flash';
 const config = resolveConfig({});
 
 // Setup system guidance and tools
@@ -48,6 +41,7 @@ const tools = [
 ];
 
 async function callChat(messages, useTools = true) {
+  const apiKey = getApiKey();
   const payload = {
     model: MODEL,
     messages: [
@@ -67,7 +61,7 @@ async function callChat(messages, useTools = true) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${API_KEY}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Length': Buffer.byteLength(data),
       },
     }, (res) => {
@@ -75,17 +69,22 @@ async function callChat(messages, useTools = true) {
       res.on('data', chunk => body += chunk);
       res.on('end', () => {
         if (res.statusCode !== 200) {
-          return reject(new Error(`API ${res.statusCode}: ${body.slice(0, 300)}`));
+          // Do not echo response bodies: upstream errors may include secrets.
+          return reject(new Error(`DeepSeek API returned HTTP ${res.statusCode}`));
         }
         try {
           const json = JSON.parse(body);
-          resolve(json.choices[0]?.message);
+          const message = json.choices?.[0]?.message;
+          if (!message || message.role !== 'assistant') throw new Error('DeepSeek API returned no assistant message');
+          resolve(message);
         } catch (e) {
           reject(e);
         }
       });
     });
     req.on('error', reject);
+    req.setTimeout(120000, () => req.destroy(new Error('DeepSeek API request timed out after 120 seconds')));
+    req.on('response', res => res.on('error', reject));
     req.write(data);
     req.end();
   });

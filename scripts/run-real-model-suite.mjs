@@ -1,12 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { callChat, config, validateTree, validateWidget } from './test-real-model.mjs';
-
-const MODEL = 'deepseek-flash';
+import { callChat, config, validateTree, validateWidget, getApiKey, MODEL } from './test-real-model.mjs';
+import { checkedCalls, renderedNodes, checkNativeCase, toolHistory, incorporatesSubmission, checkUpdatedTable } from './eval/assertions.mjs';
 
 const results = {
   testedAt: new Date().toISOString(),
   model: MODEL,
+  evaluationVersion: 2,
+  evaluationScope: 'API routing, schema and requested component/data assertions; no browser execution',
   summary: { total: 0, passed: 0, failed: 0 },
   categories: {
     A_plainText: [],
@@ -94,12 +95,14 @@ async function runCategoryB() {
         error = toolCalls.length ? `Selected wrong tool: ${toolCalls.map(t=>t.function.name).join(',')}` : 'Did not call any UI tool';
       } else {
         try {
-          const args = JSON.parse(renderCall.function.arguments);
+          const checked = checkedCalls(msg, config);
+          const args = checked.find(c => c.call.id === renderCall.id).args;
           validation = validateTree(args);
           if (!validation.ok) {
             error = `validateTree failed: ${validation.errors.join('; ')}`;
           } else {
-            passed = true;
+            error = checkNativeCase(item.id, args);
+            passed = error === null;
           }
         } catch (e) {
           error = `JSON parse arguments error: ${e.message}`;
@@ -157,7 +160,8 @@ async function runCategoryC() {
       if (widgetCall) {
         chosenTool = 'ui_render_widget';
         try {
-          const args = JSON.parse(widgetCall.function.arguments);
+          const checked = checkedCalls(msg, config);
+          const args = checked.find(c => c.call.id === widgetCall.id).args;
           const errors = validateWidget(args, config);
           if (errors.length) {
             error = `validateWidget failed: ${errors.join('; ')}`;
@@ -171,13 +175,14 @@ async function runCategoryC() {
       } else if (renderCall && item.id === 'C2') {
         chosenTool = 'ui_render';
         try {
-          const args = JSON.parse(renderCall.function.arguments);
+          const checked = checkedCalls(msg, config);
+          const args = checked.find(c => c.call.id === renderCall.id).args;
           const v = validateTree(args);
-          if (v.ok && v.types['Plot']) {
+          if (v.ok && !checkNativeCase('C2', args)) {
             passed = true;
             validation = { ok: true, isPlotWithParams: true, count: v.count };
           } else {
-            error = `ui_render used for C2 but without Plot component: ${Object.keys(v.types).join(',')}`;
+            error = `ui_render used for C2 but without a rendered Plot with three sliders: ${Object.keys(v.types).join(',')}`;
           }
         } catch (e) {
           error = `JSON parse render args error: ${e.message}`;
@@ -221,35 +226,26 @@ async function runCategoryD() {
   const startD1 = Date.now();
   try {
     const msg1 = await callChat([{ role: 'user', content: '请帮我生成一个销售预测配置表单，包含预测区域、预测季度数、预测情景（乐观/基准/保守）。' }]);
-    const tc1 = msg1.tool_calls?.[0];
-    const isUi = tc1 && ['ui_render', 'ui_render_widget'].includes(tc1.function.name);
-    
-    const toolResultContent = JSON.stringify({ ok: true, summary: 'UI is now displayed to the user.' });
-    
-    const formSubmissionUserMessage = {
-      role: 'user',
-      content: '[Form submitted: region="APAC", quarters=4, scenario="Optimistic", include_seasonality=true] 请根据我填写的这些参数进行详细预测分析。',
-    };
-    
+    const checked1 = checkedCalls(msg1, config);
+    const form = checked1.find(c => c.name === 'ui_render' && renderedNodes(c.args).some(n => n.type === 'Form'));
+    if (!form) throw new Error('Turn 1 did not render a valid Form');
+    const tc1 = form.call;
     const messages = [
-      { role: 'user', content: '请帮我生成一个销售预测配置表单，包含预测区域、预测季度数、预测情景（乐观/基准/保守）。' },
-      { role: 'assistant', content: msg1.content || null, tool_calls: msg1.tool_calls },
-      { role: 'tool', tool_call_id: tc1?.id || 'call_d1', name: tc1?.function?.name || 'ui_render', content: toolResultContent },
-      formSubmissionUserMessage,
+      ...toolHistory('请帮我生成一个销售预测配置表单，包含预测区域、预测季度数、预测情景（乐观/基准/保守）。', msg1, checked1),
+      { role: 'user', content: '[Form submitted: region="APAC", quarters=4, scenario="Optimistic"] 请根据我填写的这些参数进行详细预测分析。' },
     ];
-    
     const msg2 = await callChat(messages);
-    const content2 = (msg2.content || '').toLowerCase();
+    const checked2 = msg2.tool_calls?.length ? checkedCalls(msg2, config) : [];
     const calls2 = msg2.tool_calls || [];
-    const mentionsApac = content2.includes('apac') || (calls2[0] && JSON.stringify(calls2[0]).toLowerCase().includes('apac'));
-    const passedD1 = isUi && (mentionsApac || (msg2.content && msg2.content.length > 50));
-    
+    const mentionsParameters = incorporatesSubmission(msg2, checked2);
+    const passedD1 = mentionsParameters;
+
     const recordD1 = {
       id: 'D1',
       title: 'Form Submission Follow-up',
       turn1Tool: tc1?.function?.name,
       turn2Tool: calls2[0]?.function?.name || 'none',
-      turn2MentionedParameters: mentionsApac,
+      turn2MentionedParameters: mentionsParameters,
       passed: passedD1,
       durationMs: Date.now() - startD1,
       error: passedD1 ? null : 'Failed to incorporate form submission data in follow-up reasoning',
@@ -271,33 +267,21 @@ async function runCategoryD() {
   try {
     const turn1Prompt = '帮我生成一个展示三款手机（Model A, Model B, Model C）价格和电池容量的表格。';
     const msg1 = await callChat([{ role: 'user', content: turn1Prompt }]);
-    const tc1 = msg1.tool_calls?.find(t => t.function.name === 'ui_render');
-    
+    const checked1 = checkedCalls(msg1, config);
+    const initial = checked1.find(c => c.name === 'ui_render' && renderedNodes(c.args).some(n => n.type === 'Table'));
+    if (!initial) throw new Error('Turn 1 did not render a valid Table');
+    const tc1 = initial.call;
     const messages = [
-      { role: 'user', content: turn1Prompt },
-      { role: 'assistant', content: msg1.content || null, tool_calls: msg1.tool_calls },
-      { role: 'tool', tool_call_id: tc1?.id || 'call_d2', name: 'ui_render', content: JSON.stringify({ ok: true, summary: 'Table displayed' }) },
+      ...toolHistory(turn1Prompt, msg1, checked1),
       { role: 'user', content: '请在这个表格中增加一列“屏幕尺寸”，并将 Model A 的屏幕尺寸设为 6.1 寸，Model B 为 6.7 寸，Model C 为 6.5 寸。' },
     ];
-    
     const msg2 = await callChat(messages);
-    const tc2 = msg2.tool_calls?.find(t => t.function.name === 'ui_render');
-    let passedD2 = false;
-    let errorD2 = null;
-    
-    if (!tc2) {
-      errorD2 = 'Turn 2 did not call ui_render to update the table';
-    } else {
-      const args = JSON.parse(tc2.function.arguments);
-      const v = validateTree(args);
-      const tableComp = args.components.find(c => c.type === 'Table');
-      if (v.ok && tableComp && tableComp.props?.columns?.some(c => c.includes('屏幕') || c.includes('Screen') || c.includes('尺寸'))) {
-        passedD2 = true;
-      } else {
-        errorD2 = `Table updated but missing requested column: ${JSON.stringify(tableComp?.props?.columns)}`;
-      }
-    }
-    
+    const checked2 = checkedCalls(msg2, config);
+    const updated = checked2.find(c => c.name === 'ui_render' && checkUpdatedTable(initial.args, c.args));
+    const tc2 = updated?.call;
+    const passedD2 = !!updated;
+    const errorD2 = passedD2 ? null : 'Updated table must retain prior columns and values and contain all three requested screen sizes';
+
     const recordD2 = {
       id: 'D2',
       title: 'Iterative UI Update',
@@ -321,30 +305,19 @@ async function runCategoryD() {
 
 async function main() {
   const targetCategory = process.argv[2] || 'all';
+  if (!['A', 'B', 'C', 'D', 'all'].includes(targetCategory)) throw new Error('Category must be A, B, C, D or all');
+  getApiKey();
   console.log('Starting Real Model UI Selection & Quality Evaluation Suite...');
   console.log(`Target Model: ${MODEL} via official DeepSeek API`);
   console.log(`Target Category: ${targetCategory}`);
   
   const reportPath = path.resolve('docs/real-model-eval-report.json');
-  let existingReport = null;
-  if (fs.existsSync(reportPath)) {
-    try {
-      existingReport = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
-    } catch { /* fresh */ }
-  }
-  
+  // A partial run reports only its own cases; never mix old results into a new run.
   if (targetCategory === 'all' || targetCategory === 'A') await runCategoryA();
-  else if (existingReport?.categories?.A_plainText) results.categories.A_plainText = existingReport.categories.A_plainText;
-
   if (targetCategory === 'all' || targetCategory === 'B') await runCategoryB();
-  else if (existingReport?.categories?.B_nativeComponents) results.categories.B_nativeComponents = existingReport.categories.B_nativeComponents;
-
   if (targetCategory === 'all' || targetCategory === 'C') await runCategoryC();
-  else if (existingReport?.categories?.C_customWidgets) results.categories.C_customWidgets = existingReport.categories.C_customWidgets;
-
   if (targetCategory === 'all' || targetCategory === 'D') await runCategoryD();
-  else if (existingReport?.categories?.D_multiTurnInteractions) results.categories.D_multiTurnInteractions = existingReport.categories.D_multiTurnInteractions;
-  
+
   // Recompute summary across all categories in results
   results.summary = { total: 0, passed: 0, failed: 0 };
   for (const catKey of Object.keys(results.categories)) {
@@ -354,6 +327,7 @@ async function main() {
     }
   }
   
+  fs.mkdirSync(path.dirname(reportPath), { recursive: true });
   fs.writeFileSync(reportPath, JSON.stringify(results, null, 2), 'utf8');
   
   console.log('\n============================================================');
@@ -362,6 +336,7 @@ async function main() {
   console.log(`Pass Rate: ${((results.summary.passed / results.summary.total) * 100).toFixed(1)}%`);
   console.log(`Saved detailed report to: ${reportPath}`);
   console.log('============================================================\n');
+  process.exitCode = results.summary.failed ? 1 : 0;
 }
 
-main().catch(console.error);
+main().catch(err => { console.error(err.message); process.exitCode = 1; });
