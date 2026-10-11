@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo } from 'react'
+import { useLayoutEffect, useMemo, type ReactElement } from 'react'
 import { RenderView } from './catalog/RenderView.tsx'
 import { inTurn, useInterrupted } from './interrupted.ts'
 import { Shell } from './shell.tsx'
@@ -48,7 +48,7 @@ function TailItem(props: { block: ToolResultNode; t: Translate } & IntelligentUi
  * Wrap a tool view: while the Turn runs it renders inline (streaming);
  * once the Turn tail shows the call, the inline copy becomes a pointer.
  */
-export function inlineView(View: (p: ToolViewProps) => JSX.Element) {
+export function inlineView(View: (p: ToolViewProps) => ReactElement) {
   return function InlineToolView(props: ToolViewProps) {
     const below = usePresentedBelow(props.callId)
     if (below && props.phase === 'result') {

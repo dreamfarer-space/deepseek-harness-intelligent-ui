@@ -11,6 +11,9 @@ updates:
     # DSH packages track the compatibility matrix by hand (src/compat.js, ci.yml).
     ignore:
       - dependency-name: '@deepseek-ai/*'
+      # New jsdom majors require a newer Node than our 22.13.0 CI floor.
+      - dependency-name: jsdom
+        update-types: [version-update:semver-major]
     groups:
       dev-dependencies:
         dependency-type: development
