@@ -85,7 +85,7 @@ jobs:
         run: node scripts/e2e/run-all.mjs --spec "./$TARBALL" --no-build --out e2e-shots
       - name: Upload screenshots on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-${{ matrix.os }}-dsh-${{ matrix.dsh }}
           path: e2e-shots/
