@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.1]
+
+### Changed
+
+- Rebuilt the client bundle with esbuild 0.28 and idiomorph 0.8 (widget DOM morphing). The catalog sources also type-check against React 19 types.
+- CI and release workflows use `actions/checkout@v7`, `actions/setup-node@v7`, `actions/upload-artifact@v7` and `pnpm/action-setup@v6`. Browser E2E runs in isolated workspaces and cleans up its processes reliably.
+
 ### Fixed
 
 - Real-model evaluation now reads `DEEPSEEK_API_KEY` from the environment, validates requested rendered components and multi-turn data, acknowledges all tool calls, and exits nonzero on failures. Partial runs no longer combine historical results under a new timestamp. API errors and missing messages fail clearly; requests have a timeout.
