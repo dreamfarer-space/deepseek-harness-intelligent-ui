@@ -10,9 +10,9 @@ It ports the ideas of CopilotKit's [OpenIntelligentUI](https://github.com/Copilo
 
 ## Demo
 
-![DeepSeek Harness Intelligent UI demo](docs/assets/demo.gif)
+![DeepSeek Harness Intelligent UI demo](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/demo.gif)
 
-🎥 **Full-quality video (H.264, ~2 min):** [docs/assets/demo.mp4](docs/assets/demo.mp4)
+🎥 **Full-quality video (H.264, ~2 min):** [docs/assets/demo.mp4](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/v0.2.1/docs/assets/demo.mp4)
 
 > The recording comes from the real DSH Web 0.2.0-rc.1 with this plugin installed, driven by `npm run e2e:all -- --record`. The model behind it is the **scripted mock** in `scripts/e2e/` (no API key was available), so the answers are canned. Everything you see (streaming, rendering, interaction, the round trips, persistence, isolation) is the real plugin running in DSH.
 >
@@ -20,21 +20,21 @@ It ports the ideas of CopilotKit's [OpenIntelligentUI](https://github.com/Copilo
 
 | Dashboard streams in, then settles | Three.js widget: R slider, rotate, zoom |
 |:---:|:---:|
-| ![Dashboard](docs/assets/screenshots/3-dashboard.png) | ![Sphere](docs/assets/screenshots/7-widget-rotated.png) |
+| ![Dashboard](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/3-dashboard.png) | ![Sphere](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/7-widget-rotated.png) |
 | *Stat, Grid, Tabs, stacked bar chart with hover tooltip, sortable table, timeline, form* | *`x²+y²+z²=2Rz` via `UI.three()`: the slider re-shapes the surface locally* |
 
 | Math, live Plot, Mermaid | Form → agent → new UI |
 |:---:|:---:|
-| ![Math](docs/assets/screenshots/9-math.png) | ![Form](docs/assets/screenshots/4-form-sent.png) |
+| ![Math](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/9-math.png) | ![Form](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/4-form-sent.png) |
 | *KaTeX formula, `Plot` with parameter sliders (no model call), Mermaid flowchart* | *Submitted values reach the agent, which answers with a forecast chart* |
 
 | Streaming preview (same iframe becomes final) | Stopped mid-generation |
 |:---:|:---:|
-| ![Preview](docs/assets/screenshots/5-widget-preview.png) | ![Stopped](docs/assets/screenshots/10-stopped.png) |
+| ![Preview](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/5-widget-preview.png) | ![Stopped](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/10-stopped.png) |
 
 | Dark theme | Phone width (dark) | After reload |
 |:---:|:---:|:---:|
-| ![Dark](docs/assets/screenshots/11b-dark-widget.png) | ![Mobile](docs/assets/screenshots/12-mobile-dark.png) | ![Reload](docs/assets/screenshots/14-reload.png) |
+| ![Dark](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/11b-dark-widget.png) | ![Mobile](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/12-mobile-dark.png) | ![Reload](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/14-reload.png) |
 
 ## How the agent decides
 
@@ -122,17 +122,17 @@ npx deepseek-harness-intelligent-ui doctor             # diagnose only
 | Task | Command |
 |---|---|
 | Upgrade | `dsh plugin --profile web add deepseek-harness-intelligent-ui@latest` |
-| Try a prerelease | `dsh plugin --profile web add deepseek-harness-intelligent-ui@next` |
-| Pin a version | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.2.0` |
+| Try a prerelease (only when the `next` dist-tag exists) | `dsh plugin --profile web add deepseek-harness-intelligent-ui@next` |
+| Pin a version | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.2.1` |
 | Uninstall | `dsh plugin --profile web remove deepseek-harness-intelligent-ui` (or `npx deepseek-harness-intelligent-ui uninstall`) |
 | From a checkout | `dsh plugin --profile web add file:/path/to/deepseek-harness-intelligent-ui` |
 
-Supported DSH versions and the CI matrix are in [docs/compatibility.md](docs/compatibility.md).
+Supported DSH versions and the CI matrix are in [docs/compatibility.md](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/v0.2.1/docs/compatibility.md).
 
 **Troubleshooting**
 
 - *`pnpm was not found`*: DSH installs plugins with pnpm. Run `corepack enable` (it ships with Node) or `npm i -g pnpm`.
-- *`… is incompatible with dsh X`*: your DSH is outside the supported range. Upgrade DSH (`npm i -g @deepseek-ai/dsh@latest`) or check [compatibility](docs/compatibility.md) for a plugin release that supports it.
+- *`… is incompatible with dsh X`*: your DSH is outside the supported range. Upgrade DSH (`npm i -g @deepseek-ai/dsh@latest`) or check [compatibility](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/v0.2.1/docs/compatibility.md) for a plugin release that supports it.
 - *Upgrading from 0.1.x (`dsh-intelligent-ui` via `file:`)*: run `dsh plugin --profile web remove dsh-intelligent-ui` first. Both packages insert the same `intelligent-ui` row, and `doctor` reports the conflict.
 - *The UI does not appear*: restart DSH Web after installing, and make sure you started the profile you installed into (`dsh web`).
 
@@ -170,9 +170,11 @@ npm run e2e:all -- --spec ./deepseek-harness-intelligent-ui-<v>.tgz   # E2E the 
 npm run smoke -- --spec ./deepseek-harness-intelligent-ui-<v>.tgz     # install smoke test (no browser): version gate, bundle row, DSH Web boot
 ```
 
-The E2E runs on Windows, Linux and macOS. It finds Chrome per platform (set `CHROME_PATH` to override) and uses `DSH_BIN` to test another `dsh` binary. CI runs everything on all three OSes against every supported DSH line ([compatibility](docs/compatibility.md)).
+The E2E runs on Windows, Linux and macOS. It finds Chrome per platform (set `CHROME_PATH` to override) and uses `DSH_BIN` to test another `dsh` binary. CI runs everything on all three OSes against every supported DSH line ([compatibility](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/v0.2.1/docs/compatibility.md)).
 
 **Releasing** (maintainers):
+
+See [release security and OIDC setup](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/releasing.md).
 
 1. Add the notes under a new `## [x.y.z]` heading in [CHANGELOG.md](CHANGELOG.md).
 2. Run `npm version x.y.z` (or `npm version prerelease --preid rc`). This rebuilds `client/client.js` with the new version and tags the commit.
@@ -184,7 +186,7 @@ The E2E runs on Windows, Linux and macOS. It finds Chrome per platform (set `CHR
 4. Run `npm run release:check` to perform the same preflight locally.
 
 - **Layout:** `src/` is the Host half (plain ESM, no build). `client-src/` is the browser half (TSX, bundled with esbuild). `client/client.js` is committed and published so npm, `file:` and git installs need no build step. CI fails if it is stale. Never add a `prepare`/`postinstall` script, because DSH's pnpm blocks plugin build scripts.
-- **What the E2E checks** (`scripts/e2e/browser.mjs`, report in [`docs/e2e-report.json`](docs/e2e-report.json)):
+- **What the E2E checks** (`scripts/e2e/browser.mjs`, report in [`docs/e2e-report.json`](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/v0.2.1/docs/e2e-report.json)):
   - Plain Q&A stays text.
   - The dashboard streams progressively.
   - Chart hover, table sort and tabs are local.
@@ -207,7 +209,7 @@ The E2E runs on Windows, Linux and macOS. It finds Chrome per platform (set `CHR
 
 The API suite checks model routing, tool-argument schemas, and selected requested components or data across 15 prompts. It does **not** execute model-generated widgets in a browser or verify factual data, visual quality, physics, or interaction behavior. The separate browser E2E uses scripted model responses.
 
-The checked-in [historical report](docs/real-model-eval-report.json) was produced by the earlier evaluator. Its 15/15 result is not a current pass rate: B3 was incorrectly accepted despite containing no Chart. Other cases need a new run under the stricter assertions; the original report is retained with an audit note.
+The checked-in [historical report](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/v0.2.1/docs/real-model-eval-report.json) was produced by the earlier evaluator. Its 15/15 result is not a current pass rate: B3 was incorrectly accepted despite containing no Chart. Other cases need a new run under the stricter assertions; the original report is retained with an audit note.
 
 The current suite requires rendered components (not orphan nodes), a sortable table for B2, a four-quarter multi-series bar chart for B3, range/checkbox form controls for B4, and parameter sliders for a native C2 Plot. Multi-turn cases validate all tool calls, acknowledge each call, require the submitted APAC/4/Optimistic parameters, and check all three requested screen sizes while retaining existing table values. These are automated assertions, not a complete quality assessment.
 

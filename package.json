@@ -72,8 +72,8 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.0.4 || >=4.0.5-alpha.0 <4.1.0-0",
-    "@deepseek-ai/dsh": ">=0.1.7-rc.1 <0.3.0-0",
-    "@deepseek-ai/dsh-llm": ">=0.1.7-rc.1 <0.3.0-0"
+    "@deepseek-ai/dsh": ">=0.1.7-rc.1 <0.3.0-0 || >=0.2.0-0 <0.2.0 || >=0.2.1-0 <0.2.1",
+    "@deepseek-ai/dsh-llm": ">=0.1.7-rc.1 <0.3.0-0 || >=0.2.0-0 <0.2.0 || >=0.2.1-0 <0.2.1"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/cordis": {
@@ -102,6 +102,7 @@
     "puppeteer-core": "25.12.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "tar": "7.5.22",
     "typescript": "7.0.2",
     "vitest": "5.0.3"
   },

@@ -10,6 +10,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import semver from 'semver'
+import { execFileSync } from 'node:child_process'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const read = f => readFileSync(path.join(root, f), 'utf8')
@@ -21,6 +22,13 @@ if (!semver.valid(pkg.version)) errors.push(`package.json version "${pkg.version
 
 const tag = arg('--tag') ?? (process.env.GITHUB_REF_NAME?.startsWith('v') ? process.env.GITHUB_REF_NAME : undefined)
 if (tag !== undefined && tag !== `v${pkg.version}`) errors.push(`tag ${tag} does not match package.json version ${pkg.version} (expected v${pkg.version})`)
+
+// Release runners fetch full history and main before supplying this option.
+const mainRef = arg('--main-ref')
+if (mainRef) {
+  try { execFileSync('git', ['merge-base', '--is-ancestor', 'HEAD', mainRef], { cwd: root, stdio: 'ignore' }) }
+  catch { errors.push(`release commit is not reachable from ${mainRef}`) }
+}
 
 const banner = read('client/client.js').split('\n', 1)[0]
 if (!banner.includes(`${pkg.name} ${pkg.version} `)) errors.push(`client/client.js was built for another version (${banner.slice(0, 80)}…) — run npm run build`)
