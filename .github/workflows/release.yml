@@ -78,6 +78,10 @@ jobs:
           # npm reports OIDC token-exchange failures only at verbose level; without
           # this an npm-side Trusted Publisher mismatch surfaces as a bare ENEEDAUTH.
           NPM_CONFIG_LOGLEVEL: verbose
+      - name: Show npm OIDC diagnostics
+        if: failure()
+        # The debug log keeps silly-level lines (e.g. a missing id-token) and redacts credentials.
+        run: grep -h -E 'oidc|/-/npm/v1/oidc' ~/.npm/_logs/*-debug-0.log || echo "no oidc lines in npm debug log"
 
   verify-published:
     needs: [preflight, publish]
