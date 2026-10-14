@@ -75,6 +75,9 @@ jobs:
           # Enabling the variable clears the token, so OIDC failure cannot fall
           # back silently to the legacy credential. See docs/releasing.md.
           NODE_AUTH_TOKEN: ${{ vars.NPM_TRUSTED_PUBLISHING != 'true' && secrets.NPM_TOKEN || '' }}
+          # npm reports OIDC token-exchange failures only at verbose level; without
+          # this an npm-side Trusted Publisher mismatch surfaces as a bare ENEEDAUTH.
+          NPM_CONFIG_LOGLEVEL: verbose
 
   verify-published:
     needs: [preflight, publish]
