@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 defaults:
   run:
     shell: bash
@@ -22,13 +26,16 @@ jobs:
       dist-tag: ${{ steps.meta.outputs.dist-tag }}
       prerelease: ${{ steps.meta.outputs.prerelease }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '22'
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - run: node scripts/ci/release-check.mjs --tag "$GITHUB_REF_NAME"
+      - run: git fetch origin main:refs/remotes/origin/main
+      - run: node scripts/ci/release-check.mjs --tag "$GITHUB_REF_NAME" --main-ref origin/main
       - id: meta
         run: |
           version=$(node -p "require('./package.json').version")
@@ -49,25 +56,25 @@ jobs:
     environment: npm
     permissions:
       contents: read
-      id-token: write # npm provenance
+      id-token: write # provenance and, when configured, npm Trusted Publishing
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: '22'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
-          cache: npm
+          package-manager-cache: false
+      # Pin a CLI that supports OIDC; do not rely on setup-node's bundled npm.
+      - run: npm install -g npm@11.9.0 --no-audit --no-fund
       - run: npm ci --no-audit --no-fund
+      - run: npm run build && git diff --exit-code -- client/client.js
       - name: Publish ${{ needs.preflight.outputs.version }} as "${{ needs.preflight.outputs.dist-tag }}"
-        run: |
-          name=$(node -p "require('./package.json').name")
-          if npm view "$name@${{ needs.preflight.outputs.version }}" version >/dev/null 2>&1; then
-            echo "::notice::$name@${{ needs.preflight.outputs.version }} is already on npm; skipping publish"
-          else
-            npm publish --provenance --access public --tag "${{ needs.preflight.outputs.dist-tag }}"
-          fi
+        run: node scripts/ci/registry-release.mjs publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Keep the working token path until npm account setup is complete.
+          # Enabling the variable clears the token, so OIDC failure cannot fall
+          # back silently to the legacy credential. See docs/releasing.md.
+          NODE_AUTH_TOKEN: ${{ vars.NPM_TRUSTED_PUBLISHING != 'true' && secrets.NPM_TOKEN || '' }}
 
   verify-published:
     needs: [preflight, publish]
@@ -78,12 +85,12 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '22'
           cache: npm
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
         with:
           version: 10
       - run: npm ci --no-audit --no-fund
@@ -92,7 +99,7 @@ jobs:
         run: |
           spec="$(node -p "require('./package.json').name")@${{ needs.preflight.outputs.version }}"
           for i in 1 2 3 4 5 6; do npm view "$spec" version && break; echo "waiting for $spec…"; sleep 20; done
-          node scripts/ci/smoke.mjs --spec "$spec"
+          node scripts/ci/smoke.mjs --spec "$spec" --expected-version "${{ needs.preflight.outputs.version }}"
 
   github-release:
     needs: [preflight, verify-published]
@@ -100,22 +107,17 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '22'
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: node scripts/ci/release-check.mjs --tag "$GITHUB_REF_NAME" --notes release-notes.md
-      - run: echo "TARBALL=$(npm pack --silent | tail -n1)" >> "$GITHUB_ENV"
+      - run: npm run build && git diff --exit-code -- client/client.js
+      - name: Download and verify the exact npm tarball
+        run: node scripts/ci/registry-release.mjs verify
       - name: Create GitHub Release
-        run: |
-          args=(--title "$GITHUB_REF_NAME" --notes-file release-notes.md --verify-tag)
-          [[ "${{ needs.preflight.outputs.prerelease }}" == "true" ]] && args+=(--prerelease)
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" "$TARBALL" --clobber
-          else
-            gh release create "$GITHUB_REF_NAME" "$TARBALL" "${args[@]}"
-          fi
+        run: node scripts/ci/registry-release.mjs github-asset
         env:
           GH_TOKEN: ${{ github.token }}

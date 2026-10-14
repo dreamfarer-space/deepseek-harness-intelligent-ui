@@ -16,6 +16,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'))
 const arg = (name, fallback) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : fallback }
 const spec = arg('--spec', root)
+const expectedVersion = arg('--expected-version', pkg.version)
 const dshHome = path.resolve(arg('--dsh-home', mkdtempSync(path.join(tmpdir(), 'dsh-smoke-'))))
 const PORT = Number(process.env.SMOKE_WEB_PORT || 3191)
 const profile = path.join(dshHome, 'profiles', 'web')
@@ -41,6 +42,7 @@ try {
 
   const installed = path.join(profile, 'node_modules', pkg.name)
   const installedPkg = JSON.parse(readFileSync(path.join(installed, 'package.json'), 'utf8'))
+  check('installed package matches the expected name/version', installedPkg.name === pkg.name && installedPkg.version === expectedVersion, `${installedPkg.name}@${installedPkg.version} (expected ${pkg.name}@${expectedVersion})`)
   check('prebuilt client bundle shipped (no build step)', existsSync(path.join(installed, 'client', 'client.js')))
   const banner = readFileSync(path.join(installed, 'client', 'client.js'), 'utf8').split('\n', 1)[0]
   check('client bundle matches the installed version', banner.includes(`${pkg.name} ${installedPkg.version}`), banner.slice(0, 100))

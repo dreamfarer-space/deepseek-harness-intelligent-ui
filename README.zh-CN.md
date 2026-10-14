@@ -16,9 +16,9 @@
 
 ## 演示
 
-![DeepSeek Harness Intelligent UI 演示](docs/assets/demo.gif)
+![DeepSeek Harness Intelligent UI 演示](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/demo.gif)
 
-🎥 **高清视频（H.264，约 2 分钟）：** [docs/assets/demo.mp4](docs/assets/demo.mp4)
+🎥 **高清视频（H.264，约 2 分钟）：** [docs/assets/demo.mp4](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/v0.2.1/docs/assets/demo.mp4)
 
 > **录制方式：** 演示视频录自真实的 DSH Web 0.2.0-rc.1，装好本插件后由 `npm run e2e:all -- --record` 自动驱动。
 >
@@ -28,20 +28,20 @@
 
 | 看板流式出现并定稿 | Three.js 组件：R 滑块、旋转、缩放 |
 |:---:|:---:|
-| ![看板](docs/assets/screenshots/3-dashboard.png) | ![球面](docs/assets/screenshots/7-widget-rotated.png) |
+| ![看板](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/3-dashboard.png) | ![球面](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/7-widget-rotated.png) |
 | *指标卡、栅格、标签页、带悬停提示的堆叠柱状图、可排序表格、时间线、表单* | *用 `UI.three()` 绘制 `x²+y²+z²=2Rz`，拖动滑块在本地即时改变曲面* |
 
 | 公式、实时函数图像、Mermaid | 表单 → Agent → 新界面 |
 |:---:|:---:|
-| ![数学](docs/assets/screenshots/9-math.png) | ![表单](docs/assets/screenshots/4-form-sent.png) |
+| ![数学](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/9-math.png) | ![表单](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/4-form-sent.png) |
 
 | 流式预览（同一个 iframe 直接定稿） | 生成中途停止 |
 |:---:|:---:|
-| ![预览](docs/assets/screenshots/5-widget-preview.png) | ![停止](docs/assets/screenshots/10-stopped.png) |
+| ![预览](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/5-widget-preview.png) | ![停止](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/10-stopped.png) |
 
 | 深色主题 | 手机宽度（深色） | 刷新后恢复 |
 |:---:|:---:|:---:|
-| ![深色](docs/assets/screenshots/11b-dark-widget.png) | ![移动端](docs/assets/screenshots/12-mobile-dark.png) | ![刷新](docs/assets/screenshots/14-reload.png) |
+| ![深色](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/11b-dark-widget.png) | ![移动端](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/12-mobile-dark.png) | ![刷新](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/14-reload.png) |
 
 ## Agent 如何选择呈现方式
 
@@ -153,17 +153,17 @@ npx deepseek-harness-intelligent-ui doctor             # 只诊断，不做修�
 | 操作 | 命令 |
 |---|---|
 | 升级 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@latest` |
-| 试用预发布版 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@next` |
-| 固定版本 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.2.0` |
+| 试用预发布版（仅在存在 `next` 标签时） | `dsh plugin --profile web add deepseek-harness-intelligent-ui@next` |
+| 固定版本 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.2.1` |
 | 卸载 | `dsh plugin --profile web remove deepseek-harness-intelligent-ui`（或 `npx deepseek-harness-intelligent-ui uninstall`） |
 | 从源码目录安装 | `dsh plugin --profile web add file:/path/to/deepseek-harness-intelligent-ui` |
 
-安装后需要重启 DSH Web。bundle patch 会自动插入 `intelligent-ui` 这一行。要修改配置，在 profile 的 `cordis.patch.yml` 中添加 `- id: intelligent-ui` 和对应的 `config:`，配置项见英文 README 的表格。支持的 DSH 版本和 CI 测试矩阵见 [docs/compatibility.md](docs/compatibility.md)。
+安装后需要重启 DSH Web。bundle patch 会自动插入 `intelligent-ui` 这一行。要修改配置，在 profile 的 `cordis.patch.yml` 中添加 `- id: intelligent-ui` 和对应的 `config:`，配置项见英文 README 的表格。支持的 DSH 版本和 CI 测试矩阵见 [docs/compatibility.md](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/v0.2.1/docs/compatibility.md)。
 
 **常见问题**
 
 - *提示 `pnpm was not found`*：DSH 用 pnpm 安装插件。运行 `corepack enable`（Node 自带）或 `npm i -g pnpm`。
-- *提示 `… is incompatible with dsh X`*：当前 DSH 版本不在支持范围内。可以升级 DSH（`npm i -g @deepseek-ai/dsh@latest`），或在[兼容性文档](docs/compatibility.md)里找支持该版本的插件发行版。
+- *提示 `… is incompatible with dsh X`*：当前 DSH 版本不在支持范围内。可以升级 DSH（`npm i -g @deepseek-ai/dsh@latest`），或在[兼容性文档](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/v0.2.1/docs/compatibility.md)里找支持该版本的插件发行版。
 - *从 0.1.x 升级（以前用 `file:` 安装的 `dsh-intelligent-ui`）*：先运行 `dsh plugin --profile web remove dsh-intelligent-ui`。新旧两个包会插入同一个 `intelligent-ui` 行，`doctor` 能检测到这种冲突。
 - *界面没有出现*：安装后要重启 DSH Web，并确认启动的是安装插件时指定的 profile（`dsh web`）。
 
@@ -172,7 +172,7 @@ npx deepseek-harness-intelligent-ui doctor             # 只诊断，不做修�
 ```sh
 npm install
 npm run build
-npm test                      # 107 个单元/组件测试（含 DSH 兼容性检查与安装器 CLI）
+npm test                      # 单元/组件测试（含 DSH 兼容性检查与安装器 CLI）
 npm run typecheck
 npm run e2e:all               # 构建 → 安装到临时 DSH 目录 → mock 模型 + 真实 DSH Web → 24 项浏览器检查
 npm run e2e:all -- --record   # 同时重新录制 docs/assets/demo.mp4 / demo.gif（需要 ffmpeg）
@@ -180,11 +180,13 @@ npm run e2e:all -- --spec ./deepseek-harness-intelligent-ui-<版本>.tgz   # 改
 npm run smoke -- --spec ./deepseek-harness-intelligent-ui-<版本>.tgz     # 安装冒烟测试（不需要浏览器）
 ```
 
-E2E 可以在 Windows、Linux、macOS 上运行。它会按平台自动查找 Chrome（可用 `CHROME_PATH` 指定），`DSH_BIN` 可指定其他 `dsh` 可执行文件。检查项见 `scripts/e2e/browser.mjs`，最近一次报告在 [`docs/e2e-report.json`](docs/e2e-report.json)。GitHub Actions 会在三个系统上，针对每个受支持的 DSH 版本跑完全部测试。
+E2E 可以在 Windows、Linux、macOS 上运行。它会按平台自动查找 Chrome（可用 `CHROME_PATH` 指定），`DSH_BIN` 可指定其他 `dsh` 可执行文件。检查项见 `scripts/e2e/browser.mjs`，最近一次报告在 [`docs/e2e-report.json`](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/v0.2.1/docs/e2e-report.json)。GitHub Actions 会在三个系统上，针对每个受支持的 DSH 版本跑完全部测试。
 
 `client/client.js` 已提交到仓库并随包发布，所以 npm、`file:` 和 git 安装都不需要构建。不要添加 `prepare` 或 `postinstall` 脚本，因为 DSH 使用的 pnpm 会拦截插件的构建脚本。
 
 **发布流程**（维护者）：
+
+发布安全与 OIDC 配置见[维护者说明](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/releasing.md)。
 
 1. 在 [CHANGELOG.md](CHANGELOG.md) 中新增 `## [x.y.z]` 小节。
 2. 运行 `npm version x.y.z`（或 `npm version prerelease --preid rc`）。这一步会用新版本号重新构建 `client/client.js` 并打 tag。
@@ -199,7 +201,7 @@ E2E 可以在 Windows、Linux、macOS 上运行。它会按平台自动查找 Ch
 
 API 测试套件覆盖 15 个提示词，检查模型路由、工具参数格式，以及部分指定组件和数据。它**不会在浏览器中执行模型生成的组件**，也不验证数据事实、视觉质量、物理正确性或交互行为。独立浏览器 E2E 使用脚本化模型回复。
 
-仓库保留的[历史报告](docs/real-model-eval-report.json)来自旧判分器，其中 15/15 不能作为当前通过率：B3 没有 Chart，却被判为通过。报告已标注此问题；其他用例需在新规则下重新运行，不能据此继续宣称全量通过。
+仓库保留的[历史报告](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/v0.2.1/docs/real-model-eval-report.json)来自旧判分器，其中 15/15 不能作为当前通过率：B3 没有 Chart，却被判为通过。报告已标注此问题；其他用例需在新规则下重新运行，不能据此继续宣称全量通过。
 
 新版要求组件可从根节点到达，B2 必须有可排序表格，B3 必须有四季度多系列柱状图，B4 表单必须有滑块和复选框，原生 C2 Plot 必须有参数滑块。多轮测试会校验所有工具调用并逐个回复，要求后续内容包含提交的 APAC、4 个季度和乐观情景，并核对三个型号的屏幕尺寸及原表格数据。这些自动断言不代表完整质量评估。
 

@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- npm co-installation with the supported DSH 0.2.0-rc and 0.2.1-alpha lines now uses explicit prerelease peer ranges.
+- README installation examples use the published 0.2.1 version, explain the optional `next` tag, and link to versioned documentation and media outside the tarball.
+
+### Changed
+
+- Release reruns verify registry integrity, exact package contents and provenance before reusing a version. GitHub Release assets come from that registry tarball and conflicting assets are refused.
+- Release preflight requires the tagged commit to belong to main. Actions use immutable commit SHAs, and publishing can opt into npm Trusted Publishing after account-side setup.
+
 ## [0.2.1]
 
 ### Changed
@@ -18,7 +28,7 @@ All notable changes to this project are documented here. The format follows
 - Real-model evaluation now reads `DEEPSEEK_API_KEY` from the environment, validates requested rendered components and multi-turn data, acknowledges all tool calls, and exits nonzero on failures. Partial runs no longer combine historical results under a new timestamp. API errors and missing messages fail clearly; requests have a timeout.
 - Marked the legacy evaluation report's missing-Chart false positive and clarified the limits of API-only evaluation in both READMEs.
 
-## [0.2.0]
+## 0.2.0 (development milestone)
 
 ### Changed
 
@@ -37,7 +47,7 @@ All notable changes to this project are documented here. The format follows
   - A nightly compatibility matrix across DSH versions (install smoke test plus browser E2E).
   - A tag-driven release that publishes to npm with provenance and creates the GitHub Release.
 
-## [0.1.0]
+## 0.1.0 (development milestone)
 
 ### Added
 
@@ -45,6 +55,5 @@ All notable changes to this project are documented here. The format follows
   - The declarative component catalog (`ui_render`) and sandboxed streaming HTML widgets (`ui_render_widget`).
   - The `/ui` command and the guidance system-prompt section.
 
-[Unreleased]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/releases/tag/v0.1.0
+[Unreleased]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/releases/tag/v0.2.1
