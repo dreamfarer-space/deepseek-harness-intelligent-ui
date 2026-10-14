@@ -71,10 +71,10 @@ jobs:
       - name: Publish ${{ needs.preflight.outputs.version }} as "${{ needs.preflight.outputs.dist-tag }}"
         run: node scripts/ci/registry-release.mjs publish
         env:
-          # Keep the working token path until npm account setup is complete.
-          # Enabling the variable clears the token, so OIDC failure cannot fall
-          # back silently to the legacy credential. See docs/releasing.md.
-          NODE_AUTH_TOKEN: ${{ vars.NPM_TRUSTED_PUBLISHING != 'true' && secrets.NPM_TOKEN || '' }}
+          # npm Trusted Publishing (OIDC) only; there is no token fallback.
+          # Empty value fills setup-node's `_authToken=${NODE_AUTH_TOKEN}` line;
+          # npm's OIDC exchange replaces it. See docs/releasing.md.
+          NODE_AUTH_TOKEN: ''
           # npm reports OIDC token-exchange failures only at verbose level; without
           # this an npm-side Trusted Publisher mismatch surfaces as a bare ENEEDAUTH.
           NPM_CONFIG_LOGLEVEL: verbose

@@ -17,29 +17,27 @@ The supported DSH prerelease peer ranges include the tested 0.2.0-rc and
 0.2.1-alpha lines explicitly so ordinary npm co-installation and DSH's own
 compatibility gate agree on those versions. CI checks both semver behaviors.
 
-## Enable npm Trusted Publishing
+## npm Trusted Publishing
 
-The workflow supports both authentication modes. The existing `NPM_TOKEN`
-remains usable until account-side setup is complete; the presence of provenance
-alone does not mean that Trusted Publishing is enabled.
+Releases publish only through npm Trusted Publishing (OIDC); no npm token is
+stored in GitHub. 0.2.2 was the first OIDC release, after which the old
+granular token was revoked and the `NPM_TOKEN` secret removed.
 
-1. In the npm package's Settings → Trusted Publisher, configure GitHub Actions:
-   - owner: `dreamfarer-space`
-   - repository: `deepseek-harness-intelligent-ui`
-   - workflow filename: `release.yml`
-   - environment: `npm`
-   - allow direct `npm publish` for this workflow.
-2. Set the GitHub repository/environment Actions variable
-   `NPM_TRUSTED_PUBLISHING=true`. The publish step then passes an empty
-   `NODE_AUTH_TOKEN`, preventing silent fallback to the existing token.
-   It uses Node 24 and pinned npm 11.9.0 (OIDC needs Node ≥22.14 / npm ≥11.5.1).
-3. Verify a new tag release uses OIDC successfully. Then revoke the obsolete
-   granular token in npm and remove `NPM_TOKEN` from GitHub.
+The npm package's Settings → Trusted Publisher must keep matching exactly:
 
-Do not enable the variable before npm has the matching trusted publisher.
-Do not revoke the working credential before the replacement path is verified.
-If the token path must remain, restrict it to this package, use the minimum
-necessary permissions/expiry, and inspect its 2FA-bypass setting.
+- provider: GitHub Actions
+- owner: `dreamfarer-space`
+- repository: `deepseek-harness-intelligent-ui`
+- workflow filename: `release.yml`
+- environment: `npm`
+
+The publish job needs `id-token: write`, Node 24 and pinned npm 11.9.0 (OIDC
+needs Node ≥22.14 / npm ≥11.5.1). npm logs a rejected token exchange only at
+verbose level and then fails with a bare `ENEEDAUTH`, so the job publishes
+verbosely and prints the debug log's OIDC lines on failure. A mismatch above is
+the usual cause; fix it on npm and rerun the failed jobs of the same tag run.
+
+Do not reintroduce a token fallback to get past an OIDC failure.
 
 ## Repository settings (not stored in workflow YAML)
 
