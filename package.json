@@ -28,7 +28,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "deepseek-harness-intelligent-ui": "./bin/cli.mjs"
+    "deepseek-harness-intelligent-ui": "bin/cli.mjs"
   },
   "files": [
     "bin",
