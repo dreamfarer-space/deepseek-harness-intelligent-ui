@@ -143,7 +143,7 @@ npx deepseek-harness-intelligent-ui doctor             # diagnose only
 |---|---|
 | Upgrade | `dsh plugin --profile web add deepseek-harness-intelligent-ui@latest` |
 | Try a prerelease (only when the `next` dist-tag exists) | `dsh plugin --profile web add deepseek-harness-intelligent-ui@next` |
-| Pin a version | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.2.3` |
+| Pin a version | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.3.0` |
 | Uninstall | `dsh plugin --profile web remove deepseek-harness-intelligent-ui` (or `npx deepseek-harness-intelligent-ui uninstall`) |
 | From a checkout | `dsh plugin --profile web add file:/path/to/deepseek-harness-intelligent-ui` |
 
