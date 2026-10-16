@@ -68,9 +68,17 @@ Open tabs, sort order, form values, sliders and `UI.state` survive turn folding,
 
 ### The real DeepSeek model, end to end
 
+https://github.com/user-attachments/assets/e4eb0adc-659e-4c80-b473-449aa42ca00f
+
+<details>
+<summary><b>🎞️ GIF highlights</b> (for viewers that cannot play the video, e.g. npm)</summary>
+<br>
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/demo.gif" alt="Real deepseek-flash model in DSH Web, narrated by the whale girl: a form round trip, a damped-oscillation Plot with sliders, and two in-place chart edits via ui_patch" width="100%">
 </p>
+
+</details>
 
 <img align="right" width="120" src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/scripts/eval/demo/assets/whale/greet.webp" alt="The DeepSeek whale girl who narrates the demo">
 

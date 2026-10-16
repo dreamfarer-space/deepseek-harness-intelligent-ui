@@ -74,9 +74,17 @@ JSON 还在生成，组件就已出现。实时组件在**同一个** iframe 中
 
 ### 真实 DeepSeek 模型，端到端
 
+https://github.com/user-attachments/assets/e4eb0adc-659e-4c80-b473-449aa42ca00f
+
+<details>
+<summary><b>🎞️ GIF 精选片段</b>（适用于无法播放视频的页面，如 npm）</summary>
+<br>
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/demo.gif" alt="真实 deepseek-flash 模型在 DSH Web 中的表现，由鲸鱼娘解说：表单回传、带滑块的阻尼振动 Plot、用 ui_patch 两轮原位修改图表" width="100%">
 </p>
+
+</details>
 
 <img align="right" width="120" src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/scripts/eval/demo/assets/whale/greet.webp" alt="担任演示解说的 DeepSeek 鲸鱼娘">
 
