@@ -117,8 +117,9 @@ async function registryPackage(mode) {
       console.log(`Publishing ${spec}`)
       console.log(run('npm', ['publish', '--provenance', '--access', 'public', '--tag', semver.prerelease(pkg.version) ? 'next' : 'latest']))
     } else if (metadata) console.log(`${spec} exists; verifying contents and source before reuse`)
-    for (let attempt = 0; !metadata && attempt < 6; attempt++) {
-      console.log(`Waiting for ${spec} (${attempt + 1}/6)`)
+    // A fresh version can take several minutes to appear (0.2.4 took ~4 min).
+    for (let attempt = 0; !metadata && attempt < 15; attempt++) {
+      console.log(`Waiting for ${spec} (${attempt + 1}/15)`)
       await new Promise(resolve => setTimeout(resolve, 20_000))
       metadata = lookup(spec)
     }
