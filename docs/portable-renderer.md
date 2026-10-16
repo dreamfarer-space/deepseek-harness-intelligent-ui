@@ -20,3 +20,7 @@ The host must **not** expose arbitrary RPC, identity, local files, credentials o
 Include \`renderer/renderer.js\` in the published package. In Android, embed it locally in HTML, and do not load the renderer from a remote website. Treat widget code as untrusted even though the Host accepted the tool call. Feature-detect WebGL, reduce/disable CDN permissions for offline deployments, and show explicit errors for unsupported widgets.
 
 This is a separate build entry; the existing DSH client factory remains unchanged.
+
+## Pure event projection
+
+Consumers receiving raw native Session events may import `projectNativeUiEvents` from `deepseek-harness-intelligent-ui/portable` and pass `{hostId, sessionId}`. It sorts by native sequence, correlates `tool/call` with `tool/result` using `message.source.callId`, requires positive success metadata, validates full declarations, and only accepts full monotonic patch snapshots. Android can keep an equivalent incremental reducer while this API stabilizes.

@@ -26,7 +26,8 @@
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./locale/*.json": "./locale/*.json",
     "./package.json": "./package.json",
-    "./renderer/renderer.js": "./renderer/renderer.js"
+    "./renderer/renderer.js": "./renderer/renderer.js",
+    "./portable": "./src/portable/artifacts.js"
   },
   "bin": {
     "deepseek-harness-intelligent-ui": "bin/cli.mjs"
