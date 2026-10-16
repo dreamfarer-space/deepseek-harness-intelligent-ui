@@ -49,9 +49,8 @@ function Surface({ artifact, host, theme }: { artifact: PortableUiArtifact; host
   const policy = useMemo(() => policyFromMeta({ policy: artifact.policy ?? DEFAULT_POLICY }), [artifact.policy])
   const guard = useMemo(() => new BridgeGuard({ policy, armDelayMs: 200, minIntervalMs: 1000 }), [policy])
   const t = ((key: keyof typeof zh, vars?: Record<string, string | number>) => {
-    let v: string = (theme === 'dark' ? zh : en)[key]
     // English is the portable renderer default; consumers may provide locale in future.
-    v = en[key]
+    let v: string = en[key]
     for (const [name, value] of Object.entries(vars ?? {})) v = v.replace('{' + name + '}', String(value))
     return v
   }) as Translate
@@ -120,7 +119,7 @@ export function mount(element: HTMLElement, host: RendererHost): MountedRenderer
       current = value
       paint()
     },
-    setTheme(value) { if (!disposed && theme !== value) { theme = value; paint() } },
+    setTheme(value) { if (!disposed && theme !== value) { theme = value; document.documentElement.style.colorScheme = value; paint() } },
     dispose() { if (disposed) return; disposed = true; observer.disconnect(); root.unmount(); css.remove() },
   }
 }
