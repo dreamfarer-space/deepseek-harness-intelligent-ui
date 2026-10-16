@@ -20,7 +20,7 @@ describe('native portable artifact contract', () => {
     ];
     const snapshot = projectNativeUiEvents(list.reverse(), { hostId: 'h1', sessionId: 's1' });
     expect(snapshot).toHaveLength(1);
-    expect(snapshot[0]).toMatchObject({ uiId: 'base', version: 3, definition: v3, turn: '3' });
+    expect(snapshot[0]).toMatchObject({ uiId: 'base', version: 3, definition: v3, turn: '1', updatedTurn: '3' });
   });
 
   it('ignores failed/stale/metadata-less calls and scopes to Host and Session', () => {

@@ -81,7 +81,7 @@ export function projectNativeUiEvents(events, { hostId, sessionId }) {
       || !validTree(next)) continue;
     latest.set(prior.uiId, { ...prior, version: next.version, definition: next,
       title: typeof next.title === 'string' ? next.title : prior.title,
-      policy: policy ?? prior.policy, turn: turn ?? prior.turn, seq });
+      policy: policy ?? prior.policy, turn: prior.turn, updatedTurn: turn ?? prior.updatedTurn, seq });
   }
   return [...latest.values()].sort((a, b) => a.seq - b.seq);
 }
