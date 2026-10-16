@@ -124,8 +124,19 @@ async function registryPackage(mode) {
       metadata = lookup(spec)
     }
     if (!metadata) throw new Error(`${spec} is not available on npm`)
-    const bytes = await get(metadata.dist.tarball, false)
-    const provenance = await get(metadata.dist.attestations?.url ?? `${registry}/-/npm/v1/attestations/${spec}`)
+    // The tarball and attestations can lag behind the metadata (0.2.4's tarball
+    // 404ed for minutes after the version was listed): retry 404s only.
+    const settle = async (url, json) => {
+      for (let attempt = 0; ; attempt++) {
+        try { return await get(url, json) } catch (error) {
+          if (!/registry HTTP 404/.test(error.message) || attempt >= 14) throw error
+          console.log(`Waiting for ${url} (${attempt + 1}/15)`)
+          await new Promise(resolve => setTimeout(resolve, 20_000))
+        }
+      }
+    }
+    const bytes = await settle(metadata.dist.tarball, false)
+    const provenance = await settle(metadata.dist.attestations?.url ?? `${registry}/-/npm/v1/attestations/${spec}`, true)
     await verifyPublished(metadata, bytes, expectedBytes, provenance, expected)
     // Cryptographically verify registry signatures and attestations, in addition
     // to checking the provenance fields above. No downloaded install scripts run.
