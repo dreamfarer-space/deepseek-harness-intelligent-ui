@@ -65,6 +65,8 @@
     "e2e:mock": "node scripts/e2e/mock-deepseek.mjs 3199 e2e-mock.log",
     "e2e:browser": "node scripts/e2e/browser.mjs",
     "e2e:all": "node scripts/e2e/run-all.mjs",
+    "eval:real": "node scripts/run-real-model-suite.mjs all",
+    "eval:demo": "node scripts/eval/edit-demo.mjs e2e-shots/real-model/frames docs/real-model-eval-report.json docs/assets/real-model --gif-chapters ②,⑤,⑧",
     "version": "node scripts/build-client.mjs && git add client/client.js",
     "prepublishOnly": "node scripts/build-client.mjs && git diff --exit-code -- client/client.js && vitest run",
     "release:check": "node scripts/ci/release-check.mjs",

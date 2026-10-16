@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --ink: #22305f; --blue: #4d6bfe; --blue-d: #3651d8; --pink: #ff7a93; --mint: #3ccfb4; --sun: #ffc94d;
+    --cute: 'YouYuan', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+    --bold: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1280px; height: 720px; overflow: hidden; }
+  body { font-family: var(--bold); color: var(--ink); background: linear-gradient(135deg, #fff1fb 0%, #eef0ff 45%, #e3f6ff 100%); position: relative; }
+  .layer { position: absolute; inset: 0; }
+  #bubbles circle { fill: #ffffff; }
+  #waves path { opacity: .55; }
+
+  /* top bar */
+  #top { position: absolute; left: 36px; right: 36px; top: 18px; height: 40px; display: flex; align-items: center; gap: 14px; }
+  #brand { display: flex; align-items: center; gap: 8px; padding: 7px 16px 7px 10px; border-radius: 999px; background: #fff; border: 3px solid var(--ink); box-shadow: 0 4px 0 var(--ink); font: 800 16px/1 var(--bold); }
+  #brand b { color: var(--blue); }
+  #brand i { font-style: normal; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--blue); color: #fff; font-size: 14px; }
+  #dots { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  #dots span { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 3px solid var(--ink); transition: none; }
+  #dots span.done { background: var(--blue); }
+  #dots span.now { background: var(--pink); width: 34px; border-radius: 999px; }
+
+  /* recording window */
+  #win { position: absolute; left: 36px; top: 76px; width: 900px; height: 600px; border-radius: 24px; background: #fff; border: 4px solid var(--ink); box-shadow: 0 10px 0 var(--ink), 0 26px 50px rgba(54, 81, 216, .25); overflow: hidden; transform-origin: 50% 60%; }
+  #bar { height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 14px; background: linear-gradient(90deg, #ffe3ef, #e3e9ff); border-bottom: 3px solid var(--ink); }
+  #bar .d { width: 13px; height: 13px; border-radius: 50%; border: 2.5px solid var(--ink); }
+  #bar .t { margin-left: 10px; font: 700 14px/1 var(--bold); color: #4a5684; }
+  #chap { margin-left: auto; padding: 5px 12px; border-radius: 999px; background: var(--ink); color: #fff; font: 800 14px/1 var(--bold); }
+  #screen { position: absolute; left: 0; right: 0; top: 38px; bottom: 0; background: #f6f8ff; display: grid; place-items: center; }
+  #rec { max-width: 100%; max-height: 100%; display: block; }
+
+  /* fast-forward sticker */
+  #ff { position: absolute; left: 54px; top: 594px; padding: 8px 16px; border-radius: 16px; background: var(--sun); border: 3.5px solid var(--ink); box-shadow: 0 5px 0 var(--ink); font: 900 20px/1 var(--bold); transform-origin: 50% 50%; }
+  #ff small { display: block; font: 700 11px/1.3 var(--cute); margin-top: 3px; }
+
+  /* mascot + bubble */
+  #mascot { position: absolute; left: 960px; top: 330px; width: 290px; transform-origin: 50% 100%; }
+  #mascot svg { width: 100%; height: auto; display: block; }
+  #bubble { position: absolute; left: 952px; top: 96px; width: 300px; min-height: 120px; padding: 18px 20px; border-radius: 26px; background: #fff; border: 4px solid var(--ink); box-shadow: 0 7px 0 var(--ink); font: 400 21px/1.55 var(--cute); white-space: pre-wrap; transform-origin: 50% 100%; }
+  #bubble::after { content: ''; position: absolute; left: 132px; bottom: -26px; width: 30px; height: 30px; background: #fff; border-right: 4px solid var(--ink); border-bottom: 4px solid var(--ink); transform: rotate(45deg) skew(8deg, 8deg); border-radius: 0 0 8px 0; }
+  #bubble .hl { color: var(--blue); font-weight: 700; }
+  #bubble .caret { display: inline-block; width: 3px; height: 1em; background: var(--pink); vertical-align: -3px; margin-left: 2px; }
+
+  /* full-frame cards (intro, chapter, outro) */
+  #card { position: absolute; inset: 0; display: none; }
+  .title { font: 900 64px/1.15 var(--bold); color: #fff; -webkit-text-stroke: 10px var(--ink); paint-order: stroke fill; letter-spacing: 1px; text-shadow: 0 8px 0 var(--ink); }
+  .title .b { color: #8fb0ff; }
+  .title .p { color: #ffb3c4; }
+  .chip { display: inline-block; padding: 8px 16px; margin: 0 8px 8px 0; border-radius: 999px; background: #fff; border: 3px solid var(--ink); box-shadow: 0 4px 0 var(--ink); font: 800 16px/1 var(--bold); }
+  .badge { width: 150px; height: 150px; border-radius: 50%; background: var(--pink); border: 6px solid var(--ink); box-shadow: 0 10px 0 var(--ink); display: grid; place-items: center; font: 900 88px/1 var(--bold); color: #fff; -webkit-text-stroke: 6px var(--ink); paint-order: stroke fill; }
+  .result { display: inline-block; width: 230px; margin: 0 14px 0 0; padding: 18px 18px 16px; border-radius: 24px; background: #fff; border: 4px solid var(--ink); box-shadow: 0 8px 0 var(--ink); vertical-align: top; }
+  .result .k { font: 700 15px/1.3 var(--bold); color: #4a5684; }
+  .result .v { font: 900 48px/1.1 var(--bold); margin: 6px 0 4px; }
+  .result .s { font: 400 13px/1.45 var(--bold); color: #6b7699; }
+  .ok { color: #17b26a; } .warn { color: #f08c00; }
+  .note { position: absolute; right: 26px; bottom: 16px; font: 400 12px/1 var(--cute); color: #7a83a6; }
+  #confetti { position: absolute; inset: 0; pointer-events: none; }
+</style>
+</head>
+<body>
+  <svg id="bubbles" class="layer" viewBox="0 0 1280 720"></svg>
+  <svg id="waves" class="layer" viewBox="0 0 1280 720"></svg>
+  <div id="top"><div id="brand"><i>🐳</i>Intelligent UI · <b>真实模型实测</b></div><div id="dots"></div></div>
+  <div id="win">
+    <div id="bar"><span class="d" style="background:#ff8fa3"></span><span class="d" style="background:#ffd166"></span><span class="d" style="background:#7ee0c3"></span><span class="t" id="wintitle">DSH Web · deepseek-flash · 实时录屏</span><span id="chap"></span></div>
+    <div id="screen"><img id="rec" alt=""></div>
+  </div>
+  <div id="ff">⏩ 快进中<small id="ffs"></small></div>
+  <div id="bubble"></div>
+  <div id="mascot"></div>
+  <div id="card"></div>
+  <svg id="confetti" viewBox="0 0 1280 720"></svg>
+<script>
+const $ = id => document.getElementById(id)
+const show = (el, on) => { el.style.display = on ? 'block' : 'none' }
+
+function background(t) {
+  // Bubbles drift up; waves roll. Pure functions of t.
+  let b = ''
+  for (let i = 0; i < 26; i++) {
+    const seed = (i * 9301 + 49297) % 233280 / 233280
+    const x = (seed * 1280 + Math.sin(t * .6 + i) * 18)
+    const speed = 18 + (i % 5) * 9
+    const y = 760 - ((t * speed + i * 97) % 820)
+    const r = 4 + (i % 6) * 3
+    b += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" opacity="${(.25 + (i % 3) * .15).toFixed(2)}"/>`
+  }
+  $('bubbles').innerHTML = b
+  const wave = (amp, len, speed, y, color, ph) => {
+    let d = `M0 720 L0 ${y}`
+    for (let x = 0; x <= 1280; x += 20) d += ` L${x} ${(y + Math.sin(x / len + t * speed + ph) * amp).toFixed(1)}`
+    return `<path d="${d} L1280 720 Z" fill="${color}"/>`
+  }
+  $('waves').innerHTML = wave(10, 90, 1.1, 676, '#c9dcff', 0) + wave(8, 70, -1.4, 692, '#b4f0ff', 2) + wave(6, 55, 1.8, 706, '#d9ccff', 4)
+}
+
+function confetti(t, on) {
+  if (!on) { $('confetti').innerHTML = ''; return }
+  const colors = ['#ff7a93', '#4d6bfe', '#ffc94d', '#3ccfb4', '#a78bfa']
+  let s = ''
+  for (let i = 0; i < 70; i++) {
+    const seed = ((i * 7919) % 1000) / 1000
+    const x = seed * 1280 + Math.sin(t * 2 + i) * 30
+    const y = ((t * (90 + (i % 7) * 25) + i * 53) % 820) - 60
+    const rot = (t * 160 + i * 40) % 360
+    s += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="12" height="7" rx="2" fill="${colors[i % 5]}" transform="rotate(${rot.toFixed(0)} ${x.toFixed(1)} ${y.toFixed(1)})"/>`
+  }
+  $('confetti').innerHTML = s
+}
+
+window.renderFrame = async (st) => {
+  background(st.t)
+  confetti(st.t, st.confetti)
+  $('dots').innerHTML = Array.from({ length: st.total }, (_, i) => `<span class="${i < st.current ? 'done' : i === st.current ? 'now' : ''}"></span>`).join('')
+  const rec = st.scene === 'rec'
+  show($('win'), rec); show($('ff'), rec && st.fast); show($('card'), !rec)
+  if (rec) {
+    $('chap').textContent = st.chapter
+    $('win').style.transform = `scale(${st.winScale ?? 1})`
+    $('win').style.opacity = st.winOpacity ?? 1
+    if ($('rec').dataset.src !== st.src) {
+      $('rec').src = st.src
+      $('rec').dataset.src = st.src
+      try { await $('rec').decode() } catch { /* keep the previous frame */ }
+    }
+    if (st.fast) {
+      $('ff').style.transform = `rotate(${(-6 + Math.sin(st.t * 6) * 4).toFixed(1)}deg) scale(${(1 + Math.sin(st.t * 9) * .04).toFixed(3)})`
+      $('ffs').textContent = `×${st.speed} · 真实耗时见右下角`
+    }
+  } else {
+    $('card').innerHTML = st.cardHtml
+  }
+  // bubble with typewriter reveal
+  show($('bubble'), !!st.bubble)
+  if (st.bubble) {
+    const chars = [...st.bubble]
+    const n = Math.round(chars.length * Math.min(1, st.reveal))
+    $('bubble').innerHTML = chars.slice(0, n).join('').replace(/「([^」]+)」/g, '「<span class="hl">$1</span>」') + (n < chars.length ? '<span class="caret"></span>' : '')
+    $('bubble').style.transform = `scale(${st.bubbleScale ?? 1})`
+    if (st.bubblePos) Object.assign($('bubble').style, st.bubblePos)
+    else Object.assign($('bubble').style, { left: '952px', top: '96px', width: '300px' })
+  }
+  $('mascot').innerHTML = st.mascot
+  Object.assign($('mascot').style, { left: `${st.mx}px`, top: `${st.my}px`, width: `${st.mw}px`, transform: `scale(${st.ms ?? 1}) rotate(${st.mr ?? 0}deg)` })
+}
+</script>
+</body>
+</html>

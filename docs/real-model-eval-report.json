@@ -1,260 +1,3142 @@
 {
-  "testedAt": "2026-10-10T11:43:06.578Z",
-  "model": "deepseek-flash",
-  "summary": {
-    "total": 15,
-    "passed": 15,
-    "failed": 0
+  "reportVersion": 3,
+  "generatedAt": "2026-10-16T08:39:50.715Z",
+  "finishedAt": "2026-10-16T08:41:19.369Z",
+  "command": "node scripts/run-real-model-suite.mjs all --stage browser --only R-three --keep-other-layers",
+  "model": {
+    "requested": "deepseek-flash",
+    "reported": [
+      "deepseek-flash"
+    ],
+    "fingerprints": []
   },
-  "categories": {
-    "A_plainText": [
-      {
-        "id": "A1",
-        "prompt": "什么是欧拉公式？请简述其数学意义。",
-        "toolCalls": [],
-        "textLength": 740,
-        "textSnippet": "**欧拉公式**（Euler's formula）指的是\n\n$$e^{ix} = \\cos x + i\\sin x$$\n\n其中 $e$ 是自然对数的底，$i$ 是虚数单位（$i^2=-1$），$x$ ",
-        "passed": true,
-        "durationMs": 3880,
-        "error": null
-      },
-      {
-        "id": "A2",
-        "prompt": "解释一下什么是卡尔曼滤波，用通俗语言说明其基本原理。",
-        "toolCalls": [],
-        "textLength": 1367,
-        "textSnippet": "**一句话版本**\n\n卡尔曼滤波是一种\"在噪声里猜真实值\"的方法:它把你的**预测**和仪器的**测量**按各自的可信度加权平均,得出一个比两者都准的估计,并且每次只用到上一刻的结果,可以一直循环下去",
-        "passed": true,
-        "durationMs": 8192,
-        "error": null
-      },
-      {
-        "id": "A3",
-        "prompt": "牛顿第三定律的内容是什么？",
-        "toolCalls": [],
-        "textLength": 744,
-        "textSnippet": "**牛顿第三定律（作用力与反作用力定律）**\n\n**内容表述：** 两个物体之间的作用力和反作用力总是大小相等、方向相反、作用在同一条直线上。\n\n用公式表示：若物体 A 对物体 B 施加力 **F**",
-        "passed": true,
-        "durationMs": 3991,
-        "error": null
-      },
-      {
-        "id": "A4",
-        "prompt": "请简要解释机械臂运动学中的奇异点概念。",
-        "toolCalls": [],
-        "textLength": 981,
-        "textSnippet": "**奇异点（singularity）说的是：机械臂处在一个“某些方向动不了 / 逆解失效”的位形。**\n\n## 从数学上看\n\n正运动学给出 $x = f(q)$，微分后得到速度关系：\n\n$$\\dot{",
-        "passed": true,
-        "durationMs": 6658,
-        "error": null
-      }
-    ],
-    "B_nativeComponents": [
-      {
-        "id": "B1",
-        "title": "Dashboard",
-        "prompt": "帮我生成一个2026年Q1公司业务运营监控看板，包含总收入、活跃用户、转化率、客单价等核心指标，并按不同业务线展示数据。",
-        "toolCalled": "ui_render",
-        "passed": true,
-        "validation": {
-          "ok": true,
-          "errors": [],
-          "warnings": [],
-          "types": {
-            "Stack": 4,
-            "Text": 1,
-            "Grid": 1,
-            "Stat": 4,
-            "Tabs": 1,
-            "Card": 5,
-            "Chart": 3,
-            "Table": 1,
-            "Progress": 6,
-            "Alert": 1
-          },
-          "count": 27
-        },
-        "durationMs": 12502,
-        "error": null
-      },
-      {
-        "id": "B2",
-        "title": "Sortable Table",
-        "prompt": "请列出一份主流新能源汽车关键性能指标的对比表（包含车型、续航里程、零百加速、售价、电池容量），要求可以按列排序。",
-        "toolCalled": "ui_render",
-        "passed": true,
-        "validation": {
-          "ok": true,
-          "errors": [],
-          "warnings": [],
-          "types": {
-            "Stack": 1,
-            "Card": 1,
-            "Table": 1,
-            "Alert": 1
-          },
-          "count": 4
-        },
-        "durationMs": 15273,
-        "error": null
-      },
-      {
-        "id": "B3",
-        "title": "Multi-series Chart",
-        "prompt": "对比分析过去四个季度（Q1-Q4）中，线上电商与线下门店在营收上的多系列对比柱状图。",
-        "toolCalled": "ui_render",
-        "passed": true,
-        "validation": {
-          "ok": true,
-          "errors": [],
-          "warnings": [],
-          "types": {
-            "Card": 1,
-            "Alert": 1,
-            "Form": 1,
-            "Divider": 1,
-            "List": 1
-          },
-          "count": 5
-        },
-        "durationMs": 6344,
-        "error": null
-      },
-      {
-        "id": "B4",
-        "title": "Interactive Form",
-        "prompt": "设计一个产品功能满意度与用户需求反馈表单，包含用户身份类型、评分滑块、改进意见分类以及是否接收后续邮件通知。",
-        "toolCalled": "ui_render",
-        "passed": true,
-        "validation": {
-          "ok": true,
-          "errors": [],
-          "warnings": [],
-          "types": {
-            "Card": 1,
-            "Form": 1
-          },
-          "count": 2
-        },
-        "durationMs": 6553,
-        "error": null
-      },
-      {
-        "id": "B5",
-        "title": "Timeline",
-        "prompt": "梳理一份具身智能与大模型融合发展的关键技术里程碑时间线，展示代表性成果与阶段。",
-        "toolCalled": "ui_render",
-        "passed": true,
-        "validation": {
-          "ok": true,
-          "errors": [],
-          "warnings": [],
-          "types": {
-            "Tabs": 1,
-            "Card": 3,
-            "Timeline": 1,
-            "Table": 2,
-            "Divider": 1,
-            "List": 1
-          },
-          "count": 9
-        },
-        "durationMs": 18003,
-        "error": null
-      }
-    ],
-    "C_customWidgets": [
-      {
-        "id": "C1",
-        "title": "3D Sphere",
-        "prompt": "请用交互式 3D 形式展示三维球面 x²+y²+z²=2Rz，让我可以旋转缩放观察。",
-        "toolCalled": "ui_render_widget",
-        "passed": true,
-        "validation": {
-          "ok": true,
-          "htmlLen": 1092,
-          "cssLen": 1099,
-          "jsExprCount": 1
-        },
-        "durationMs": 67700,
-        "error": null
-      },
-      {
-        "id": "C2",
-        "title": "Slider Plot",
-        "prompt": "画一个阻尼振动函数曲线，提供振幅、阻尼系数和角频率的滑动条，让我滑动控制曲线实时变化。",
-        "toolCalled": "ui_render_widget",
-        "passed": true,
-        "validation": {
-          "ok": true,
-          "htmlLen": 1685,
-          "cssLen": 1520,
-          "jsExprCount": 1
-        },
-        "durationMs": 17521,
-        "error": null
-      },
-      {
-        "id": "C3",
-        "title": "Three.js 3D Scene",
-        "prompt": "使用 Three.js 做一个包含光影的可交互 3D 太阳系微型模型，行星公转且支持鼠标拖拽视角。",
-        "toolCalled": "ui_render_widget",
-        "passed": true,
-        "validation": {
-          "ok": true,
-          "htmlLen": 1010,
-          "cssLen": 1028,
-          "jsExprCount": 1
-        },
-        "durationMs": 88952,
-        "error": null
-      },
-      {
-        "id": "C4",
-        "title": "Dynamic Simulator",
-        "prompt": "做一个单摆运动的动态物理模拟器，支持启动暂停和摆长重力参数调节。",
-        "toolCalled": "ui_render_widget",
-        "passed": true,
-        "validation": {
-          "ok": true,
-          "htmlLen": 1306,
-          "cssLen": 1342,
-          "jsExprCount": 1
-        },
-        "durationMs": 49091,
-        "error": null
-      }
-    ],
-    "D_multiTurnInteractions": [
-      {
-        "id": "D1",
-        "title": "Form Submission Follow-up",
-        "turn1Tool": "ui_render",
-        "turn2Tool": "ui_render",
-        "turn2MentionedParameters": true,
-        "passed": true,
-        "durationMs": 17969,
-        "error": null
-      },
-      {
-        "id": "D2",
-        "title": "Iterative UI Update",
-        "turn1Ok": true,
-        "turn2Tool": "ui_render",
-        "passed": true,
-        "durationMs": 4164,
-        "error": null
-      }
-    ]
+  "versions": {
+    "assertions": 3,
+    "prompt": "55e5cf438f50"
   },
-  "evaluationVersion": 1,
-  "audit": {
-    "status": "historical-results-not-valid-under-current-assertions",
-    "knownFalsePositive": "B3 passed schema validation but validation.types contains no Chart.",
-    "limitations": [
-      "Original tool argument payloads were not retained; other cases cannot be rescored from this report.",
-      "No browser execution of real-model generated widgets was performed by this evaluator."
-    ],
-    "rerunRequired": true
-  }
+  "environment": {
+    "node": "24.11.1",
+    "platform": "win32-x64",
+    "plugin": "0.2.3",
+    "dsh": "0.2.0-rc.1",
+    "browser": "Chrome/155.0.8059.82"
+  },
+  "layers": {
+    "mockE2E": {
+      "source": "executed in this run (scripts/e2e/run-all.mjs)",
+      "testedAt": "2026-10-16T08:14:16.708Z",
+      "model": "scripted mock (scripts/e2e/mock-deepseek.mjs)",
+      "summary": {
+        "total": 30,
+        "passed": 30,
+        "failed": 0,
+        "successRate": 1,
+        "byCategory": {
+          "mock": {
+            "total": 30,
+            "passed": 30,
+            "successRate": 1
+          }
+        }
+      },
+      "failures": [],
+      "carriedOver": true
+    },
+    "browser": {
+      "testedAt": "2026-10-16T08:38:23.349Z",
+      "scope": "Real model inside real DSH Web with this plugin, driven in Chrome. Rendering, interaction round trips, stop/resume, network conditions and console errors.",
+      "summary": {
+        "total": 12,
+        "passed": 11,
+        "failed": 1,
+        "successRate": 0.917,
+        "byCategory": {
+          "text": {
+            "total": 1,
+            "passed": 1,
+            "successRate": 1
+          },
+          "chart-table": {
+            "total": 2,
+            "passed": 2,
+            "successRate": 1
+          },
+          "form": {
+            "total": 1,
+            "passed": 1,
+            "successRate": 1
+          },
+          "math-plot": {
+            "total": 1,
+            "passed": 1,
+            "successRate": 1
+          },
+          "threejs": {
+            "total": 2,
+            "passed": 1,
+            "successRate": 0.5
+          },
+          "stop-resume": {
+            "total": 1,
+            "passed": 1,
+            "successRate": 1
+          },
+          "multi-turn": {
+            "total": 1,
+            "passed": 1,
+            "successRate": 1
+          },
+          "network": {
+            "total": 2,
+            "passed": 2,
+            "successRate": 1
+          },
+          "mobile": {
+            "total": 1,
+            "passed": 1,
+            "successRate": 1
+          }
+        }
+      },
+      "timing": {
+        "firstPreviewMs": {
+          "n": 11,
+          "p50": 8394,
+          "p95": 74887,
+          "max": 74887
+        },
+        "generationMs": {
+          "n": 11,
+          "p50": 13603,
+          "p95": 78192,
+          "max": 78192
+        },
+        "browserExecMs": {
+          "n": 10,
+          "p50": 33,
+          "p95": 2874,
+          "max": 2874
+        }
+      },
+      "cases": [
+        {
+          "id": "R-text",
+          "category": "text",
+          "title": "Plain question stays text",
+          "model": [
+            "deepseek-flash"
+          ],
+          "modelLabel": "DeepSeek-V41-Flash",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "answered in text",
+              "ok": true
+            },
+            {
+              "name": "no UI card was created",
+              "ok": true,
+              "detail": "cards 0 → 0"
+            },
+            {
+              "name": "turn finished",
+              "ok": true
+            },
+            {
+              "name": "no uncaught errors in the DSH page",
+              "ok": true
+            },
+            {
+              "name": "no plugin errors in the console",
+              "ok": true
+            }
+          ],
+          "timing": {
+            "turnMs": 3955,
+            "caseMs": 5059
+          },
+          "notes": [],
+          "clarifications": [],
+          "subagents": 0,
+          "consoleErrors": [],
+          "screenshots": [],
+          "run": 1,
+          "testedAt": "2026-10-16T08:38:23.349Z"
+        },
+        {
+          "id": "R-chart",
+          "category": "chart-table",
+          "title": "Multi-series bar chart",
+          "model": [
+            "deepseek-flash"
+          ],
+          "modelLabel": "DeepSeek-V41-Flash",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "a chart rendered",
+              "ok": true
+            },
+            {
+              "name": "two or more series in the legend (online + offline)",
+              "ok": true,
+              "detail": "线上电商, 线下门店"
+            },
+            {
+              "name": "Q1-Q4 on the x axis",
+              "ok": true,
+              "detail": "0 2000 4000 6000 8000 Q1 Q2 Q3 Q4"
+            },
+            {
+              "name": "at least 8 bars (4 quarters × 2 series)",
+              "ok": true,
+              "detail": "8 bars"
+            },
+            {
+              "name": "hover shows a tooltip (local, no model call)",
+              "ok": true,
+              "detail": "Q1线上电商: 3200 万元线下门店: 5400 万元"
+            },
+            {
+              "name": "turn finished",
+              "ok": true
+            },
+            {
+              "name": "no uncaught errors in the DSH page",
+              "ok": true
+            },
+            {
+              "name": "no plugin errors in the console",
+              "ok": true
+            }
+          ],
+          "timing": {
+            "firstPreviewMs": 10515,
+            "generationMs": 12841,
+            "turnMs": 15057,
+            "browserExecMs": 0,
+            "caseMs": 17816
+          },
+          "notes": [],
+          "clarifications": [],
+          "subagents": 0,
+          "consoleErrors": [],
+          "screenshots": [
+            "browser/chart.png"
+          ],
+          "run": 1,
+          "testedAt": "2026-10-16T08:38:23.349Z"
+        },
+        {
+          "id": "R-table",
+          "category": "chart-table",
+          "title": "Sortable comparison table",
+          "model": [
+            "deepseek-flash"
+          ],
+          "modelLabel": "DeepSeek-V41-Flash",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "table rendered with 3+ rows",
+              "ok": true,
+              "detail": "15 rows"
+            },
+            {
+              "name": "columns are sortable",
+              "ok": true
+            },
+            {
+              "name": "clicking a header re-orders rows locally",
+              "ok": true
+            },
+            {
+              "name": "turn finished",
+              "ok": true
+            },
+            {
+              "name": "no uncaught errors in the DSH page",
+              "ok": true
+            },
+            {
+              "name": "no plugin errors in the console",
+              "ok": true
+            }
+          ],
+          "timing": {
+            "firstPreviewMs": 6401,
+            "generationMs": 9455,
+            "turnMs": 11394,
+            "browserExecMs": 33,
+            "caseMs": 14950
+          },
+          "notes": [],
+          "clarifications": [],
+          "subagents": 0,
+          "consoleErrors": [],
+          "screenshots": [
+            "browser/table.png"
+          ],
+          "run": 1,
+          "testedAt": "2026-10-16T08:38:23.349Z"
+        },
+        {
+          "id": "R-form",
+          "category": "form",
+          "title": "Form submit → agent follow-up",
+          "model": [
+            "deepseek-flash"
+          ],
+          "modelLabel": "DeepSeek-V41-Flash",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "form has region, quarter count and scenario fields",
+              "ok": true,
+              "detail": "{\"预测区域 *\":\"全国\",\"预测季度数 *\":\"4\",\"预测情景 *\":\"乐观\"}"
+            },
+            {
+              "name": "submission reached the agent as a new turn",
+              "ok": true,
+              "detail": "turn 10425 ms"
+            },
+            {
+              "name": "follow-up uses the submitted region and scenario",
+              "ok": true,
+              "detail": "new mentions {\"region\":5,\"scenario\":7} (全国 / 乐观)"
+            },
+            {
+              "name": "submitted form locks against resubmission",
+              "ok": true
+            },
+            {
+              "name": "turn finished",
+              "ok": true
+            },
+            {
+              "name": "no uncaught errors in the DSH page",
+              "ok": true
+            },
+            {
+              "name": "no plugin errors in the console",
+              "ok": true
+            }
+          ],
+          "timing": {
+            "firstPreviewMs": 5079,
+            "generationMs": 6219,
+            "turnMs": 7841,
+            "browserExecMs": 36,
+            "caseMs": 21989,
+            "followUps": [
+              {
+                "firstPreviewMs": 6080,
+                "generationMs": 8533,
+                "turnMs": 10425
+              }
+            ]
+          },
+          "notes": [],
+          "clarifications": [],
+          "subagents": 0,
+          "consoleErrors": [],
+          "screenshots": [
+            "browser/form-followup.png"
+          ],
+          "run": 1,
+          "testedAt": "2026-10-16T08:38:23.349Z"
+        },
+        {
+          "id": "R-plot",
+          "category": "math-plot",
+          "title": "Function plot with sliders",
+          "model": [
+            "deepseek-flash"
+          ],
+          "modelLabel": "DeepSeek-V41-Flash",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "three parameter sliders",
+              "ok": true,
+              "detail": "3 sliders"
+            },
+            {
+              "name": "dragging a slider redraws the curve without a model call",
+              "ok": true
+            },
+            {
+              "name": "turn finished",
+              "ok": true
+            },
+            {
+              "name": "no uncaught errors in the DSH page",
+              "ok": true
+            },
+            {
+              "name": "no plugin errors in the console",
+              "ok": true
+            }
+          ],
+          "timing": {
+            "firstPreviewMs": 6216,
+            "generationMs": 7649,
+            "turnMs": 9421,
+            "browserExecMs": 0,
+            "caseMs": 12806
+          },
+          "notes": [],
+          "clarifications": [],
+          "subagents": 0,
+          "consoleErrors": [],
+          "screenshots": [
+            "browser/plot.png"
+          ],
+          "run": 1,
+          "testedAt": "2026-10-16T08:38:23.349Z"
+        },
+        {
+          "id": "R-three",
+          "category": "threejs",
+          "title": "Three.js 3D surface",
+          "model": [
+            "deepseek-flash"
+          ],
+          "modelLabel": "DeepSeek-V41-Flash",
+          "passed": false,
+          "reason": "3D sphere: no widget script errors (promise: THREE is not defined)",
+          "checks": [
+            {
+              "name": "3D sphere: widget finalized with a WebGL canvas",
+              "ok": true
+            },
+            {
+              "name": "3D sphere: canvas is drawn, not blank",
+              "ok": true,
+              "detail": "luminance σ=39.15, colours=279"
+            },
+            {
+              "name": "3D sphere: no widget script errors",
+              "ok": false,
+              "detail": "promise: THREE is not defined"
+            },
+            {
+              "name": "3D sphere: \"Ask to fix\" produced a working scene",
+              "ok": false,
+              "detail": "repair turn 12448 ms",
+              "informational": true,
+              "invalidated": "harness bug: the check waited for a new iframe, but the fix replaced the widget in place (fixed in this PR). The screenshot three-repaired.png shows the repaired scene drawing without errors."
+            },
+            {
+              "name": "turn finished",
+              "ok": true
+            },
+            {
+              "name": "no uncaught errors in the DSH page",
+              "ok": true
+            },
+            {
+              "name": "no plugin errors in the console",
+              "ok": true
+            }
+          ],
+          "timing": {
+            "firstPreviewMs": 8394,
+            "generationMs": 17121,
+            "turnMs": 19136,
+            "browserExecMs": 904,
+            "caseMs": 275446
+          },
+          "notes": [
+            "\"Ask to fix\" outcome not measured (harness bug, fixed); screenshot shows the repaired scene working"
+          ],
+          "clarifications": [],
+          "subagents": 0,
+          "consoleErrors": [
+            "pageerror: THREE is not defined",
+            "pageerror: THREE is not defined"
+          ],
+          "screenshots": [
+            "browser/three.png",
+            "browser/three-repaired.png"
+          ],
+          "run": 1,
+          "testedAt": "2026-10-16T08:38:23.349Z"
+        },
+        {
+          "id": "R-three",
+          "category": "threejs",
+          "title": "Three.js 3D surface",
+          "model": [
+            "deepseek-flash"
+          ],
+          "modelLabel": "DeepSeek-V41-Flash",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "3D sphere: widget finalized with a WebGL canvas",
+              "ok": true
+            },
+            {
+              "name": "3D sphere: canvas is drawn, not blank",
+              "ok": true,
+              "detail": "luminance σ=25.56, colours=439"
+            },
+            {
+              "name": "3D sphere: no widget script errors",
+              "ok": true
+            },
+            {
+              "name": "dragging rotates the view (pixels change)",
+              "ok": true,
+              "detail": "mean Δ=5.672"
+            },
+            {
+              "name": "turn finished",
+              "ok": true
+            },
+            {
+              "name": "no uncaught errors in the DSH page",
+              "ok": true
+            },
+            {
+              "name": "no plugin errors in the console",
+              "ok": true
+            }
+          ],
+          "timing": {
+            "firstPreviewMs": 59007,
+            "generationMs": 69890,
+            "turnMs": 72377,
+            "browserExecMs": 1099,
+            "caseMs": 76972
+          },
+          "notes": [],
+          "clarifications": [],
+          "subagents": 0,
+          "consoleErrors": [],
+          "screenshots": [
+            "browser/three-run2.png"
+          ],
+          "testedAt": "2026-10-16T08:41:19.368Z",
+          "run": 2
+        },
+        {
+          "id": "R-stop",
+          "category": "stop-resume",
+          "title": "Stop mid-stream, then regenerate",
+          "model": [
+            "deepseek-flash"
+          ],
+          "modelLabel": "DeepSeek-V41-Flash",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "generation could be stopped mid-stream",
+              "ok": true
+            },
+            {
+              "name": "stopped card keeps its preview with a notice and a regenerate button",
+              "ok": true,
+              "detail": "{\"notice\":\"生成已中断，以下为已生成部分的静态预览\",\"regenerate\":true}"
+            },
+            {
+              "name": "regenerate produced a complete widget",
+              "ok": true
+            },
+            {
+              "name": "regenerated scene: widget finalized with a WebGL canvas",
+              "ok": true
+            },
+            {
+              "name": "regenerated scene: canvas is drawn, not blank",
+              "ok": true,
+              "detail": "luminance σ=57.96, colours=662"
+            },
+            {
+              "name": "regenerated scene: no widget script errors",
+              "ok": true
+            },
+            {
+              "name": "turn finished",
+              "ok": true
+            },
+            {
+              "name": "no uncaught errors in the DSH page",
+              "ok": true
+            },
+            {
+              "name": "no plugin errors in the console",
+              "ok": true
+            }
+          ],
+          "timing": {
+            "firstPreviewMs": 74887,
+            "generationMs": 78192,
+            "turnMs": 78153,
+            "caseMs": 141788,
+            "followUps": [
+              {
+                "firstPreviewMs": 11910,
+                "generationMs": 53824,
+                "turnMs": 57393,
+                "browserExecMs": 0
+              }
+            ]
+          },
+          "notes": [],
+          "clarifications": [],
+          "subagents": 0,
+          "consoleErrors": [],
+          "screenshots": [
+            "browser/stopped.png",
+            "browser/regenerated.png"
+          ],
+          "run": 1,
+          "testedAt": "2026-10-16T08:38:23.349Z"
+        },
+        {
+          "id": "R-patch",
+          "category": "multi-turn",
+          "title": "Two successive in-place edits",
+          "model": [
+            "deepseek-flash"
+          ],
+          "modelLabel": "DeepSeek-V41-Flash",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "initial bar chart with two series",
+              "ok": true,
+              "detail": "{\"liveCopies\":1,\"status\":\"\",\"bars\":8,\"lines\":0,\"legend\":[\"线上\",\"线下\"]}"
+            },
+            {
+              "name": "edit 1: now a line chart",
+              "ok": true,
+              "detail": "{\"liveCopies\":1,\"status\":\"第 2 版\",\"bars\":0,\"lines\":2,\"legend\":[\"线上\",\"线下\"]}"
+            },
+            {
+              "name": "edit 2: third series \"小程序\" added, others kept",
+              "ok": true,
+              "detail": "{\"liveCopies\":1,\"status\":\"第 3 版\",\"bars\":0,\"lines\":3,\"legend\":[\"线上\",\"线下\",\"小程序\"]}"
+            },
+            {
+              "name": "updated in place: one live card, version shown",
+              "ok": true,
+              "detail": "1 live, \"第 3 版\""
+            },
+            {
+              "name": "turn finished",
+              "ok": true
+            },
+            {
+              "name": "no uncaught errors in the DSH page",
+              "ok": true
+            },
+            {
+              "name": "no plugin errors in the console",
+              "ok": true
+            }
+          ],
+          "timing": {
+            "firstPreviewMs": 4497,
+            "generationMs": 5527,
+            "turnMs": 6937,
+            "browserExecMs": 0,
+            "caseMs": 20521,
+            "followUps": [
+              {
+                "turnMs": 4605
+              },
+              {
+                "turnMs": 6107
+              }
+            ]
+          },
+          "notes": [],
+          "clarifications": [],
+          "subagents": 0,
+          "consoleErrors": [],
+          "screenshots": [
+            "browser/patched.png"
+          ],
+          "run": 1,
+          "testedAt": "2026-10-16T08:38:23.349Z"
+        },
+        {
+          "id": "R-weak",
+          "category": "network",
+          "title": "Weak network (Fast 3G, cache off)",
+          "model": [
+            "deepseek-flash"
+          ],
+          "modelLabel": "DeepSeek-V41-Flash",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "turn completed on a slow connection",
+              "ok": true
+            },
+            {
+              "name": "cube on Fast 3G: widget finalized with a WebGL canvas",
+              "ok": true
+            },
+            {
+              "name": "cube on Fast 3G: canvas is drawn, not blank",
+              "ok": true,
+              "detail": "luminance σ=27.99, colours=596"
+            },
+            {
+              "name": "cube on Fast 3G: no widget script errors",
+              "ok": true
+            },
+            {
+              "name": "turn finished",
+              "ok": true
+            },
+            {
+              "name": "no uncaught errors in the DSH page",
+              "ok": true
+            },
+            {
+              "name": "no plugin errors in the console",
+              "ok": true
+            }
+          ],
+          "timing": {
+            "firstPreviewMs": 23952,
+            "generationMs": 31628,
+            "turnMs": 31866,
+            "browserExecMs": 2874,
+            "caseMs": 36950
+          },
+          "notes": [],
+          "clarifications": [],
+          "subagents": 0,
+          "consoleErrors": [],
+          "screenshots": [
+            "browser/weak-network.png"
+          ],
+          "run": 1,
+          "testedAt": "2026-10-16T08:38:23.349Z"
+        },
+        {
+          "id": "R-offline",
+          "category": "network",
+          "title": "CDN unreachable (offline widgets)",
+          "model": [
+            "deepseek-flash"
+          ],
+          "modelLabel": "DeepSeek-V41-Flash",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "the failure is shown to the user on the card (not silent)",
+              "ok": true,
+              "detail": "1 个脚本错误"
+            },
+            {
+              "name": "no uncaught errors in the host page",
+              "ok": true
+            },
+            {
+              "name": "the conversation keeps working afterwards",
+              "ok": true
+            },
+            {
+              "name": "turn finished",
+              "ok": true
+            },
+            {
+              "name": "no uncaught errors in the DSH page",
+              "ok": true
+            },
+            {
+              "name": "no plugin errors in the console",
+              "ok": true
+            }
+          ],
+          "timing": {
+            "firstPreviewMs": 4420,
+            "generationMs": 13603,
+            "turnMs": 15346,
+            "browserExecMs": 47,
+            "caseMs": 23474,
+            "followUps": [
+              {
+                "turnMs": 6093
+              }
+            ]
+          },
+          "notes": [],
+          "clarifications": [],
+          "subagents": 0,
+          "consoleErrors": [
+            "pageerror: Failed to fetch dynamically imported module: https://esm.sh/three@0.169.0",
+            "pageerror: Failed to fetch dynamically imported module: https://esm.sh/three@0.169.0"
+          ],
+          "screenshots": [
+            "browser/offline.png"
+          ],
+          "run": 1,
+          "testedAt": "2026-10-16T08:38:23.349Z"
+        },
+        {
+          "id": "R-mobile",
+          "category": "mobile",
+          "title": "Dashboard at phone width",
+          "model": [
+            "deepseek-flash"
+          ],
+          "modelLabel": "DeepSeek-V41-Flash",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "KPI tiles rendered",
+              "ok": true
+            },
+            {
+              "name": "no card overflows the phone width",
+              "ok": true,
+              "detail": "{\"overflowing\":0,\"kpiColumns\":2,\"pageScroll\":false}"
+            },
+            {
+              "name": "KPI grid reflows to at most 2 columns",
+              "ok": true,
+              "detail": "columns=2"
+            },
+            {
+              "name": "turn finished",
+              "ok": true
+            },
+            {
+              "name": "no uncaught errors in the DSH page",
+              "ok": true
+            },
+            {
+              "name": "no plugin errors in the console",
+              "ok": true
+            }
+          ],
+          "timing": {
+            "firstPreviewMs": 9988,
+            "generationMs": 18839,
+            "turnMs": 22143,
+            "browserExecMs": 0,
+            "caseMs": 30755
+          },
+          "notes": [],
+          "clarifications": [],
+          "subagents": 0,
+          "consoleErrors": [
+            "pageerror: T.AmbientLight is not a constructor"
+          ],
+          "screenshots": [
+            "browser/mobile.png"
+          ],
+          "run": 1,
+          "testedAt": "2026-10-16T08:38:23.349Z"
+        }
+      ],
+      "partialRerunAt": "2026-10-16T08:41:19.368Z"
+    },
+    "api": {
+      "testedAt": "2026-10-16T08:28:06.381Z",
+      "rescoredAt": "2026-10-16T08:38:48.911Z",
+      "scope": "Real model + the plugin's real tool definitions and execute(); no browser. Tool choice, first-attempt argument validity, rendered components and data.",
+      "summary": {
+        "total": 32,
+        "passed": 30,
+        "failed": 2,
+        "successRate": 0.938,
+        "byCategory": {
+          "text": {
+            "total": 8,
+            "passed": 8,
+            "successRate": 1
+          },
+          "chart-table": {
+            "total": 8,
+            "passed": 7,
+            "successRate": 0.875
+          },
+          "form": {
+            "total": 4,
+            "passed": 4,
+            "successRate": 1
+          },
+          "threejs": {
+            "total": 4,
+            "passed": 4,
+            "successRate": 1
+          },
+          "math-plot": {
+            "total": 2,
+            "passed": 2,
+            "successRate": 1
+          },
+          "widget": {
+            "total": 2,
+            "passed": 2,
+            "successRate": 1
+          },
+          "multi-turn": {
+            "total": 4,
+            "passed": 3,
+            "successRate": 0.75
+          }
+        }
+      },
+      "timing": {
+        "apiCallMs": {
+          "n": 75,
+          "p50": 2408,
+          "p95": 75702,
+          "max": 102396
+        },
+        "caseMs": {
+          "n": 32,
+          "p50": 11681,
+          "p95": 102204,
+          "max": 103520
+        }
+      },
+      "cases": [
+        {
+          "id": "A1",
+          "run": 1,
+          "category": "text",
+          "title": "Plain answer",
+          "prompt": "什么是欧拉公式？请简述其数学意义。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: none",
+              "ok": true,
+              "detail": "no tool"
+            },
+            {
+              "name": "substantive text answer",
+              "ok": true,
+              "detail": "547 chars"
+            }
+          ],
+          "tool": {
+            "actual": []
+          },
+          "schema": {
+            "firstAttemptValid": null,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 1,
+          "timing": {
+            "apiMs": 3990,
+            "apiCallsMs": [
+              3990
+            ],
+            "caseMs": 3991
+          },
+          "uis": [],
+          "widgets": [],
+          "textSnippet": "欧拉公式指的是复指数与三角函数之间的恒等关系：\n\n**e^(iθ) = cos θ + i·sin θ**\n\n它是瑞士数学家莱昂哈德·欧拉在 18 世纪给出的结果（1748 年《无穷分析引论》中明确表述）。当 θ = π 时，它化为著名的“欧拉恒等式”：**e^(iπ) + 1 = 0**，把 e、i、π、1、0 五个"
+        },
+        {
+          "id": "A2",
+          "run": 1,
+          "category": "text",
+          "title": "Plain answer",
+          "prompt": "解释一下什么是卡尔曼滤波，用通俗语言说明其基本原理。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: none",
+              "ok": true,
+              "detail": "no tool"
+            },
+            {
+              "name": "substantive text answer",
+              "ok": true,
+              "detail": "1778 chars"
+            }
+          ],
+          "tool": {
+            "actual": []
+          },
+          "schema": {
+            "firstAttemptValid": null,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 1,
+          "timing": {
+            "apiMs": 11182,
+            "apiCallsMs": [
+              11182
+            ],
+            "caseMs": 11182
+          },
+          "uis": [],
+          "widgets": [],
+          "textSnippet": "## 一句话直觉\n\n卡尔曼滤波就是**“带记忆的加权平均”**：你有两个都不太准的信息来源——一个是对未来的猜测（预测），一个是当前的测量——它根据两者各自有多不靠谱，自动算出一个折中值，而且这个折中在数学上是最优的。\n\n## 从一个例子开始\n\n假设你在开车，想随时知道自己的位置：\n\n- **GPS** 说你在第 10"
+        },
+        {
+          "id": "A3",
+          "run": 1,
+          "category": "text",
+          "title": "Plain answer",
+          "prompt": "牛顿第三定律的内容是什么？",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: none",
+              "ok": true,
+              "detail": "no tool"
+            },
+            {
+              "name": "substantive text answer",
+              "ok": true,
+              "detail": "526 chars"
+            }
+          ],
+          "tool": {
+            "actual": []
+          },
+          "schema": {
+            "firstAttemptValid": null,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 1,
+          "timing": {
+            "apiMs": 3464,
+            "apiCallsMs": [
+              3464
+            ],
+            "caseMs": 3464
+          },
+          "uis": [],
+          "widgets": [],
+          "textSnippet": "**牛顿第三定律（作用力与反作用力定律）**：两个物体之间的作用力与反作用力总是大小相等、方向相反，作用在同一条直线上。\n\n用公式表示就是：\n\n**F₁₂ = −F₂₁**\n\n其中 F₁₂ 是物体 2 对物体 1 的力，F₂₁ 是物体 1 对物体 2 的力，负号表示方向相反。\n\n理解这条定律时，有几个要点容易混淆：\n\n"
+        },
+        {
+          "id": "A4",
+          "run": 1,
+          "category": "text",
+          "title": "Plain answer",
+          "prompt": "请简要解释机械臂运动学中的奇异点概念。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: none",
+              "ok": true,
+              "detail": "no tool"
+            },
+            {
+              "name": "substantive text answer",
+              "ok": true,
+              "detail": "840 chars"
+            }
+          ],
+          "tool": {
+            "actual": []
+          },
+          "schema": {
+            "firstAttemptValid": null,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 1,
+          "timing": {
+            "apiMs": 8878,
+            "apiCallsMs": [
+              8878
+            ],
+            "caseMs": 8879
+          },
+          "uis": [],
+          "widgets": [],
+          "textSnippet": "**奇异点（singularity）指的是机械臂雅可比矩阵降秩的位形**——即末端速度与关节速度之间的映射关系 $\\dot{x} = J(q)\\dot{q}$ 中，$J(q)$ 不满秩（方阵情形即 $\\det J = 0$）。它不是机械故障，而是机构本身的运动学属性，与坐标系选取无关。\n\n**物理含义**\n- 机构在该"
+        },
+        {
+          "id": "B1",
+          "run": 1,
+          "category": "chart-table",
+          "title": "Dashboard",
+          "prompt": "帮我生成一个2026年Q1公司业务运营监控看板，包含总收入、活跃用户、转化率、客单价等核心指标，并按不同业务线展示数据。",
+          "passed": false,
+          "reason": "arguments valid on the first attempt (components[10].id: duplicate id \"trendCard\"; components[13].id: duplicate id \"pieCard\"; components[17].id: duplicate id \"tableCard\")",
+          "checks": [
+            {
+              "name": "tool: ui_render",
+              "ok": true,
+              "detail": "ui_render (refused) → ui_render"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": false,
+              "detail": "components[10].id: duplicate id \"trendCard\"; components[13].id: duplicate id \"pieCard\"; components[17].id: duplicate id \"tableCard\""
+            },
+            {
+              "name": "KPI tiles for revenue, active users, conversion and order value",
+              "ok": true
+            },
+            {
+              "name": "per-business-line breakdown (Chart or Table)",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render✗",
+              "ui_render"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": false,
+            "invalidCalls": 1,
+            "recovered": true,
+            "errors": [
+              "components[10].id: duplicate id \"trendCard\"",
+              "components[13].id: duplicate id \"pieCard\"",
+              "components[17].id: duplicate id \"tableCard\"",
+              "components[27].id: duplicate id \"mauCard\"",
+              "components[30].id: duplicate id \"convCard\""
+            ]
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 3,
+          "timing": {
+            "apiMs": 25886,
+            "apiCallsMs": [
+              18649,
+              5902,
+              1335
+            ],
+            "caseMs": 25891
+          },
+          "uis": [
+            {
+              "title": "2026 Q1 业务运营监控看板",
+              "version": 1,
+              "components": "root:Stack, notice:Alert, tabs:Tabs, tab1:Stack, kpiGrid:Grid, s1:Stat, s2:Stat, s3:Stat, s4:Stat, trendCard:Card, chartTrend:Chart, pieCard:Card, chartPie:Chart, tab2:Stack, tableCard:Card, tbl:Table, goalCard:Card, p1:Progress, p2:Progress, p3:Progress, p4:Progress, p5:Progress, tab3:Stack, mauCard:Card, chartMau:Chart, convCard:Card, chartConv:Chart"
+            }
+          ],
+          "widgets": [],
+          "textSnippet": "看板分「总览 / 业务线 / 用户指标」三个标签页，把示例数据换成你们真实的 1–3 月数据即可直接使用；需要调整业务线口径或增加退款率、留存率等指标，告诉我一声就行。"
+        },
+        {
+          "id": "B2",
+          "run": 1,
+          "category": "chart-table",
+          "title": "Sortable table",
+          "prompt": "请列出一份主流新能源汽车关键性能指标的对比表（包含车型、续航里程、零百加速、售价、电池容量），要求可以按列排序。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render",
+              "ok": true,
+              "detail": "ui_render"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "sortable table with rows",
+              "ok": true
+            },
+            {
+              "name": "columns: model, range, 0-100, price, battery",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 2,
+          "timing": {
+            "apiMs": 30434,
+            "apiCallsMs": [
+              29798,
+              636
+            ],
+            "caseMs": 30435
+          },
+          "uis": [
+            {
+              "title": "主流新能源车型关键性能指标对比",
+              "version": 1,
+              "components": "wrap:Card, body:Stack, note1:Alert, tbl:Table, note2:Text"
+            }
+          ],
+          "widgets": [],
+          "textSnippet": "下面这份表按“主流在售版本”整理了各车型的官方标称值，点击任意表头即可排序对比。\n如果你想要增程/插混车型的“满油满电综合续航”口径，或者补充智能驾驶芯片、充电功率等指标，告诉我即可。"
+        },
+        {
+          "id": "B3",
+          "run": 1,
+          "category": "chart-table",
+          "title": "Multi-series chart",
+          "prompt": "对比分析过去四个季度（Q1-Q4）中，线上电商与线下门店在营收上的多系列对比柱状图。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render",
+              "ok": true,
+              "detail": "ui_render"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "bar Chart rendered",
+              "ok": true
+            },
+            {
+              "name": "four quarters Q1-Q4 on the x axis",
+              "ok": true
+            },
+            {
+              "name": "online and offline series with 4 values each",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 2,
+          "timing": {
+            "apiMs": 8707,
+            "apiCallsMs": [
+              7695,
+              1012
+            ],
+            "caseMs": 8708
+          },
+          "uis": [
+            {
+              "title": "线上电商 vs 线下门店 · 近四季度营收对比",
+              "version": 1,
+              "components": "root:Stack, note:Alert, kpis:Grid, k1:Stat, k2:Stat, k3:Stat, k4:Stat, chartBar:Chart, chartShare:Chart, tbl:Table"
+            }
+          ],
+          "widgets": [],
+          "textSnippet": "数据未提供，以下用**示例数据**搭建分析框架，你给出真实营收数字后我按同一结构替换即可。\n核心结论是趋势分化：线下门店在前三季度基本横盘或微降，而线上逐季走高并在 Q4 占比首次过半——把真实营收数字发我，我用 `ui_patch` 就地替换数值与结论。"
+        },
+        {
+          "id": "B4",
+          "run": 1,
+          "category": "form",
+          "title": "Interactive form",
+          "prompt": "设计一个产品功能满意度与用户需求反馈表单，包含用户身份类型、评分滑块、改进意见分类以及是否接收后续邮件通知。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render",
+              "ok": true,
+              "detail": "ui_render"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "rating slider (range field)",
+              "ok": true
+            },
+            {
+              "name": "email opt-in (checkbox field)",
+              "ok": true
+            },
+            {
+              "name": "user type / category choices (select field)",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 2,
+          "timing": {
+            "apiMs": 11130,
+            "apiCallsMs": [
+              9953,
+              1177
+            ],
+            "caseMs": 11131
+          },
+          "uis": [
+            {
+              "title": "产品满意度与需求反馈表单",
+              "version": 1,
+              "components": "card:Card, intro:Text, form:Form"
+            }
+          ],
+          "widgets": [],
+          "textSnippet": "表单已就绪——四个核心模块（身份类型、四维评分滑块、改进意见分类、邮件通知订阅）都在其中，提交后我会把内容整理成结构化反馈摘要。"
+        },
+        {
+          "id": "B5",
+          "run": 1,
+          "category": "chart-table",
+          "title": "Timeline",
+          "prompt": "梳理一份具身智能与大模型融合发展的关键技术里程碑时间线，展示代表性成果与阶段。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render",
+              "ok": true,
+              "detail": "ui_render"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "chronology with at least 4 milestones (Timeline, or Mermaid with 4+ ordered years)",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 2,
+          "timing": {
+            "apiMs": 25342,
+            "apiCallsMs": [
+              24301,
+              1041
+            ],
+            "caseMs": 25343
+          },
+          "uis": [
+            {
+              "title": "具身智能 × 大模型：关键技术里程碑",
+              "version": 1,
+              "components": "root:Card, intro:Text, tabs:Tabs, tl:Timeline, wrap1:Stack, tbl:Table, wrap2:Stack, mm:Mermaid, note:Alert"
+            }
+          ],
+          "widgets": [],
+          "textSnippet": "这张时间线把融合路径切成五个阶段，其中 2023 年的 RT-2 是最关键的分水岭——它让\"大模型的语义能力\"第一次直接变成机器人关节动作。"
+        },
+        {
+          "id": "C1",
+          "run": 1,
+          "category": "threejs",
+          "title": "3D sphere",
+          "prompt": "请用交互式 3D 形式展示三维球面 x²+y²+z²=2Rz，让我可以旋转缩放观察。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render_widget",
+              "ok": true,
+              "detail": "ui_render_widget"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "Three.js scene (UI.three or import(\"three\"))",
+              "ok": true
+            },
+            {
+              "name": "surface depends on R (R appears in code or controls)",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render_widget"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 2,
+          "timing": {
+            "apiMs": 66919,
+            "apiCallsMs": [
+              66095,
+              824
+            ],
+            "caseMs": 66923
+          },
+          "uis": [],
+          "widgets": [
+            {
+              "title": "三维球面 x²+y²+z²=2Rz（可旋转缩放）",
+              "htmlChars": 1116,
+              "jsChars": 8560
+            }
+          ],
+          "textSnippet": "拖动旋转、滚轮缩放；球心在 (0,0,R)、半径 R，球面正好过原点并与 z=0 平面相切，勾选截面还能看到 r=√(2Rh−h²) 的变化。"
+        },
+        {
+          "id": "C2",
+          "run": 1,
+          "category": "math-plot",
+          "title": "Slider plot",
+          "prompt": "画一个阻尼振动函数曲线，提供振幅、阻尼系数和角频率的滑动条，让我滑动控制曲线实时变化。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render or ui_render_widget",
+              "ok": true,
+              "detail": "ui_render"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "Plot with three parameter sliders",
+              "ok": true
+            },
+            {
+              "name": "every slider drives the curve (param used in an expression)",
+              "ok": true
+            },
+            {
+              "name": "damped oscillation shape: exp(…)·sin/cos(…)",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 2,
+          "timing": {
+            "apiMs": 5480,
+            "apiCallsMs": [
+              4781,
+              699
+            ],
+            "caseMs": 5485
+          },
+          "uis": [
+            {
+              "title": "阻尼振动 x(t) = A·e^(−γt)·cos(ωt)",
+              "version": 1,
+              "components": "card:Card, math:Math, plot:Plot, hint:Text"
+            }
+          ],
+          "widgets": [],
+          "textSnippet": "拖动三个滑块即可看到曲线（含指数包络线）实时变化。"
+        },
+        {
+          "id": "C3",
+          "run": 1,
+          "category": "threejs",
+          "title": "Three.js solar system",
+          "prompt": "使用 Three.js 做一个包含光影的可交互 3D 太阳系微型模型，行星公转且支持鼠标拖拽视角。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render_widget",
+              "ok": true,
+              "detail": "ui_render_widget"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "Three.js scene (UI.three or import(\"three\"))",
+              "ok": true
+            },
+            {
+              "name": "animated orbits",
+              "ok": true
+            },
+            {
+              "name": "light sources for shading",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render_widget"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 2,
+          "timing": {
+            "apiMs": 89104,
+            "apiCallsMs": [
+              88311,
+              793
+            ],
+            "caseMs": 89106
+          },
+          "uis": [],
+          "widgets": [
+            {
+              "title": "Three.js 微型太阳系（光影 · 公转 · 拖拽视角）",
+              "htmlChars": 962,
+              "jsChars": 11174
+            }
+          ],
+          "textSnippet": "拖拽可旋转/缩放视角，太阳作为唯一光源，土星环和月球会实时投影到行星表面；用「跟随」还能把镜头锁定到任意行星。"
+        },
+        {
+          "id": "C4",
+          "run": 1,
+          "category": "widget",
+          "title": "Pendulum simulator",
+          "prompt": "做一个单摆运动的动态物理模拟器，支持启动暂停和摆长重力参数调节。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render_widget",
+              "ok": true,
+              "detail": "ui_render_widget"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "start/pause control",
+              "ok": true
+            },
+            {
+              "name": "length and gravity sliders",
+              "ok": true
+            },
+            {
+              "name": "time-stepped animation",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render_widget"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 2,
+          "timing": {
+            "apiMs": 67164,
+            "apiCallsMs": [
+              66069,
+              1095
+            ],
+            "caseMs": 67165
+          },
+          "uis": [],
+          "widgets": [
+            {
+              "title": "单摆物理模拟器",
+              "htmlChars": 1682,
+              "jsChars": 8336
+            }
+          ],
+          "textSnippet": "模拟器已就绪，滑杆拖动即时生效：把摆长拉长或重力调小，实测周期会随之变大；把阻尼调到 0 以上还能看振幅衰减。"
+        },
+        {
+          "id": "D1",
+          "run": 1,
+          "category": "form",
+          "title": "Form submit → follow-up",
+          "prompt": "请帮我生成一个销售预测配置表单，包含预测区域、预测季度数、预测情景（乐观/基准/保守）。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render",
+              "ok": true,
+              "detail": "ui_render"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "Form rendered",
+              "ok": true
+            },
+            {
+              "name": "form has region, quarter count and scenario fields",
+              "ok": true
+            },
+            {
+              "name": "follow-up uses the submitted values (全国 / 4 quarters / optimistic)",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render",
+              "ui_render"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 2,
+          "modelCalls": 4,
+          "timing": {
+            "apiMs": 12223,
+            "apiCallsMs": [
+              4761,
+              929,
+              5360,
+              1173
+            ],
+            "caseMs": 12228
+          },
+          "uis": [
+            {
+              "title": "销售预测配置",
+              "version": 1,
+              "components": "card:Card, hint:Text, form:Form"
+            },
+            {
+              "title": "销售预测 · 全国 / 4 个季度 / 乐观情景",
+              "version": 1,
+              "components": "card:Card, s1:Grid, stat1:Stat, stat2:Stat, stat3:Stat, s2:Alert, s3:Alert"
+            }
+          ],
+          "widgets": [],
+          "textSnippet": "告诉我最近一个季度的实际销售额（以及季度环比增长率，没有的话我按 5% 假设），我就把四个季度的乐观情景预测值列成表格并画出来。"
+        },
+        {
+          "id": "D2",
+          "run": 1,
+          "category": "multi-turn",
+          "title": "Add a table column",
+          "prompt": "帮我生成一个展示三款手机（Model A, Model B, Model C）价格和电池容量的表格。",
+          "passed": false,
+          "reason": "arguments valid on the first attempt (Arguments are not valid JSON: Expected double-quoted property name in JSON at position 430 (line 1 column 431)); arguments valid on the first attempt (Arguments are not valid JSON: Expected double-quoted property name in JSON at position 295 (line 1 column 296))",
+          "checks": [
+            {
+              "name": "tool: ui_render",
+              "ok": true,
+              "detail": "ui_render (refused) → ui_render"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": false,
+              "detail": "Arguments are not valid JSON: Expected double-quoted property name in JSON at position 430 (line 1 column 431)"
+            },
+            {
+              "name": "Table rendered",
+              "ok": true
+            },
+            {
+              "name": "tool: ui_patch or ui_render",
+              "ok": true,
+              "detail": "ui_patch (refused) → ui_patch"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": false,
+              "detail": "Arguments are not valid JSON: Expected double-quoted property name in JSON at position 295 (line 1 column 296)"
+            },
+            {
+              "name": "screen sizes added per model, prior values kept",
+              "ok": true
+            },
+            {
+              "name": "updated in place (ui_patch on the same UI)",
+              "ok": true,
+              "detail": "informational: a full re-render also passes the case",
+              "informational": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render✗",
+              "ui_render",
+              "ui_patch✗",
+              "ui_patch"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": false,
+            "invalidCalls": 2,
+            "recovered": true,
+            "errors": [
+              "Arguments are not valid JSON: Expected double-quoted property name in JSON at position 430 (line 1 column 431)",
+              "Arguments are not valid JSON: Expected double-quoted property name in JSON at position 295 (line 1 column 296)"
+            ]
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 2,
+          "modelCalls": 6,
+          "timing": {
+            "apiMs": 9890,
+            "apiCallsMs": [
+              3462,
+              1644,
+              891,
+              2098,
+              1319,
+              476
+            ],
+            "caseMs": 9895
+          },
+          "uis": [
+            {
+              "title": "手机价格与电池容量对比（示例数据）",
+              "version": 2,
+              "components": "card:Card, table:Table, note:Alert"
+            }
+          ],
+          "widgets": [],
+          "textSnippet": "已加上“屏幕尺寸”列：Model A 6.1、Model B 6.7、Model C 6.5 英寸，原有排序状态保持有效。"
+        },
+        {
+          "id": "D3",
+          "run": 1,
+          "category": "multi-turn",
+          "title": "Two successive chart edits",
+          "prompt": "用柱状图对比 Q1-Q4 线上和线下两个渠道的销售额（线上 120、135、150、170；线下 90、95、88、100）。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render",
+              "ok": true,
+              "detail": "ui_render"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "bar chart with two series rendered",
+              "ok": true
+            },
+            {
+              "name": "edit 1 · tool: ui_patch or ui_render",
+              "ok": true,
+              "detail": "ui_patch"
+            },
+            {
+              "name": "edit 1 · arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "edit 1 · chart is now \"line\"",
+              "ok": true
+            },
+            {
+              "name": "edit 1 · original series kept with the same values",
+              "ok": true
+            },
+            {
+              "name": "edit 2 · tool: ui_patch or ui_render",
+              "ok": true,
+              "detail": "ui_patch"
+            },
+            {
+              "name": "edit 2 · arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "edit 2 · chart is now \"line\"",
+              "ok": true
+            },
+            {
+              "name": "edit 2 · original series kept with the same values",
+              "ok": true
+            },
+            {
+              "name": "edit 2 · series \"小程序\" = 30, 45, 60, 80",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render",
+              "ui_patch",
+              "ui_patch"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 3,
+          "modelCalls": 6,
+          "timing": {
+            "apiMs": 13208,
+            "apiCallsMs": [
+              4954,
+              554,
+              900,
+              617,
+              5244,
+              939
+            ],
+            "caseMs": 13217
+          },
+          "uis": [
+            {
+              "title": "Q1–Q4 线上 vs 线下 销售额对比",
+              "version": 3,
+              "components": "root:Card, chart:Chart, stats:Grid, s1:Stat, s2:Stat, s5:Stat, s3:Stat, s4:Stat, table:Table"
+            }
+          ],
+          "widgets": [],
+          "textSnippet": "小程序从 30 增到 80，增速是三渠道里最快的；四季度总盘从 240 升到 350。"
+        },
+        {
+          "id": "A1",
+          "run": 2,
+          "category": "text",
+          "title": "Plain answer",
+          "prompt": "什么是欧拉公式？请简述其数学意义。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: none",
+              "ok": true,
+              "detail": "no tool"
+            },
+            {
+              "name": "substantive text answer",
+              "ok": true,
+              "detail": "769 chars"
+            }
+          ],
+          "tool": {
+            "actual": []
+          },
+          "schema": {
+            "firstAttemptValid": null,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 1,
+          "timing": {
+            "apiMs": 5527,
+            "apiCallsMs": [
+              5527
+            ],
+            "caseMs": 5527
+          },
+          "uis": [],
+          "widgets": [],
+          "textSnippet": "**欧拉公式（Euler's formula）** 指\n\ne^{iθ} = cos θ + i·sin θ\n\n其中 e 是自然对数的底，i 是虚数单位（i² = −1），θ 为实数（通常看作弧度角）。当 θ = π 时得到特例 **e^{iπ} + 1 = 0**，即欧拉恒等式，把 e、i、π、1、0 这五个基本常数用"
+        },
+        {
+          "id": "A2",
+          "run": 2,
+          "category": "text",
+          "title": "Plain answer",
+          "prompt": "解释一下什么是卡尔曼滤波，用通俗语言说明其基本原理。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: none",
+              "ok": true,
+              "detail": "no tool"
+            },
+            {
+              "name": "substantive text answer",
+              "ok": true,
+              "detail": "1335 chars"
+            }
+          ],
+          "tool": {
+            "actual": []
+          },
+          "schema": {
+            "firstAttemptValid": null,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 1,
+          "timing": {
+            "apiMs": 9023,
+            "apiCallsMs": [
+              9023
+            ],
+            "caseMs": 9024
+          },
+          "uis": [],
+          "widgets": [],
+          "textSnippet": "## 一句话理解\n\n卡尔曼滤波是一种**\"边猜边修\"**的算法：它同时拿着两个都不太靠谱的信息源——一个是\"根据过去的规律推算出来的预测值\"，另一个是\"当前传感器测到的观测值\"——然后按照**谁更可信就多听谁的**原则，把它们加权融合成一个比两者都更准的估计。\n\n## 生活化的例子\n\n想象你在黑暗里跟踪一辆小车：\n\n-"
+        },
+        {
+          "id": "A3",
+          "run": 2,
+          "category": "text",
+          "title": "Plain answer",
+          "prompt": "牛顿第三定律的内容是什么？",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: none",
+              "ok": true,
+              "detail": "no tool"
+            },
+            {
+              "name": "substantive text answer",
+              "ok": true,
+              "detail": "458 chars"
+            }
+          ],
+          "tool": {
+            "actual": []
+          },
+          "schema": {
+            "firstAttemptValid": null,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 1,
+          "timing": {
+            "apiMs": 2646,
+            "apiCallsMs": [
+              2646
+            ],
+            "caseMs": 2647
+          },
+          "uis": [],
+          "widgets": [],
+          "textSnippet": "**牛顿第三定律**（作用力与反作用力定律）的内容是：\n\n> 两个物体之间的作用力和反作用力总是大小相等、方向相反、作用在同一条直线上。\n\n用公式表示就是：\n\n**F₁₂ = −F₂₁**\n\n其中 F₁₂ 是物体 1 对物体 2 的力，F₂₁ 是物体 2 对物体 1 的力；负号表示两者方向相反。\n\n理解时要注意几个要点"
+        },
+        {
+          "id": "A4",
+          "run": 2,
+          "category": "text",
+          "title": "Plain answer",
+          "prompt": "请简要解释机械臂运动学中的奇异点概念。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: none",
+              "ok": true,
+              "detail": "no tool"
+            },
+            {
+              "name": "substantive text answer",
+              "ok": true,
+              "detail": "753 chars"
+            }
+          ],
+          "tool": {
+            "actual": []
+          },
+          "schema": {
+            "firstAttemptValid": null,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 1,
+          "timing": {
+            "apiMs": 7252,
+            "apiCallsMs": [
+              7252
+            ],
+            "caseMs": 7252
+          },
+          "uis": [],
+          "widgets": [],
+          "textSnippet": "**奇异点（Singularity）**指的是机械臂的一种位形：在这个位形下，末端速度与关节速度之间的映射关系退化，雅可比矩阵 $J(q)$ 降秩，即 $\\det J = 0$。\n\n**物理含义**\n- 存在某些方向的末端运动，无论关节怎么动都产生不出来——机械臂在瞬时\"丢失\"了一个或多个自由度。\n- 反过来说，要沿这"
+        },
+        {
+          "id": "B1",
+          "run": 2,
+          "category": "chart-table",
+          "title": "Dashboard",
+          "prompt": "帮我生成一个2026年Q1公司业务运营监控看板，包含总收入、活跃用户、转化率、客单价等核心指标，并按不同业务线展示数据。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render",
+              "ok": true,
+              "detail": "ui_render"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "KPI tiles for revenue, active users, conversion and order value",
+              "ok": true
+            },
+            {
+              "name": "per-business-line breakdown (Chart or Table)",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 2,
+          "timing": {
+            "apiMs": 16807,
+            "apiCallsMs": [
+              16002,
+              805
+            ],
+            "caseMs": 16810
+          },
+          "uis": [
+            {
+              "title": "2026 Q1 业务运营监控看板",
+              "version": 1,
+              "components": "root:Stack, note:Alert, kpis:Grid, k1:Stat, k2:Stat, k3:Stat, k4:Stat, tabs:Tabs, tabRev:Stack, revChart:Chart, mixChart:Chart, tabBiz:Stack, bizTable:Table, convChart:Chart, tabOps:Stack, opsKpis:Grid, o1:Stat, o2:Stat, o3:Stat, o4:Stat, goalStack:Card, g1:Progress, g2:Progress, g3:Progress, alertOps:Alert"
+            }
+          ],
+          "widgets": [],
+          "textSnippet": "看板已生成，数据为示例结构——把真实数据源给我，我可以直接替换成实际数值。"
+        },
+        {
+          "id": "B2",
+          "run": 2,
+          "category": "chart-table",
+          "title": "Sortable table",
+          "prompt": "请列出一份主流新能源汽车关键性能指标的对比表（包含车型、续航里程、零百加速、售价、电池容量），要求可以按列排序。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render",
+              "ok": true,
+              "detail": "ui_render"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "sortable table with rows",
+              "ok": true
+            },
+            {
+              "name": "columns: model, range, 0-100, price, battery",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 2,
+          "timing": {
+            "apiMs": 16086,
+            "apiCallsMs": [
+              14539,
+              1547
+            ],
+            "caseMs": 16088
+          },
+          "uis": [
+            {
+              "title": "主流新能源车型关键性能对比",
+              "version": 1,
+              "components": "card:Card, note:Text, statsGrid:Grid, s1:Stat, s2:Stat, s3:Stat, table:Table"
+            }
+          ],
+          "widgets": [],
+          "textSnippet": "以下是主流新能源车型的关键指标对比，点击任意列标题即可排序（数据为厂商公布的 CLTC 工况与参考指导价，版本不同会有差异）。\n如果想换成某个价位段（如 20 万以内纯电）或加入充电速度、智驾配置等维度，告诉我即可。"
+        },
+        {
+          "id": "B3",
+          "run": 2,
+          "category": "chart-table",
+          "title": "Multi-series chart",
+          "prompt": "对比分析过去四个季度（Q1-Q4）中，线上电商与线下门店在营收上的多系列对比柱状图。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render",
+              "ok": true,
+              "detail": "ui_render"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "bar Chart rendered",
+              "ok": true
+            },
+            {
+              "name": "four quarters Q1-Q4 on the x axis",
+              "ok": true
+            },
+            {
+              "name": "online and offline series with 4 values each",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 2,
+          "timing": {
+            "apiMs": 14421,
+            "apiCallsMs": [
+              13470,
+              951
+            ],
+            "caseMs": 14423
+          },
+          "uis": [
+            {
+              "title": "线上电商 vs 线下门店 · 近四季度营收对比",
+              "version": 1,
+              "components": "root:Stack, alert:Alert, stats:Grid, s1:Stat, s2:Stat, s3:Stat, s4:Stat, chartCard:Card, chart:Chart, tableCard:Card, table:Table, formCard:Card, form:Form"
+            }
+          ],
+          "widgets": [],
+          "textSnippet": "未提供实际经营数据，所以下面图表中的数值为**示例占位数据**（已在图中标注），仅用于展示分析框架；文末可提交你的真实营收数据重新绘制。\n示例数据下的结构性特征是：线上逐季攀升、线下基本走平，Q4 线上首次反超线下——换成你的真实数据后，可直接在上面表单里提交重绘。"
+        },
+        {
+          "id": "B4",
+          "run": 2,
+          "category": "form",
+          "title": "Interactive form",
+          "prompt": "设计一个产品功能满意度与用户需求反馈表单，包含用户身份类型、评分滑块、改进意见分类以及是否接收后续邮件通知。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render",
+              "ok": true,
+              "detail": "ui_render"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "rating slider (range field)",
+              "ok": true
+            },
+            {
+              "name": "email opt-in (checkbox field)",
+              "ok": true
+            },
+            {
+              "name": "user type / category choices (select field)",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 2,
+          "timing": {
+            "apiMs": 11680,
+            "apiCallsMs": [
+              10480,
+              1200
+            ],
+            "caseMs": 11681
+          },
+          "uis": [
+            {
+              "version": 1,
+              "components": "root:Stack, intro:Text, form:Form, privacy:Alert"
+            }
+          ],
+          "widgets": [],
+          "textSnippet": "表单已就绪：身份类型与使用时长用于分群对比评分，四个滑杆按「整体—易用—稳定—支持」拆维度，改进分类与两条勾选项决定需求优先级和访谈邀约，最后一项控制邮件通知与联系方式。提交后我可以直接帮你把反馈归纳成需求清单。"
+        },
+        {
+          "id": "B5",
+          "run": 2,
+          "category": "chart-table",
+          "title": "Timeline",
+          "prompt": "梳理一份具身智能与大模型融合发展的关键技术里程碑时间线，展示代表性成果与阶段。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render",
+              "ok": true,
+              "detail": "ui_render"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "chronology with at least 4 milestones (Timeline, or Mermaid with 4+ ordered years)",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 2,
+          "timing": {
+            "apiMs": 25491,
+            "apiCallsMs": [
+              24193,
+              1298
+            ],
+            "caseMs": 25493
+          },
+          "uis": [
+            {
+              "title": "具身智能 �� 大模型：融合里程碑",
+              "version": 1,
+              "components": "root:Card, tabs:Tabs, t1:Timeline, t2:Table, t3:Stack, t3a:Mermaid, t3b:Text, t3c:List"
+            }
+          ],
+          "widgets": [],
+          "textSnippet": "三条主线贯穿全程：**语言模型的常识如何变成动作**、**数据如何从单机走向跨本体规模化**、**架构上端到端 VLA 与双系统之争**——2025 年之后的分水岭，是世界模型把训练从模仿推向可自我改进的闭环。"
+        },
+        {
+          "id": "C1",
+          "run": 2,
+          "category": "threejs",
+          "title": "3D sphere",
+          "prompt": "请用交互式 3D 形式展示三维球面 x²+y²+z²=2Rz，让我可以旋转缩放观察。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render_widget",
+              "ok": true,
+              "detail": "ui_render_widget"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "Three.js scene (UI.three or import(\"three\"))",
+              "ok": true
+            },
+            {
+              "name": "surface depends on R (R appears in code or controls)",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render_widget"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 2,
+          "timing": {
+            "apiMs": 76875,
+            "apiCallsMs": [
+              75702,
+              1173
+            ],
+            "caseMs": 76876
+          },
+          "uis": [],
+          "widgets": [
+            {
+              "title": "球面 x²+y²+z²=2Rz 交互式 3D 观察",
+              "htmlChars": 1190,
+              "jsChars": 7091
+            }
+          ],
+          "textSnippet": "这个方程配方后是 \\(x^2+y^2+(z-R)^2=R^2\\)——球心在 \\((0,0,R)\\)、半径 \\(R\\)，并且恰好经过原点，原点是它的最低点、切平面为 \\(z=0\\)。拖动旋转可看到它是以 z 轴为对称轴的旋转曲面；勾选\"切平面 z=0\"能直观验证原点处的相切关系，绿色大圆就是平面截出的截面圆 \\(x^2+"
+        },
+        {
+          "id": "C2",
+          "run": 2,
+          "category": "math-plot",
+          "title": "Slider plot",
+          "prompt": "画一个阻尼振动函数曲线，提供振幅、阻尼系数和角频率的滑动条，让我滑动控制曲线实时变化。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render or ui_render_widget",
+              "ok": true,
+              "detail": "ui_render"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "Plot with three parameter sliders",
+              "ok": true
+            },
+            {
+              "name": "every slider drives the curve (param used in an expression)",
+              "ok": true
+            },
+            {
+              "name": "damped oscillation shape: exp(…)·sin/cos(…)",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 2,
+          "timing": {
+            "apiMs": 6591,
+            "apiCallsMs": [
+              5379,
+              1212
+            ],
+            "caseMs": 6591
+          },
+          "uis": [
+            {
+              "title": "阻尼振动曲线（可调参数）",
+              "version": 1,
+              "components": "card:Card, plot:Plot, formula:Math, note:Text"
+            }
+          ],
+          "widgets": [],
+          "textSnippet": "拖动三个滑块即可实时改变曲线形状，两条虚线是 ±A·e^(−γt) 的衰减包络，能直观看出阻尼对振幅衰减速度的影响。"
+        },
+        {
+          "id": "C3",
+          "run": 2,
+          "category": "threejs",
+          "title": "Three.js solar system",
+          "prompt": "使用 Three.js 做一个包含光影的可交互 3D 太阳系微型模型，行星公转且支持鼠标拖拽视角。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render_widget",
+              "ok": true,
+              "detail": "ui_render_widget"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "Three.js scene (UI.three or import(\"three\"))",
+              "ok": true
+            },
+            {
+              "name": "animated orbits",
+              "ok": true
+            },
+            {
+              "name": "light sources for shading",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render_widget"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 2,
+          "timing": {
+            "apiMs": 102204,
+            "apiCallsMs": [
+              100821,
+              1383
+            ],
+            "caseMs": 102204
+          },
+          "uis": [],
+          "widgets": [
+            {
+              "title": "3D 太阳系 · Three.js",
+              "htmlChars": 652,
+              "jsChars": 12405
+            }
+          ],
+          "textSnippet": "太阳作为唯一光源投射实时阴影，八大行星按各自周期公转、自转（含土星环与地月系统），星空背景 + 太阳光晕增强光影层次；拖拽旋转、滚轮缩放、右键平移，底部可调速、暂停、切换真实周期比。"
+        },
+        {
+          "id": "C4",
+          "run": 2,
+          "category": "widget",
+          "title": "Pendulum simulator",
+          "prompt": "做一个单摆运动的动态物理模拟器，支持启动暂停和摆长重力参数调节。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render_widget",
+              "ok": true,
+              "detail": "ui_render_widget"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "start/pause control",
+              "ok": true
+            },
+            {
+              "name": "length and gravity sliders",
+              "ok": true
+            },
+            {
+              "name": "time-stepped animation",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render_widget"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 1,
+          "modelCalls": 2,
+          "timing": {
+            "apiMs": 103519,
+            "apiCallsMs": [
+              102396,
+              1123
+            ],
+            "caseMs": 103520
+          },
+          "uis": [],
+          "widgets": [
+            {
+              "title": "单摆运动模拟器",
+              "htmlChars": 2432,
+              "jsChars": 11582
+            }
+          ],
+          "textSnippet": "单摆模拟器已就绪：拖动小球设定角度后松手即开始摆动，\"启动/暂停\"控制运动，摆长、重力、阻尼和初始角度实时可调，右侧还会用实测过零周期和小角度公式 2π√(L/g) 做对比。"
+        },
+        {
+          "id": "D1",
+          "run": 2,
+          "category": "form",
+          "title": "Form submit → follow-up",
+          "prompt": "请帮我生成一个销售预测配置表单，包含预测区域、预测季度数、预测情景（乐观/基准/保守）。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render",
+              "ok": true,
+              "detail": "ui_render"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "Form rendered",
+              "ok": true
+            },
+            {
+              "name": "form has region, quarter count and scenario fields",
+              "ok": true
+            },
+            {
+              "name": "follow-up uses the submitted values (全国 / 4 quarters / optimistic)",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render",
+              "ui_render"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 2,
+          "modelCalls": 4,
+          "timing": {
+            "apiMs": 15918,
+            "apiCallsMs": [
+              3351,
+              776,
+              10970,
+              821
+            ],
+            "caseMs": 15919
+          },
+          "uis": [
+            {
+              "title": "销售预测配置",
+              "version": 1,
+              "components": "card:Card, form:Form"
+            },
+            {
+              "title": "全国 · 4季度 · 乐观情景预测",
+              "version": 1,
+              "components": "root:Stack, note:Alert, kpis:Grid, k1:Stat, k2:Stat, k3:Stat, chart:Chart, table:Table, btns:Stack, b1:Button, b2:Button, b3:Button"
+            }
+          ],
+          "widgets": [],
+          "textSnippet": "未接入实际历史销售数据，因此下面按**可替换的假设基线**建模：以「全国」上一季度实际营收 2,400 万元为起点，按情景设定环比增长率，逐季递推。\n如果你的实际基线营收（或历史季度数据）能提供，我可以把上面的假设替换成真实数据重算。"
+        },
+        {
+          "id": "D2",
+          "run": 2,
+          "category": "multi-turn",
+          "title": "Add a table column",
+          "prompt": "帮我生成一个展示三款手机（Model A, Model B, Model C）价格和电池容量的表格。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render",
+              "ok": true,
+              "detail": "ui_render"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "Table rendered",
+              "ok": true
+            },
+            {
+              "name": "tool: ui_patch or ui_render",
+              "ok": true,
+              "detail": "ui_patch"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "screen sizes added per model, prior values kept",
+              "ok": true
+            },
+            {
+              "name": "updated in place (ui_patch on the same UI)",
+              "ok": true,
+              "detail": "informational: a full re-render also passes the case",
+              "informational": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render",
+              "ui_patch"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 2,
+          "modelCalls": 4,
+          "timing": {
+            "apiMs": 8325,
+            "apiCallsMs": [
+              4290,
+              939,
+              2408,
+              688
+            ],
+            "caseMs": 8327
+          },
+          "uis": [
+            {
+              "title": "三款手机参数对比（示例数据）",
+              "version": 2,
+              "components": "root:Stack, card_table:Card, table_main:Table, grid_charts:Grid, chart_price:Chart, chart_battery:Chart"
+            }
+          ],
+          "widgets": [],
+          "textSnippet": "已加上“屏幕尺寸”列：Model A 6.1 寸、Model B 6.7 寸、Model C 6.5 寸，排序功能仍然可用。"
+        },
+        {
+          "id": "D3",
+          "run": 2,
+          "category": "multi-turn",
+          "title": "Two successive chart edits",
+          "prompt": "用柱状图对比 Q1-Q4 线上和线下两个渠道的销售额（线上 120、135、150、170；线下 90、95、88、100）。",
+          "passed": true,
+          "reason": null,
+          "checks": [
+            {
+              "name": "tool: ui_render",
+              "ok": true,
+              "detail": "ui_render"
+            },
+            {
+              "name": "arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "bar chart with two series rendered",
+              "ok": true
+            },
+            {
+              "name": "edit 1 · tool: ui_patch or ui_render",
+              "ok": true,
+              "detail": "ui_patch"
+            },
+            {
+              "name": "edit 1 · arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "edit 1 · chart is now \"line\"",
+              "ok": true
+            },
+            {
+              "name": "edit 1 · original series kept with the same values",
+              "ok": true
+            },
+            {
+              "name": "edit 2 · tool: ui_patch or ui_render",
+              "ok": true,
+              "detail": "ui_patch"
+            },
+            {
+              "name": "edit 2 · arguments valid on the first attempt",
+              "ok": true
+            },
+            {
+              "name": "edit 2 · chart is now \"line\"",
+              "ok": true
+            },
+            {
+              "name": "edit 2 · original series kept with the same values",
+              "ok": true
+            },
+            {
+              "name": "edit 2 · series \"小程序\" = 30, 45, 60, 80",
+              "ok": true
+            }
+          ],
+          "tool": {
+            "actual": [
+              "ui_render",
+              "ui_patch",
+              "ui_patch"
+            ]
+          },
+          "schema": {
+            "firstAttemptValid": true,
+            "invalidCalls": 0,
+            "recovered": false,
+            "errors": []
+          },
+          "model": [
+            "deepseek-flash"
+          ],
+          "fingerprint": [
+            "aeb56401ca74e127821c4f9126dcb669"
+          ],
+          "turns": 3,
+          "modelCalls": 6,
+          "timing": {
+            "apiMs": 10489,
+            "apiCallsMs": [
+              4043,
+              811,
+              1039,
+              423,
+              3380,
+              793
+            ],
+            "caseMs": 10493
+          },
+          "uis": [
+            {
+              "title": "Q1–Q4 分渠道销售额对比",
+              "version": 3,
+              "components": "card:Card, stats:Grid, s1:Stat, s2:Stat, s3:Stat, chart:Chart, note:Text"
+            }
+          ],
+          "widgets": [],
+          "textSnippet": "小程序已作为第三条折线加入；线上占比那项因为口径变成三渠道总额，顺手从 60.7% 更正为 49.4%（575 / 1163），其余未动。"
+        }
+      ],
+      "carriedOver": true
+    }
+  },
+  "manualReview": [
+    {
+      "id": "R-chart",
+      "screenshot": "assets/real-model/chart.png",
+      "verdict": "pass",
+      "notes": "Two series × Q1–Q4 grouped bars, legend and axis correct. Values are explicitly labelled as sample data (示意数据) with a form to enter real figures — honest, not fabricated as fact.",
+      "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
+      "reviewedAt": "2026-10-16"
+    },
+    {
+      "id": "R-table",
+      "screenshot": "assets/real-model/table.png",
+      "verdict": "pass",
+      "notes": "All five requested columns, sortable headers. Spot-checked rows match public specs (e.g. Model Y RWD 593 km CLTC / 5.9 s / ¥26.35万 / 62.5 kWh); automation does not verify facts.",
+      "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
+      "reviewedAt": "2026-10-16"
+    },
+    {
+      "id": "R-form",
+      "screenshot": "assets/real-model/form-followup.png",
+      "verdict": "pass",
+      "notes": "Follow-up restates the submitted values (全国 / 4 / 乐观) in a table and asks only for the missing base-quarter sales.",
+      "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
+      "reviewedAt": "2026-10-16"
+    },
+    {
+      "id": "R-plot",
+      "screenshot": "assets/real-model/plot.png",
+      "verdict": "pass",
+      "notes": "Correct damped oscillation y = A·e^(−γt)·cos(ωt) with ±A·e^(−γt) envelopes, KaTeX formula, three working sliders.",
+      "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
+      "reviewedAt": "2026-10-16"
+    },
+    {
+      "id": "R-three #1",
+      "screenshot": "assets/real-model/three-script-error.png",
+      "verdict": "fail",
+      "notes": "Sphere and axes draw, but one script error (THREE is not defined) is flagged on the card. After \"让模型修复\" the scene renders with a lat/long mesh and no error (three-repaired.png).",
+      "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
+      "reviewedAt": "2026-10-16"
+    },
+    {
+      "id": "R-three #2",
+      "screenshot": "assets/real-model/three.png",
+      "verdict": "pass",
+      "notes": "Geometry correct: sphere centred at C(0,0,R), tangent to the z = 0 plane at the origin; labelled axes and plane; R slider updates the equation text.",
+      "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
+      "reviewedAt": "2026-10-16"
+    },
+    {
+      "id": "R-stop",
+      "screenshot": "assets/real-model/stopped.png",
+      "verdict": "pass",
+      "notes": "Interrupted card keeps a static preview, shows the interruption notice and a Regenerate button; the regenerated solar system (regenerated.png) has sun, orbits, ringed Saturn and labels.",
+      "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
+      "reviewedAt": "2026-10-16"
+    },
+    {
+      "id": "R-patch",
+      "screenshot": "assets/real-model/patched.png",
+      "verdict": "pass",
+      "notes": "Version 3 shows exactly the requested values (online 120→170, offline 90→100, 小程序 30→80); the added difference column is arithmetically correct (30/40/62/70).",
+      "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
+      "reviewedAt": "2026-10-16"
+    },
+    {
+      "id": "R-weak",
+      "screenshot": "assets/real-model/weak-network.png",
+      "verdict": "pass",
+      "notes": "Cube with colour-coded, labelled X/Y/Z axes and grid renders on Fast 3G.",
+      "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
+      "reviewedAt": "2026-10-16"
+    },
+    {
+      "id": "R-offline",
+      "screenshot": "assets/real-model/offline.png",
+      "verdict": "pass (degraded as designed)",
+      "notes": "With the CDN blocked the stage stays empty but the card says \"1 个脚本错误\" and offers Reload / Ask to fix; the conversation continues.",
+      "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
+      "reviewedAt": "2026-10-16"
+    },
+    {
+      "id": "R-mobile",
+      "screenshot": "assets/real-model/mobile.png",
+      "verdict": "pass, minor",
+      "notes": "No page overflow at 390 px; KPI grid and pie chart fit. The wide business-line table needs horizontal scrolling inside its card and wraps currency values onto two lines — usable but cramped.",
+      "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
+      "reviewedAt": "2026-10-16"
+    }
+  ],
+  "history": [
+    {
+      "file": "docs/history/2026-10-10-real-model-eval-report.json",
+      "note": "historical snapshot from the v2 evaluator (API only). Its 15/15 is not a pass rate: B3 had no Chart; other cases cannot be rescored because arguments were not kept."
+    }
+  ],
+  "provenance": [
+    {
+      "command": "node scripts/run-real-model-suite.mjs all --repeat 2 --record",
+      "at": "2026-10-16T08:12:53.088Z",
+      "note": "all three layers; API ×2 per case; recorded the demo (cost ¥1.54)"
+    },
+    {
+      "command": "node scripts/run-real-model-suite.mjs all --rescore",
+      "at": "2026-10-16T08:38:48.911Z",
+      "note": "API layer re-judged from the saved transcripts after fixing three over-strict assertions (月活 as active users, 指导价 as price, a dated Mermaid flow as a timeline); no model calls"
+    },
+    {
+      "command": "node scripts/run-real-model-suite.mjs all --stage browser --only R-three --keep-other-layers",
+      "at": "2026-10-16T08:41:19.368Z",
+      "note": "a second R-three sample, added as run #2 next to the failed run #1 (merged once by hand with the --append logic, which was added right after)"
+    }
+  ]
 }

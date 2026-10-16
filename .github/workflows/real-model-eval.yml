@@ -1,0 +1,57 @@
+name: Real-model eval
+
+# Manual only: calls the paid DeepSeek API with the DEEPSEEK_API_KEY secret.
+# The report is redacted (and the run refuses to write one containing the key);
+# only the report and screenshots are uploaded, never the DSH home or sessions.
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: 'Layers to run: all, or a comma list of mock, api, browser'
+        default: all
+      repeat:
+        description: 'Runs per API case (for success rates and p50/p95)'
+        default: '1'
+      model:
+        description: 'DeepSeek model id'
+        default: deepseek-flash
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CI: 'true'
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      DEEPSEEK_EVAL_MODEL: ${{ inputs.model }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
+        with:
+          version: 10
+      - run: npm ci --no-audit --no-fund
+      - name: Install DeepSeek Harness
+        run: |
+          npm install -g "@deepseek-ai/dsh@0.2.0-rc.1" --no-audit --no-fund
+          echo "DSH $(dsh --version)"
+      - name: Check the secret is configured
+        run: test -n "$DEEPSEEK_API_KEY" || { echo "::error::Add the DEEPSEEK_API_KEY repository secret"; exit 1; }
+      - name: Evaluate
+        run: node scripts/run-real-model-suite.mjs all --stage "${{ inputs.stage }}" --repeat "${{ inputs.repeat }}" --out e2e-shots/real-model
+      - name: Upload report and screenshots
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: real-model-eval
+          path: |
+            docs/real-model-eval-report.json
+            docs/real-model-eval.md
+            e2e-shots/real-model/browser/
+          retention-days: 30
