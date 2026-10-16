@@ -177,9 +177,11 @@ await shot('0-home.png')
 await caption('1 · A plain question gets a plain answer — no UI')
 const before = (await shells()).length
 await send('What is the capital of France?')
+// waitIdle() can return before a slow runner (macOS, DSH alpha) has even
+// started the turn: wait for the answer itself, then for the turn to settle.
+const paris = await waitFor(() => page.evaluate(() => document.body.innerText.includes('Paris')), 20000, 150)
 await waitIdle()
-const paris = await page.evaluate(() => document.body.innerText.includes('Paris'))
-check('1. plain Q&A answers in text without UI', paris && (await shells()).length === before, `shells before=${before} after=${(await shells()).length}`)
+check('1. plain Q&A answers in text without UI', paris && (await shells()).length === before, `answered=${!!paris} shells before=${before} after=${(await shells()).length}`)
 await sleep(600)
 
 // 2) Dashboard, streamed progressively.
