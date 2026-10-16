@@ -100,7 +100,8 @@ describe('catalogReference', () => {
   it('documents every component with its required props', () => {
     const ref = catalogReference()
     for (const type of COMPONENT_TYPES) expect(ref).toContain(`- ${type}`)
-    expect(ref).toMatch(/Chart \{kind: bar\|line\|area\|pie, labels: scalar\[\], series: \[\{name: string, values: number\[\]\}\]/)
+    expect(ref).toContain('Chart {kind: bar|line|area|pie, dataRef?: {id: string, scope: string}')
+    expect(ref).toContain('labels?: scalar[], series?: [{name: string, values: number[]}]')
     expect(ref).toMatch(/Card \(children\)/)
   })
 })

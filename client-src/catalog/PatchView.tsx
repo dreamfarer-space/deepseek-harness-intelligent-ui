@@ -71,6 +71,7 @@ export function PatchView(props: ToolViewProps) {
     return <Shell kind="render" title={title} state="ready" status={t('patch.superseded', { version: latest.version })} />
   }
   const env: RenderEnv = {
+    controlled: props.controlled, sessionId: props.sessionId,
     nodes,
     streaming: false,
     t,

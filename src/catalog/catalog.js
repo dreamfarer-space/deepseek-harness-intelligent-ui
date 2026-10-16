@@ -11,6 +11,9 @@
 
 import { checkExpression, FUNCTIONS } from './expr.js';
 
+const DATA_REF = { type: 'object', props: { id: { type: 'string', required: true, max: 100 }, scope: { type: 'string', required: true, max: 200 } } };
+const ACTION = { type: 'object', props: { actionId: { type: 'string', required: true, max: 100 }, args: { type: 'any', required: true } } };
+
 /** Tone vocabulary shared by text-ish components. */
 const TONES = ['default', 'muted', 'info', 'success', 'warning', 'error'];
 
@@ -132,12 +135,14 @@ export const CATALOG = Object.freeze({
     },
   },
   Table: {
-    description: 'Data table. rows[i][j] belongs to columns[j]. Click-to-sort when sortable.',
+    description: 'Data table. rows[i][j] belongs to columns[j]. Or use a host-registered dataRef for shared local search/filter/sort/paging.',
     children: false,
     props: {
-      columns: { type: 'array', required: true, items: { type: 'string' }, max: LIMITS.tableColumns },
+      dataRef: DATA_REF,
+      pageSize: { type: 'number', min: 1, max: 100 },
+      columns: { type: 'array', items: { type: 'string' }, max: LIMITS.tableColumns },
       rows: {
-        type: 'array', required: true, max: LIMITS.tableRows,
+        type: 'array', max: LIMITS.tableRows,
         items: { type: 'array', items: { type: 'scalar' }, max: LIMITS.tableColumns },
       },
       caption: { type: 'string' },
@@ -145,13 +150,16 @@ export const CATALOG = Object.freeze({
     },
   },
   Chart: {
-    description: 'SVG chart. labels are the x categories (pie: slice names); each series has one value per label.',
+    description: 'SVG chart. Use dataRef with labelColumn and valueColumns (zero-based) for local linked data; otherwise labels are the x categories (pie: slice names); each series has one value per label.',
     children: false,
     props: {
       kind: { type: 'enum', required: true, values: CHART_KINDS },
-      labels: { type: 'array', required: true, items: { type: 'scalar' }, max: LIMITS.chartPoints },
+      dataRef: DATA_REF,
+      labelColumn: { type: 'number', min: 0, max: 23 },
+      valueColumns: { type: 'array', max: 12, items: { type: 'number', min: 0, max: 23 } },
+      labels: { type: 'array', items: { type: 'scalar' }, max: LIMITS.chartPoints },
       series: {
-        type: 'array', required: true, max: LIMITS.chartSeries,
+        type: 'array', max: LIMITS.chartSeries,
         items: {
           type: 'object',
           props: {
@@ -167,11 +175,12 @@ export const CATALOG = Object.freeze({
     },
   },
   Button: {
-    description: 'Button that, when the user clicks it, sends `prompt` back to you as the user\'s next message.',
+    description: 'Button sends prompt or invokes a host-registered action {actionId,args} on explicit user click. Never invent action ids.',
     children: false,
     props: {
       label: { type: 'string', required: true },
-      prompt: { type: 'string', required: true },
+      prompt: { type: 'string' },
+      action: ACTION,
       variant: { type: 'enum', values: ['primary', 'secondary'] },
     },
   },
@@ -349,6 +358,17 @@ function checkProps(props, specs, path, errors) {
  * @param {string[]} errors
  */
 function checkSemantics(type, props, path, errors) {
+  if (type === 'Table' || type === 'Chart') {
+    const inline = type === 'Table' ? ['columns', 'rows'] : ['labels', 'series'];
+    if (props.dataRef !== undefined) {
+      if (inline.some(k => props[k] !== undefined)) errors.push(`${path}: dataRef cannot be mixed with inline data`);
+      if (type === 'Chart' && (!Number.isInteger(props.labelColumn) || !Array.isArray(props.valueColumns) || !props.valueColumns.length || props.valueColumns.some(n => !Number.isInteger(n)))) errors.push(`${path}: bound Chart needs integer labelColumn and valueColumns`);
+      if (type === 'Chart' && props.kind === 'pie' && Array.isArray(props.valueColumns) && props.valueColumns.length !== 1) errors.push(`${path}: bound pie chart needs exactly one value column`);
+    } else if (inline.some(k => props[k] === undefined)) errors.push(`${path}: needs ${inline.join(' and ')} or dataRef`);
+    if (props.pageSize !== undefined && !Number.isInteger(props.pageSize)) errors.push(`${path}.pageSize: expected integer`);
+  }
+  if (type === 'Button' && ((props.prompt === undefined) === (props.action === undefined))) errors.push(`${path}: needs exactly one of prompt or action`);
+
   if (type === 'Chart' && Array.isArray(props.labels) && Array.isArray(props.series)) {
     props.series.forEach((s, i) => {
       if (isPlainObject(s) && Array.isArray(s.values) && s.values.length !== props.labels.length) {
@@ -523,6 +543,7 @@ export function catalogReference() {
   const fmt = (specs) => Object.entries(specs).map(([k, s]) => {
     let t = s.type;
     if (s.type === 'enum') t = s.values.join('|');
+    else if (s.type === 'object') t = `{${fmt(s.props || {})}}`;
     else if (s.type === 'array') t = s.items ? (s.items.type === 'object' ? `[{${fmt(s.items.props)}}]` : `${s.items.type === 'array' ? `${s.items.items.type}[]` : s.items.type}[]`) : 'array';
     return `${k}${s.required ? '' : '?'}: ${t}`;
   }).join(', ');

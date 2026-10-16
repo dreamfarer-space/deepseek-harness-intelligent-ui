@@ -153,8 +153,21 @@ const BOOTSTRAP = `
     promise.then(done, done);
     return promise;
   }
+  // Convenience guard only; execution authority remains in the parent native UI.
+  var actionClick = false;
+  document.addEventListener('click', function(e){
+    if (!e.isTrusted) return;
+    actionClick = true;
+    queueMicrotask(function(){ actionClick = false; });
+  }, true);
   var remote = {
     sendPrompt: function(p){ return busy(call('sendPrompt', typeof p === 'string' ? { text: p } : p)); },
+    readData: function(dataRef){ return call('readData', { dataRef: dataRef }); },
+    invokeAction: function(p){
+      if (!actionClick) return Promise.reject(new Error('Explicit user click required'));
+      actionClick = false;
+      return busy(call('invokeAction', p));
+    },
     openLink: function(p){ return call('openLink', typeof p === 'string' ? { url: p } : p); }
   };
   window.Bridge = remote;

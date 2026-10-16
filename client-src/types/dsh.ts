@@ -4,6 +4,7 @@
  * Source of truth: deepseek-harness packages/client/ui-tool/src/client/contract/slots.ts
  * and packages/client/ui-conversation/src/client/contract/records.ts.
  */
+import type { ControlledRuntime } from '../controlled.ts'
 import type { IntelligentUiKey } from '../locales.ts'
 
 export interface ContentBlock { type: string; text?: string }
@@ -29,6 +30,7 @@ export interface IntelligentUiInjected {
   sendPrompt: (text: string) => Promise<void>
   /** The session this surface belongs to. */
   sessionId?: string
+  controlled?: ControlledRuntime
 }
 
 interface CommonProps extends IntelligentUiInjected {

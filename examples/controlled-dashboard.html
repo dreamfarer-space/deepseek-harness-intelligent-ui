@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Controlled PR checks</title>
+<style>body{margin:32px auto;padding:0 16px;max-width:900px;background:#f5f6f7;font:14px system-ui}input,select,button{margin:6px;padding:6px}#notice{color:#626b77}</style>
+<h1>PR checks</h1><p id="notice">Search and filter the shared dataset, export the current view, or retry the build with confirmation. Sample data; no GitHub write is performed.</p>
+<div id="app"></div><div id="error" role="alert"></div>
+<script src="../renderer/renderer.js"></script>
+<script type="module">
+const { mount, createControlledRuntime } = DshIntelligentUiRenderer;
+const sessionId = 'demo-session', uiId = 'pr-checks';
+const runtime = createControlledRuntime(sessionId);
+const context = { sessionId, uiId }, dataRef = { id: 'checks', scope: uiId };
+const { projectData } = await import('../src/controlled/runtime.js');
+const dataset = await fetch('./controlled-checks.json').then(r => { if (!r.ok) throw new Error('Cannot load checks'); return r.json(); });
+let releaseData = runtime.registerData(uiId, dataRef.id, dataset);
+const noArgs = { type: 'object', properties: {}, additionalProperties: false };
+runtime.registerAction(uiId, 'exportCsv', {
+  schema: noArgs, effect: 'read', authorize: async ctx => ctx.sessionId === sessionId,
+  run: async () => {
+    const { columns, rows } = projectData(runtime.readData(context, dataRef));
+    // Quote CSV cells and neutralize spreadsheet formula prefixes.
+    const cell = v => '"' + String(v ?? '').replace(/^[=+@\-\t\r]/, "'$&").replaceAll('"', '""') + '"';
+    const csv = [columns, ...rows].map(r => r.map(cell).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'checks.csv'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return { exportedRows: rows.length };
+  },
+});
+runtime.registerAction(uiId, 'retryCheck', {
+  schema: { type: 'object', properties: { check: { type: 'string', enum: ['build'] } }, required: ['check'], additionalProperties: false },
+  effect: 'write',
+  authorize: async ctx => ctx.sessionId === sessionId && ctx.uiId === uiId,
+  confirm: async (_ctx, args) => window.confirm(`Retry ${args.check}?`),
+  run: async (args, ctx) => {
+    // Real adapters call their authorized backend here, forwarding ctx.requestId as the idempotency key.
+    const next = { columns: dataset.columns, rows: dataset.rows.map(r => r[0] === args.check ? [r[0], 0, 'queued'] : r) };
+    releaseData(); releaseData = runtime.registerData(uiId, dataRef.id, next);
+    return { check: args.check, status: 'queued', requestId: ctx.requestId };
+  },
+});
+const renderer = mount(document.getElementById('app'), {
+  sessionId, controlled: runtime,
+  sendPrompt: async text => { document.getElementById('notice').textContent = 'Follow-up: ' + text; },
+});
+renderer.render({ kind: 'declarative', uiId, version: 1, title: 'Shared check data', definition: {
+  root: 'root', components: [
+    { id: 'root', type: 'Card', children: ['table', 'chart', 'buttons'] },
+    { id: 'table', type: 'Table', props: { dataRef, pageSize: 2 } },
+    { id: 'chart', type: 'Chart', props: { dataRef, kind: 'bar', labelColumn: 0, valueColumns: [1], unit: 'min' } },
+    { id: 'buttons', type: 'Stack', props: { direction: 'horizontal' }, children: ['export', 'retry', 'ask'] },
+    { id: 'export', type: 'Button', props: { label: 'Export view', action: { actionId: 'exportCsv', args: {} } } },
+    { id: 'retry', type: 'Button', props: { label: 'Retry build', action: { actionId: 'retryCheck', args: { check: 'build' } } } },
+    { id: 'ask', type: 'Button', props: { label: 'Ask about failures', prompt: 'Explain the failed checks' } },
+  ],
+}});
+window.addEventListener('pagehide', () => { renderer.dispose(); runtime.dispose(); }, { once: true });
+</script></html>

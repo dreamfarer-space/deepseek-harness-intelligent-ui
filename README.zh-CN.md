@@ -441,3 +441,7 @@ GitHub 上的 **Real-model eval** 工作流可按需手动触发，使用仓库�
 概念、流式组件协议和部分提示词来自 [CopilotKit/OpenIntelligentUI](https://github.com/CopilotKit/OpenIntelligentUI)（MIT 许可）。本项目采用 MIT 许可。
 
 **演示视频中的鲸鱼娘。** 担任视频解说的 DeepSeek 鲸鱼娘（共 26 个姿态）来自 [Sutera-Diffusus/dsh-whale-musume](https://github.com/Sutera-Diffusus/dsh-whale-musume)（MIT © Sutera-Diffusus，立绘作者 [@SuteraWu](https://github.com/SuteraWu)）。原始文件及其许可证见 [`scripts/eval/demo/assets/whale/`](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/tree/main/scripts/eval/demo/assets/whale)，不包含在 npm 包中。
+
+## 受控数据与结构化动作
+
+Table 与 Chart 可通过按会话/UI 隔离的只读 `dataRef` 共享数据，在本地完成搜索、筛选、排序和分页。可信宿主可注册经 Schema 验证的动作；执行要求用户明确点击、权限检查，写操作另需宿主确认，并提供幂等回执。详见[接入文档及可运行示例](docs/controlled-data-actions.md)。

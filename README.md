@@ -451,3 +451,7 @@ Automated checks cannot judge visual quality, so the report also carries a **sam
 Concepts, the streaming widget contract, and parts of the prompt guidance come from [CopilotKit/OpenIntelligentUI](https://github.com/CopilotKit/OpenIntelligentUI) (MIT). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Licensed under MIT.
 
 **Whale girl in the demo video.** The DeepSeek whale girl (鲸鱼娘) who narrates the demo, in 26 poses, is by [Sutera-Diffusus/dsh-whale-musume](https://github.com/Sutera-Diffusus/dsh-whale-musume) (MIT © Sutera-Diffusus; illustrations by [@SuteraWu](https://github.com/SuteraWu)). The unmodified files and their licence are in [`scripts/eval/demo/assets/whale/`](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/tree/main/scripts/eval/demo/assets/whale). They are not part of the npm package.
+
+## Controlled data and actions
+
+Table and Chart can share a scoped, read-only `dataRef` with local search/filter/sort/paging. Trusted host adapters can register schema-validated actions, with explicit user clicks, permission checks, write approval, and idempotent receipts. See [the integration guide and runnable example](docs/controlled-data-actions.md).

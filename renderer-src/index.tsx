@@ -23,7 +23,10 @@ export interface PortableUiArtifact {
   definition: Record<string, unknown>
   policy?: WidgetPolicy
 }
+export { createControlledRuntime } from '../src/controlled/runtime.js'
 export interface RendererHost {
+  controlled?: import('../client-src/controlled.ts').ControlledRuntime
+  sessionId?: string
   sendPrompt(text: string): Promise<void>
   onHeight?(height: number): void
 }
@@ -69,6 +72,7 @@ function Surface({ artifact, host, theme }: { artifact: PortableUiArtifact; host
   ), [definition])
   const env: RenderEnv = {
     nodes, streaming: false, t, callId: artifact.uiId, policy,
+    controlled: host.controlled, sessionId: host.sessionId,
     send: text => host.sendPrompt(guard.admitPrompt(text)),
   }
   return (
@@ -81,6 +85,8 @@ function Surface({ artifact, host, theme }: { artifact: PortableUiArtifact; host
             ? <div className="diui-remote-error">Invalid widget</div>
             : <div className="diui-remote-widget">
                 <WidgetFrame
+                  controlled={host.controlled}
+                  sessionId={host.sessionId}
                   callId={artifact.uiId}
                   title={title}
                   mode="final"
@@ -112,7 +118,7 @@ export function mount(element: HTMLElement, host: RendererHost): MountedRenderer
   const observer = new ResizeObserver(() => host.onHeight?.(Math.ceil(document.documentElement.scrollHeight)))
   observer.observe(document.documentElement)
   const paint = () => {
-    if (!disposed && current) root.render(<Surface artifact={current} host={host} theme={theme} />)
+    if (!disposed && current) root.render(<Surface key={current.uiId} artifact={current} host={host} theme={theme} />)
   }
   return {
     render(value) {

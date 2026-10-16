@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { contextOf, type ControlledEnv, type ActionRequest } from '../controlled.ts'
 import { BridgeError, BridgeGuard, readFrameMessage } from '../bridge.ts'
 import type { WidgetPolicy } from '../policy.ts'
 import { getUiState, setUiState } from '../state.ts'
@@ -15,7 +16,7 @@ function token(): string {
   return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
 }
 
-export interface WidgetFrameProps {
+export interface WidgetFrameProps extends ControlledEnv {
   /** State/height key; one per rendered surface. */
   callId: string
   mode: 'preview' | 'final'
@@ -46,11 +47,16 @@ export interface WidgetFrameProps {
 export function WidgetFrame(props: WidgetFrameProps) {
   const ref = useRef<HTMLIFrameElement>(null)
   const tok = useMemo(token, [])
-  const persist = props.persist !== false
+  const persist = props.persist !== false && !props.controlled
   const theme = useRef(readTheme())
   const [height, setHeight] = useState(() => heights.get(props.callId)
     ?? (persist ? getUiState<number>(props.callId, 'height') : undefined)
     ?? clampHeight(props.initialHeight ?? 160, props.policy.maxHeight))
+  const [action, setAction] = useState<{ id: number; request: ActionRequest } | undefined>(undefined)
+  const pendingAction = useRef(false)
+  const actionFlight = useRef(false)
+  const actionEpoch = useRef(0)
+  const [actionStatus, setActionStatus] = useState('')
   const ready = useRef(false)
   /** Whether the frame has received (or was built with) the final code. */
   const finalized = useRef(false)
@@ -68,6 +74,8 @@ export function WidgetFrame(props: WidgetFrameProps) {
   // an explicit reload (generation), rebuilds the document.
   const srcDoc = useMemo(() => {
     const p = live.current
+    pendingAction.current = false
+    actionEpoch.current++
     finalized.current = p.mode === 'final'
     ready.current = false
     errors.current = []
@@ -161,6 +169,17 @@ export function WidgetFrame(props: WidgetFrameProps) {
           try { await p.sendPrompt(text) } finally { p.onSending?.(false) }
           p.onSent?.(true)
           post({ type: 'rpc-result', id, ok: true, value: { accepted: true } })
+        } else if (method === 'readData') {
+          if (!p.controlled) throw new Error('Data binding unavailable')
+          const entry = p.controlled.readData(contextOf(p), params.dataRef)
+          post({ type: 'rpc-result', id, ok: true, value: entry.value })
+        } else if (method === 'invokeAction') {
+          if (!p.controlled) throw new Error('Actions unavailable')
+          if (pendingAction.current) throw new Error('An action is already awaiting confirmation')
+          const request = p.controlled.prepareAction(contextOf(p), params)
+          pendingAction.current = true
+          setAction({ id, request }); setActionStatus('')
+          // Generated code never receives authority to execute. A native host control below does.
         } else if (method === 'openLink') {
           const url = guard.admitLink(params.url)
           window.open(url, '_blank', 'noopener,noreferrer')
@@ -175,11 +194,36 @@ export function WidgetFrame(props: WidgetFrameProps) {
       }
     }
     window.addEventListener('message', onMessage)
-    return () => window.removeEventListener('message', onMessage)
+    return () => { window.removeEventListener('message', onMessage); pendingAction.current = false; setAction(undefined) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tok, guard])
 
-  return (
+  const finishAction = async (event: Event, accepted: boolean) => {
+    if (!action || !pendingAction.current || actionFlight.current) return
+    actionFlight.current = true
+    const epoch = actionEpoch.current
+    setActionStatus('Loading…')
+    try {
+      if (!accepted) throw new Error('Action cancelled')
+      const p = live.current
+      if (!p.controlled) throw new Error('Actions unavailable')
+      const value = await p.controlled.invokeAction(contextOf(p), action.request, event)
+      if (actionEpoch.current !== epoch) return
+      post({ type: 'rpc-result', id: action.id, ok: true, value })
+      setActionStatus('Success')
+    } catch (err) {
+      if (actionEpoch.current !== epoch) return
+      const reason = err instanceof Error ? err.message : String(err)
+      post({ type: 'rpc-result', id: action.id, ok: false, error: reason }); setActionStatus('Error: ' + reason)
+    } finally { pendingAction.current = false; actionFlight.current = false; setAction(undefined) }
+  }
+  return (<>
+    {action && pendingAction.current && <div className="diui-card" role="group" aria-label="Requested action">
+      <strong>{action.request.actionId}</strong><pre className="diui-code">{JSON.stringify(action.request.args, null, 2)}</pre>
+      <button type="button" className="diui-button" onClick={e => { void finishAction(e.nativeEvent, true) }}>Run action</button>
+      <button type="button" className="diui-button" onClick={e => { void finishAction(e.nativeEvent, false) }}>Cancel</button>
+    </div>}
+    {actionStatus && <span role="status">{actionStatus}</span>}
     <iframe
       ref={ref}
       className="diui-frame"
@@ -190,7 +234,7 @@ export function WidgetFrame(props: WidgetFrameProps) {
       style={{ height }}
       data-mode={props.mode}
     />
-  )
+  </>)
 }
 
 function clampHeight(h: number, max: number): number {

@@ -74,7 +74,7 @@ export function inTurn(entry: InterruptedUi, start: number | undefined, end: num
  * completes elsewhere (e.g. the user switched sessions mid-stream), the Turn
  * tail ignores the stash because a real result with the same callId exists.
  */
-export function useStashOnDrop(view: { phase: string; callId: string; toolName: string; sessionId?: string }, partial: string): void {
+export function useStashOnDrop(view: { phase: string; callId: string; toolName: string; sessionId?: string; controlled?: unknown }, partial: string): void {
   const last = useRef({ preparing: false, raw: '' })
   last.current = view.phase === 'preparing' ? { preparing: true, raw: partial || last.current.raw } : { preparing: false, raw: '' }
   const ids = useRef(view)
@@ -82,7 +82,7 @@ export function useStashOnDrop(view: { phase: string; callId: string; toolName: 
   useEffect(() => () => {
     const { preparing, raw } = last.current
     const { sessionId, callId, toolName } = ids.current
-    if (preparing && raw && sessionId) stashInterrupted(sessionId, { callId, toolName, argsRaw: raw, at: Date.now() })
+    if (!ids.current.controlled && preparing && raw && sessionId) stashInterrupted(sessionId, { callId, toolName, argsRaw: raw, at: Date.now() })
   }, [])
 }
 

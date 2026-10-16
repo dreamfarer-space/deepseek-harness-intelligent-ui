@@ -82,6 +82,7 @@ export function RenderView(props: ToolViewProps) {
     return <Shell kind="render" title={title} state="ready" status={t('patch.superseded', { version: latest.version })} />
   }
   const env: RenderEnv = {
+    controlled: props.controlled, sessionId: props.sessionId,
     nodes: tree?.nodes ?? new Map(),
     streaming: !settled,
     stopped,
