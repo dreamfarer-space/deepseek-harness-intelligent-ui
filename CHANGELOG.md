@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Verified against DeepSeek Harness 0.2.1-alpha.4 (install smoke test and the 24-check browser E2E pass with no code changes). It is now in `TESTED_DSH_VERSIONS`.
+- Redesigned both READMEs with animated SVG illustrations (hero, agent routing, widget streaming, security model), a highlights grid, badges, a compatibility table and collapsible sections. `npm run docs:art` regenerates the illustrations.
+
 ## [0.2.2]
 
 ### Fixed

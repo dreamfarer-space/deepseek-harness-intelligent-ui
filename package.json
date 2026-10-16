@@ -68,7 +68,8 @@
     "version": "node scripts/build-client.mjs && git add client/client.js",
     "prepublishOnly": "node scripts/build-client.mjs && git diff --exit-code -- client/client.js && vitest run",
     "release:check": "node scripts/ci/release-check.mjs",
-    "smoke": "node scripts/ci/smoke.mjs"
+    "smoke": "node scripts/ci/smoke.mjs",
+    "docs:art": "node scripts/docs/readme-art.mjs"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.0.4 || >=4.0.5-alpha.0 <4.1.0-0",

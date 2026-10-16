@@ -12,7 +12,7 @@
 export const SUPPORTED_DSH_RANGE = '>=0.1.7-rc.1 <0.3.0-0 || >=0.2.0-0 <0.2.0 || >=0.2.1-0 <0.2.1';
 
 /** Versions the CI compatibility matrix installs the packed plugin into. */
-export const TESTED_DSH_VERSIONS = Object.freeze(['0.1.7-rc.2', '0.2.0-rc.1', '0.2.0-rc.2', '0.2.1-alpha.2']);
+export const TESTED_DSH_VERSIONS = Object.freeze(['0.1.7-rc.2', '0.2.0-rc.1', '0.2.0-rc.2', '0.2.1-alpha.2', '0.2.1-alpha.4']);
 
 /** Lowest Node.js version DSH itself requires. */
 export const MIN_NODE_VERSION = '22.13.0';

@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="470" viewBox="0 0 1200 470" role="img" aria-labelledby="t d">
+<title id="t">How the agent decides</title>
+<desc id="d">Each turn the agent routes a prompt to plain text, ui_render or ui_render_widget. Local interactions never call the model; explicit actions go back to the agent.</desc>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#0a0f1f"/><stop offset="1" stop-color="#141b3c"/>
+  </linearGradient>
+  <linearGradient id="brand" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#22d3ee"/><stop offset=".5" stop-color="#4d6bfe"/><stop offset="1" stop-color="#a78bfa"/>
+  </linearGradient>
+  <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+    <path d="M32 0H0V32" fill="none" stroke="#ffffff" stroke-opacity=".035"/>
+  </pattern>
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+  <marker id="arrA" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#fbbf24"/></marker>
+</defs>
+<style>
+  text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', Helvetica, Arial, sans-serif; }
+  .mono { font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, Consolas, monospace; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+
+  .dash { animation: flow 1s linear infinite; }
+  @keyframes flow { to { stroke-dashoffset: -12; } }
+  .pulse { animation: pulse 2.5s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .6; } }
+  </style>
+<rect width="1200" height="470" rx="20" fill="url(#bg)"/>
+<rect width="1200" height="470" rx="20" fill="url(#grid)"/>
+
+<text x="40" y="34" font-size="13" font-weight="700" fill="#5f6a98" letter-spacing="2">HOW THE AGENT DECIDES</text>
+
+<path d="M230 220 H320" stroke="#4d6bfe" stroke-opacity=".5" stroke-width="2"/>
+<g>
+  <rect x="40" y="175" width="190" height="90" rx="14" fill="#111833" stroke="#2a3563"/>
+  <text x="60" y="211" font-size="13" fill="#5f6a98">You</text>
+  <text x="60" y="237" font-size="16" font-weight="600" fill="#e8ecff">Any prompt</text>
+</g>
+
+  <path d="M550 220 C 610 220, 600 95, 660 95" fill="none" stroke="#97a1c9" stroke-opacity=".35" stroke-width="2"/>
+  <path d="M960 95 H1010" fill="none" stroke="#97a1c9" stroke-opacity=".35" stroke-width="2"/>
+  <g>
+    <rect x="660" y="50" width="300" height="90" rx="14" fill="#111833" stroke="#97a1c9" stroke-opacity=".45"/>
+    <rect x="660" y="50" width="300" height="90" rx="14" fill="none" stroke="#97a1c9" stroke-width="2.5" opacity="0">
+      <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;.12;.18;.3;.36;1" dur="7.5s" begin="0s" repeatCount="indefinite"/>
+    </rect>
+    <text x="682" y="88" font-size="19" font-weight="700" fill="#e8ecff" >Plain text</text>
+    <text x="682" y="114" font-size="13.5" fill="#97a1c9">greetings, facts, code, coding work</text>
+  </g>
+
+  <path d="M550 220 C 610 220, 600 220, 660 220" fill="none" stroke="#22d3ee" stroke-opacity=".35" stroke-width="2"/>
+  <path d="M960 220 H1010" fill="none" stroke="#22d3ee" stroke-opacity=".35" stroke-width="2"/>
+  <g>
+    <rect x="660" y="175" width="300" height="90" rx="14" fill="#111833" stroke="#22d3ee" stroke-opacity=".45"/>
+    <rect x="660" y="175" width="300" height="90" rx="14" fill="none" stroke="#22d3ee" stroke-width="2.5" opacity="0">
+      <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;.12;.18;.3;.36;1" dur="7.5s" begin="2.5s" repeatCount="indefinite"/>
+    </rect>
+    <text x="682" y="213" font-size="19" font-weight="700" fill="#22d3ee" class="mono">ui_render</text>
+    <text x="682" y="239" font-size="13.5" fill="#97a1c9">native components, streamed JSON</text>
+  </g>
+
+  <path d="M550 220 C 610 220, 600 345, 660 345" fill="none" stroke="#a78bfa" stroke-opacity=".35" stroke-width="2"/>
+  <path d="M960 345 H1010" fill="none" stroke="#a78bfa" stroke-opacity=".35" stroke-width="2"/>
+  <g>
+    <rect x="660" y="300" width="300" height="90" rx="14" fill="#111833" stroke="#a78bfa" stroke-opacity=".45"/>
+    <rect x="660" y="300" width="300" height="90" rx="14" fill="none" stroke="#a78bfa" stroke-width="2.5" opacity="0">
+      <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;.12;.18;.3;.36;1" dur="7.5s" begin="5s" repeatCount="indefinite"/>
+    </rect>
+    <text x="682" y="338" font-size="19" font-weight="700" fill="#a78bfa" class="mono">ui_render_widget</text>
+    <text x="682" y="364" font-size="13.5" fill="#97a1c9">sandboxed HTML / CSS / JS, live</text>
+  </g>
+
+  <circle r="6" fill="#ffffff" opacity="0">
+    <animateMotion dur="7.5s" begin="0s" repeatCount="indefinite" path="M230 220 L550 220 C 610 220, 600 95, 660 95 L1030 95" keyPoints="0;1;1" keyTimes="0;.36;1" calcMode="linear"/>
+    <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;.35;.36;1" dur="7.5s" begin="0s" repeatCount="indefinite"/>
+  </circle>
+
+  <circle r="6" fill="#22d3ee" opacity="0">
+    <animateMotion dur="7.5s" begin="2.5s" repeatCount="indefinite" path="M230 220 L550 220 C 610 220, 600 220, 660 220 L1030 220" keyPoints="0;1;1" keyTimes="0;.36;1" calcMode="linear"/>
+    <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;.35;.36;1" dur="7.5s" begin="2.5s" repeatCount="indefinite"/>
+  </circle>
+
+  <circle r="6" fill="#a78bfa" opacity="0">
+    <animateMotion dur="7.5s" begin="5s" repeatCount="indefinite" path="M230 220 L550 220 C 610 220, 600 345, 660 345 L1030 345" keyPoints="0;1;1" keyTimes="0;.36;1" calcMode="linear"/>
+    <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;.35;.36;1" dur="7.5s" begin="5s" repeatCount="indefinite"/>
+  </circle>
+<g>
+  <rect x="320" y="155" width="230" height="130" rx="18" fill="#111833"/>
+  <rect x="320" y="155" width="230" height="130" rx="18" fill="#4d6bfe" fill-opacity=".14" stroke="#4d6bfe" stroke-width="1.5"/>
+  <rect x="320" y="155" width="230" height="130" rx="18" fill="none" stroke="#4d6bfe" stroke-width="6" opacity=".25" filter="url(#glow)" class="pulse"/>
+  <text x="435" y="199" text-anchor="middle" font-size="20" font-weight="700" fill="#e8ecff">DSH agent</text>
+  <text x="435" y="227" text-anchor="middle" font-size="13" fill="#97a1c9">routes every turn itself</text>
+  <text x="435" y="255" text-anchor="middle" font-size="12" class="mono" fill="#22d3ee">src/guidance.js</text>
+</g>
+<g>
+  <rect x="1010" y="50" width="150" height="340" rx="14" fill="#111833" stroke="#2a3563"/>
+  <text x="1085" y="80" text-anchor="middle" font-size="15" font-weight="700" fill="#e8ecff">Chat</text>
+  <rect x="1028" y="98" width="114" height="10" rx="5" fill="#97a1c9" opacity=".35"/>
+  <rect x="1028" y="116" width="84" height="10" rx="5" fill="#97a1c9" opacity=".35"/>
+  <rect x="1028" y="192" width="114" height="64" rx="8" fill="#22d3ee" fill-opacity=".12" stroke="#22d3ee" stroke-opacity=".5"/>
+  <rect x="1040" y="226" width="20" height="18" rx="2" fill="#22d3ee" opacity=".7"/><rect x="1072" y="216" width="20" height="28" rx="2" fill="#22d3ee" opacity=".7"/><rect x="1104" y="206" width="20" height="38" rx="2" fill="#22d3ee" opacity=".7"/>
+  <rect x="1028" y="316" width="114" height="62" rx="8" fill="#a78bfa" fill-opacity=".12" stroke="#a78bfa" stroke-opacity=".5"/>
+  <circle cx="1085" cy="347" r="20" fill="none" stroke="#a78bfa"/>
+  <ellipse cx="1085" cy="347" rx="20" ry="20" fill="none" stroke="#a78bfa" opacity=".6"><animate attributeName="rx" values="20;2;20" dur="3s" repeatCount="indefinite"/></ellipse>
+</g>
+
+<path class="dash" d="M1085 392 V420 H435 V289" fill="none" stroke="#fbbf24" stroke-width="2" stroke-dasharray="6 6" marker-end="url(#arrA)"/>
+<text x="792.5" y="446" text-anchor="middle" font-size="13.5" fill="#fbbf24">Button · Form · Bridge.sendPrompt → back to the agent</text>
+
+<g transform="translate(40 330)">
+  <rect width="230" height="96" rx="14" fill="#34d399" fill-opacity=".08" stroke="#34d399" stroke-opacity=".5"/>
+  <g transform="translate(36 48)">
+    <circle r="18" fill="none" stroke="#34d399" stroke-opacity=".3" stroke-width="3"/>
+    <path d="M0 -18 A18 18 0 0 1 18 0" fill="none" stroke="#34d399" stroke-width="3" stroke-linecap="round">
+      <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="1.4s" repeatCount="indefinite"/>
+    </path>
+  </g>
+  <text x="68" y="40" font-size="14" font-weight="700" fill="#34d399">Local first</text>
+  <text x="68" y="62" font-size="12" fill="#97a1c9">sliders · rotate · zoom</text>
+  <text x="68" y="80" font-size="12" fill="#97a1c9">sort · tabs → no model call</text>
+</g>
+<rect x=".5" y=".5" width="1199" height="469" rx="19.5" fill="none" stroke="#ffffff" stroke-opacity=".08"/>
+</svg>

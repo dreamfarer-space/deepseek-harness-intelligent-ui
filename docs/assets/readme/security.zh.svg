@@ -1,0 +1,146 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="460" viewBox="0 0 1200 460" role="img" aria-labelledby="t d">
+<title id="t">安全模型</title>
+<desc id="d">组件运行在不透明源的沙箱 iframe 中，并受严格 CSP 约束。访问宿主页面会被拦截，只有通过 token 校验的 postMessage 才能到达限流的 Bridge。</desc>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#0a0f1f"/><stop offset="1" stop-color="#141b3c"/>
+  </linearGradient>
+  <linearGradient id="brand" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#22d3ee"/><stop offset=".5" stop-color="#4d6bfe"/><stop offset="1" stop-color="#a78bfa"/>
+  </linearGradient>
+  <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+    <path d="M32 0H0V32" fill="none" stroke="#ffffff" stroke-opacity=".035"/>
+  </pattern>
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+  
+</defs>
+<style>
+  text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', Helvetica, Arial, sans-serif; }
+  .mono { font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, Consolas, monospace; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+
+  .dash { animation: flow 1.6s linear infinite; }
+  @keyframes flow { to { stroke-dashoffset: -24; } }
+  </style>
+<rect width="1200" height="460" rx="20" fill="url(#bg)"/>
+<rect width="1200" height="460" rx="20" fill="url(#grid)"/>
+
+<text x="40" y="40" font-size="13" font-weight="700" fill="#5f6a98" letter-spacing="2">安全模型</text>
+<text x="1160" y="40" font-size="13" text-anchor="end" fill="#97a1c9">DSH Web 页面（宿主）</text>
+
+<rect x="60" y="90" width="520" height="330" rx="16" fill="#a78bfa" fill-opacity=".05" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="7 5" class="dash"/>
+<text x="80" y="116" font-size="12.5" class="mono" fill="#a78bfa">&lt;iframe sandbox="allow-scripts allow-forms" srcdoc&gt;</text>
+<text x="80" y="136" font-size="12" fill="#97a1c9">不加 allow-same-origin → window.origin === "null"</text>
+
+<rect x="84" y="150" width="472" height="250" rx="12" fill="#f472b6" fill-opacity=".05" stroke="#f472b6" stroke-opacity=".6"/>
+<text x="100" y="172" font-size="12" class="mono" fill="#f472b6">CSP default-src 'none' · connect-src 'none'</text>
+<text x="100" y="190" font-size="12" fill="#97a1c9">脚本、样式、字体、图片只能来自 cdnAllowlist</text>
+
+<path d="M220 340 V380 Q 220 380 240 380 H640 M890 380 H930" fill="none" stroke="#34d399" stroke-opacity=".45" stroke-width="2"/>
+
+  <path d="M320 250 C 480 250, 460 122, 580 122" fill="none" stroke="#f87171" stroke-opacity=".25" stroke-dasharray="4 5"/>
+  <circle r="5" fill="#f87171" opacity="0">
+    <animateMotion dur="2.4s" begin="0s" repeatCount="indefinite" path="M320 250 C 480 250, 460 122, 580 122" keyPoints="0;1;1" keyTimes="0;.6;1" calcMode="linear"/>
+    <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;.59;.6;1" dur="2.4s" begin="0s" repeatCount="indefinite"/>
+  </circle>
+  <g transform="translate(580 122)" opacity="0">
+    <circle r="12" fill="#f87171" fill-opacity=".25" stroke="#f87171"/>
+    <path d="M-4.5 -4.5L4.5 4.5M4.5 -4.5L-4.5 4.5" stroke="#f87171" stroke-width="2.4" stroke-linecap="round"/>
+    <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;.58;.62;.9;1" dur="2.4s" begin="0s" repeatCount="indefinite"/>
+  </g>
+  <g transform="translate(640 104)">
+    <rect width="250" height="38" rx="10" fill="#111833" stroke="#f87171" stroke-opacity=".4"/>
+    <text x="16" y="24" font-size="13" class="mono" fill="#e8ecff">parent.document</text>
+    <text x="236" y="24" font-size="12" text-anchor="end" fill="#f87171">✕ SecurityError</text>
+  </g>
+  <path d="M320 270 C 480 270, 460 172, 580 172" fill="none" stroke="#f87171" stroke-opacity=".25" stroke-dasharray="4 5"/>
+  <circle r="5" fill="#f87171" opacity="0">
+    <animateMotion dur="2.4s" begin="0.6s" repeatCount="indefinite" path="M320 270 C 480 270, 460 172, 580 172" keyPoints="0;1;1" keyTimes="0;.6;1" calcMode="linear"/>
+    <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;.59;.6;1" dur="2.4s" begin="0.6s" repeatCount="indefinite"/>
+  </circle>
+  <g transform="translate(580 172)" opacity="0">
+    <circle r="12" fill="#f87171" fill-opacity=".25" stroke="#f87171"/>
+    <path d="M-4.5 -4.5L4.5 4.5M4.5 -4.5L-4.5 4.5" stroke="#f87171" stroke-width="2.4" stroke-linecap="round"/>
+    <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;.58;.62;.9;1" dur="2.4s" begin="0.6s" repeatCount="indefinite"/>
+  </g>
+  <g transform="translate(640 154)">
+    <rect width="250" height="38" rx="10" fill="#111833" stroke="#f87171" stroke-opacity=".4"/>
+    <text x="16" y="24" font-size="13" class="mono" fill="#e8ecff">localStorage</text>
+    <text x="236" y="24" font-size="12" text-anchor="end" fill="#f87171">✕ SecurityError</text>
+  </g>
+  <path d="M320 290 C 480 290, 460 222, 580 222" fill="none" stroke="#f87171" stroke-opacity=".25" stroke-dasharray="4 5"/>
+  <circle r="5" fill="#f87171" opacity="0">
+    <animateMotion dur="2.4s" begin="1.2s" repeatCount="indefinite" path="M320 290 C 480 290, 460 222, 580 222" keyPoints="0;1;1" keyTimes="0;.6;1" calcMode="linear"/>
+    <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;.59;.6;1" dur="2.4s" begin="1.2s" repeatCount="indefinite"/>
+  </circle>
+  <g transform="translate(580 222)" opacity="0">
+    <circle r="12" fill="#f87171" fill-opacity=".25" stroke="#f87171"/>
+    <path d="M-4.5 -4.5L4.5 4.5M4.5 -4.5L-4.5 4.5" stroke="#f87171" stroke-width="2.4" stroke-linecap="round"/>
+    <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;.58;.62;.9;1" dur="2.4s" begin="1.2s" repeatCount="indefinite"/>
+  </g>
+  <g transform="translate(640 204)">
+    <rect width="250" height="38" rx="10" fill="#111833" stroke="#f87171" stroke-opacity=".4"/>
+    <text x="16" y="24" font-size="13" class="mono" fill="#e8ecff">document.cookie</text>
+    <text x="236" y="24" font-size="12" text-anchor="end" fill="#f87171">✕ SecurityError</text>
+  </g>
+  <path d="M320 310 C 480 310, 460 272, 580 272" fill="none" stroke="#f87171" stroke-opacity=".25" stroke-dasharray="4 5"/>
+  <circle r="5" fill="#f87171" opacity="0">
+    <animateMotion dur="2.4s" begin="1.7999999999999998s" repeatCount="indefinite" path="M320 310 C 480 310, 460 272, 580 272" keyPoints="0;1;1" keyTimes="0;.6;1" calcMode="linear"/>
+    <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;.59;.6;1" dur="2.4s" begin="1.7999999999999998s" repeatCount="indefinite"/>
+  </circle>
+  <g transform="translate(580 272)" opacity="0">
+    <circle r="12" fill="#f87171" fill-opacity=".25" stroke="#f87171"/>
+    <path d="M-4.5 -4.5L4.5 4.5M4.5 -4.5L-4.5 4.5" stroke="#f87171" stroke-width="2.4" stroke-linecap="round"/>
+    <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;.58;.62;.9;1" dur="2.4s" begin="1.7999999999999998s" repeatCount="indefinite"/>
+  </g>
+  <g transform="translate(640 254)">
+    <rect width="250" height="38" rx="10" fill="#111833" stroke="#f87171" stroke-opacity=".4"/>
+    <text x="16" y="24" font-size="13" class="mono" fill="#e8ecff">fetch(…)</text>
+    <text x="236" y="24" font-size="12" text-anchor="end" fill="#f87171">✕ 已拦截</text>
+  </g>
+
+<g>
+  <rect x="120" y="220" width="200" height="120" rx="12" fill="#18213f" stroke="#22d3ee"/>
+  <text x="138" y="250" font-size="15" font-weight="700" fill="#e8ecff">组件代码</text>
+  <text x="138" y="274" font-size="12" class="mono" fill="#97a1c9">UI.three · UI.canvas</text>
+  <text x="138" y="294" font-size="12" class="mono" fill="#97a1c9">UI.state · Bridge.*</text>
+  <g transform="translate(290 312)">
+    <path d="M-10 0a10 10 0 1 0 20 0a10 10 0 1 0 -20 0" fill="none" stroke="#22d3ee" stroke-width="2" stroke-dasharray="5 3.5">
+      <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="4s" repeatCount="indefinite"/>
+    </path>
+  </g>
+</g>
+
+<g>
+  <rect x="640" y="320" width="250" height="100" rx="14" fill="#34d399" fill-opacity=".08" stroke="#34d399"/>
+  <text x="658" y="348" font-size="14" font-weight="700" fill="#34d399">postMessage 校验</text>
+  <text x="658" y="370" font-size="12" fill="#97a1c9">来源必须是该 iframe</text>
+  <text x="658" y="388" font-size="12" fill="#97a1c9">每个 iframe 独立随机 token</text>
+  <text x="658" y="406" font-size="12" fill="#97a1c9">格式校验，大小受限</text>
+</g>
+<g>
+  <rect x="930" y="320" width="230" height="100" rx="14" fill="#4d6bfe" fill-opacity=".12" stroke="#4d6bfe"/>
+  <text x="948" y="348" font-size="14" font-weight="700" fill="#e8ecff">宿主 Bridge</text>
+  <text x="948" y="370" font-size="12" class="mono" fill="#22d3ee">sendPrompt · openLink</text>
+  <text x="948" y="390" font-size="12" fill="#97a1c9">挂载后 1 秒内拒绝发送</text>
+  <text x="948" y="408" font-size="12" fill="#97a1c9">每 2 秒最多 1 次 · 限长</text>
+</g>
+<g transform="translate(930 104)">
+  <rect width="230" height="188" rx="14" fill="#111833" stroke="#2a3563"/>
+  <text x="18" y="30" font-size="14" font-weight="700" fill="#e8ecff">DSH 页面</text>
+  <text x="18" y="54" font-size="12" fill="#97a1c9">会话、cookie、存储、</text>
+  <text x="18" y="74" font-size="12" fill="#97a1c9">API 均无法触及</text>
+  <rect x="18" y="96" width="194" height="10" rx="5" fill="#2a3563"/>
+  <rect x="18" y="116" width="150" height="10" rx="5" fill="#2a3563"/>
+  <rect x="18" y="136" width="170" height="10" rx="5" fill="#2a3563"/>
+  <text x="18" y="172" font-size="12" fill="#34d399">🔒 由 E2E 测试实测验证</text>
+</g>
+
+<g>
+  <rect x="-9" y="-9" width="18" height="18" rx="4" fill="#34d399">
+    <animateMotion dur="3.6s" repeatCount="indefinite" path="M220 340 V380 H950" keyPoints="0;1;1" keyTimes="0;.75;1" calcMode="spline" keySplines=".4 0 .6 1;0 0 1 1"/>
+    <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;.74;.75;1" dur="3.6s" repeatCount="indefinite"/>
+  </rect>
+</g>
+<rect x=".5" y=".5" width="1199" height="459" rx="19.5" fill="none" stroke="#ffffff" stroke-opacity=".08"/>
+</svg>

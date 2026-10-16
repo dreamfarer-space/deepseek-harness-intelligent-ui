@@ -1,8 +1,19 @@
-# DeepSeek Harness Intelligent UI（智能界面）
+<div align="center">
 
-[English](README.md) | 中文
+<img src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/readme/hero.zh.svg" alt="DeepSeek Harness Intelligent UI：为 DeepSeek Harness 带来生成式、可交互的界面" width="100%">
 
-[![CI](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/actions/workflows/ci.yml/badge.svg)](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/actions/workflows/ci.yml) [![npm](https://img.shields.io/npm/v/deepseek-harness-intelligent-ui)](https://www.npmjs.com/package/deepseek-harness-intelligent-ui)
+[English](README.md) · **中文**
+
+[![CI](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/actions/workflows/ci.yml/badge.svg)](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/deepseek-harness-intelligent-ui?color=4d6bfe&label=npm)](https://www.npmjs.com/package/deepseek-harness-intelligent-ui)
+[![DSH](https://img.shields.io/badge/DeepSeek%20Harness-0.1.7%20%E2%80%93%200.2.x-22d3ee)](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/compatibility.md)
+[![Node](https://img.shields.io/badge/node-%E2%89%A5%2022.13-34d399)](https://nodejs.org)
+[![OS](https://img.shields.io/badge/OS-Windows%20%7C%20Linux%20%7C%20macOS-a78bfa)](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/compatibility.md)
+[![License: MIT](https://img.shields.io/badge/license-MIT-97a1c9)](LICENSE)
+
+[演示](#-演示) · [快速开始](#-快速开始) · [如何选择](#-agent-如何选择呈现方式) · [沙箱组件](#-沙箱组件ui_render_widget) · [安全](#-安全模型) · [配置](#%EF%B8%8F-配置) · [开发](#-开发与验证)
+
+</div>
 
 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）提供**生成式、可交互的 UI**。用户用自然语言提问，Agent 自行决定怎样作答：
 
@@ -14,17 +25,63 @@
 
 本插件把 CopilotKit [OpenIntelligentUI](https://github.com/CopilotKit/OpenIntelligentUI) 的思路（Open Generative UI + A2UI 风格声明式组件）移植到 DSH 自带的扩展点上，不依赖 CopilotKit、LangGraph 或外部路由服务。
 
-## 演示
+## ✨ 亮点
+
+<table>
+<tr>
+<td width="33%" valign="top">
+
+### 🧠 自主决策
+无需任何命令。每一轮由 Agent 依据系统提示，自行选择文本、原生组件或实时组件。
+
+</td>
+<td width="33%" valign="top">
+
+### ⚡ 流式渐进
+JSON 还在生成，组件就已出现。实时组件在**同一个** iframe 中 morph 并原地定稿，不重建、不闪烁。
+
+</td>
+<td width="33%" valign="top">
+
+### 🖱️ 本地优先
+滑块、旋转、缩放、排序、标签页、悬停提示都在浏览器内完成，不调用模型。
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 🧩 20 种组件
+卡片、栅格、标签页、表格、图表、时间线、`Plot`、KaTeX `Math`、`Mermaid`、表单，渲染前先校验。
+
+</td>
+<td valign="top">
+
+### 🔒 默认沙箱隔离
+不透明源 iframe、严格 CSP、带 token 的消息校验、限流的 Bridge，全部在真实浏览器中实测。
+
+</td>
+<td valign="top">
+
+### 💾 状态不丢失
+标签页、排序、表单值、滑块和 `UI.state` 在回合折叠、页面刷新、中途停止后都能恢复。
+
+</td>
+</tr>
+</table>
+
+## 🎬 演示
 
 ![DeepSeek Harness Intelligent UI 演示](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/demo.gif)
 
 🎥 **高清视频（H.264，约 2 分钟）：** [docs/assets/demo.mp4](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/v0.2.1/docs/assets/demo.mp4)
 
-> **录制方式：** 演示视频录自真实的 DSH Web 0.2.0-rc.1，装好本插件后由 `npm run e2e:all -- --record` 自动驱动。
->
-> **关于模型：** 背后的模型是 `scripts/e2e/` 中的**脚本化 mock**（当时没有 API Key），回答内容是预设的。画面中的流式渲染、交互、双向通信、持久化和隔离，都是插件在 DSH 中真实运行的结果。
->
-> **在 GitHub 内联播放：** 把 `docs/assets/demo.mp4` 拖进 GitHub 的评论或 Release 编辑框，再把生成的 `https://github.com/user-attachments/assets/…` 链接单独一行粘贴到这里。GitHub 只对上传的附件内联播放视频，不支持仓库内的文件。
+> [!NOTE]
+> 演示视频录自真实的 DSH Web 0.2.0-rc.1，装好本插件后由 `npm run e2e:all -- --record` 自动驱动。背后的模型是 `scripts/e2e/` 中的**脚本化 mock**（当时没有 API Key），回答内容是预设的。画面中的流式渲染、交互、双向通信、持久化和隔离，都是插件在 DSH 中真实运行的结果。
+
+<details>
+<summary><b>📸 截图集</b>（看板、Three.js、公式、表单、流式预览、深色主题、手机、刷新）</summary>
+<br>
 
 | 看板流式出现并定稿 | Three.js 组件：R 滑块、旋转、缩放 |
 |:---:|:---:|
@@ -43,105 +100,19 @@
 |:---:|:---:|:---:|
 | ![深色](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/11b-dark-widget.png) | ![移动端](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/12-mobile-dark.png) | ![刷新](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/14-reload.png) |
 
-## Agent 如何选择呈现方式
+**在 GitHub 内联播放：** 把 `docs/assets/demo.mp4` 拖进 GitHub 的评论或 Release 编辑框，再把生成的 `https://github.com/user-attachments/assets/…` 链接单独一行粘贴到这里。GitHub 只对上传的附件内联播放视频，不支持仓库内的文件。
 
-插件注入一段系统提示（`src/guidance.js`），让模型每一轮自行选择，用户无需输入任何命令：
+</details>
 
-- **普通文本**：寒暄、简短事实、解释说明、要复制的代码、工作区内的编程任务。
-- **`ui_render`**：结构化内容，例如对比、数据、看板、流程、公式、可调参数的函数、选项、收集输入。
-- **`ui_render_widget`**：用户想探索、操作或观察组件目录画不出的东西，例如三维、模拟、动画、游戏、自定义工具。
-- **本地优先**：凡是能在浏览器里算出来的（滑块、旋转、缩放、筛选、排序、重新计算），都必须即时更新，不调用模型。
-
-`/ui <需求>` 命令仍然保留，用于强制以 UI 作答。
-
-## 组件目录（`ui_render`）
-
-| 类别 | 组件 |
-|---|---|
-| 布局 | `Card`、`Stack`、`Grid`、`Tabs`（支持键盘操作） |
-| 文本与提示 | `Text`（markdown 子集）、`Code`、`Alert`、`Badge`、`Divider` |
-| 数据 | `Stat`、`Progress`、`List`、`Table`（可排序）、`Timeline` |
-| 图表 | `Chart`（柱状、折线、面积、饼图；可堆叠，悬停提示，可点图例显隐系列） |
-| 数学与图示 | **`Plot`**、**`Math`**（KaTeX）、**`Mermaid`** |
-| 交互 | `Button`、`Form` |
-
-- **`Plot`**：绘制 y = f(x)，参数滑块拖动后曲线即时重绘。表达式由安全编译器解析，不使用 `eval`。
-- **`Form`**：字段类型有文本、数字、**范围滑块**、下拉、勾选、日期、多行文本。
-- **`Button` 与 `Form`**：点击或提交后，内容作为下一条用户消息发给 Agent。
-
-**传输与校验：** DSH 的工具 schema 不支持递归，所以界面以**扁平节点列表加 id 引用**的形式传输。Host 先校验再确认，检查项包括：
-
-- 未知类型或属性；
-- id 悬空、重复或成环；
-- 一个节点有多个父节点；
-- 图表数据长度不一致；
-- `Plot` 表达式无法编译、参数默认值越界等。
-
-发现问题时返回 `ok:false` 并附带出错路径，模型据此修正后重试。
-
-**`Math` 与 `Mermaid` 的渲染：** 两者在与组件相同的沙箱中，从 CDN 白名单加载 KaTeX 或 Mermaid。第三方代码不在 DSH 页面中运行，宿主包体积保持在约 127 KB。CDN 不可用时，显示源码文本。
-
-## 沙箱组件（`ui_render_widget`）
-
-字段顺序固定：`title`、`initialHeight`、`placeholderMessages`、`css`、`html`、`jsFunctions`、`jsExpressions`。
-
-- **流式过程：**
-  1. `css` 完成前，显示占位文字。
-  2. `css` 完成后打开预览 iframe，把清洗过的部分 HTML 实时 morph 进去。
-  3. 参数完整后，在**同一个 iframe 内原地定稿**：morph 最终 HTML，然后执行代码。iframe 不重建，没有白屏闪烁，高度也不跳动。
-- **运行时辅助（全局 `UI`）：**
-  - `UI.three(el, opts)`：返回 renderer、场景、灯光和 OrbitControls（拖动旋转，滚轮或双指缩放），按需渲染并自适应尺寸。
-  - `UI.canvas(el, draw)`：高清 2D 画布，尺寸或主题变化时自动重绘。
-  - `UI.state` / `UI.setState()`：持久化状态；带 `id` 的输入控件会自动保存并恢复。
-  - `UI.color('accent')`：返回不透明的主题色，可直接用于 three.js 和 Canvas。
-  - `UI.onTheme(cb)`、`UI.scheme`、`UI.reducedMotion`：响应主题变化与减少动效偏好。
-  - 辅助样式类：`.ui-row`、`.ui-control`、`.ui-card`、`.ui-stage`。
-- **Bridge：**
-  - `Bridge.sendPrompt({ text })`：在宿主应答前，自动禁用触发它的按钮，防止重复提交。
-  - `Bridge.openLink({ url })`：打开链接。
-  - `Websandbox.connection.remote.*`：为兼容 OpenIntelligentUI 而保留。
-- **依赖库：** 通过 importmap 从 esm.sh 引入 `three`、`three/addons/…`、`d3`、`chart.js/auto`、`gsap`、`canvas-confetti`。
-- **错误恢复：** 出现脚本错误时显示错误数量，并提供“重新加载”和“让模型修复”两个按钮。后者会把错误信息发给 Agent。
-
-## 显示位置与状态保持
-
-- **显示位置：**
-  - 回合进行中，UI 在工具调用处内联显示。从准备、执行到结果，始终是同一个组件实例，交互状态不会丢。
-  - 回合结束后，插件通过 `conversation.chat.turnTail` 把 UI **重新显示在回复下方**，内联处改为一行提示。
-- **按工具调用保存的交互状态：** 当前标签页、表格排序、表单值、已提交锁定、Plot 滑块、组件控件值、`UI.state`、iframe 高度。这些状态保存在内存和 `localStorage` 中（有容量上限），移到回复下方或刷新页面后都会恢复。UI 本身则从持久化的会话日志重建。
-- **中途停止：**
-  - 已进入会话日志的调用：保留已完成的部分（组件的静态预览，或已生成的组件），并显示提示和“重新生成”按钮。
-  - 参数仍在流式输出时就被停止的调用：DSH 会整体丢弃它。插件会暂存已生成的内容，同样在被停止的回合下方显示。
-
-## 安全模型
-
-- **隔离：**
-  - iframe 设置 `sandbox="allow-scripts allow-forms"` 并使用 `srcdoc`，**不加** `allow-same-origin`。
-  - E2E 在浏览器中实测：访问 `parent.document`、`localStorage`、`cookie` 均抛出 `SecurityError`，`fetch` 被拦截，`window.origin` 为 `"null"`。
-- **CSP：**
-  - `default-src 'none'`；
-  - 脚本、样式、字体、图片只能来自 `cdnAllowlist`；
-  - 默认 `connect-src 'none'`；
-  - `form-action 'none'`、`base-uri 'none'`。
-- **消息校验：**
-  - 宿主只接受来自该 iframe 的 `contentWindow`、带随机 token、且格式合法的消息。
-  - 持久化的组件状态是有大小上限的 JSON。
-  - E2E 实测，从页面或 iframe 伪造的消息都会被丢弃。
-- **sendPrompt 限制：**
-  - 挂载后 1 秒内拒绝发送；
-  - 2 秒内最多发送一次；
-  - 长度受 `sendPromptMaxChars` 限制；
-  - 以普通的排队用户消息发送。
-- **openLink：** 只允许 https，可用白名单进一步限制。
-- **Plot 表达式：** 由分词器和解析器编译，只能调用固定的数学函数表，无法使用 `eval`、`Function` 或访问属性。
-
-## 安装
+## 🚀 快速开始
 
 需要 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) **0.1.7 – 0.2.x**（`>=0.1.7-rc.1 <0.3.0`）和 Node.js ≥ 22.13，Windows、Linux、macOS 均可。安装过程不需要编译：npm 包自带预构建的浏览器端 bundle，也没有任何安装脚本。
 
 ```sh
 dsh plugin --profile web add deepseek-harness-intelligent-ui
 ```
+
+然后重启 DSH Web（`dsh web`），试着提一个需要可视化的问题，例如 *“按渠道对比 Q1–Q4 营收”* 或 *“让我在 3D 里探索 x²+y²+z²=2Rz”*。
 
 也可以用引导式安装器。它会先检查 Node、`dsh` 版本、pnpm 和 profile，检查通过后执行同样的 `dsh plugin add`：
 
@@ -158,16 +129,139 @@ npx deepseek-harness-intelligent-ui doctor             # 只诊断，不做修�
 | 卸载 | `dsh plugin --profile web remove deepseek-harness-intelligent-ui`（或 `npx deepseek-harness-intelligent-ui uninstall`） |
 | 从源码目录安装 | `dsh plugin --profile web add file:/path/to/deepseek-harness-intelligent-ui` |
 
-安装后需要重启 DSH Web。bundle patch 会自动插入 `intelligent-ui` 这一行。要修改配置，在 profile 的 `cordis.patch.yml` 中添加 `- id: intelligent-ui` 和对应的 `config:`，配置项见英文 README 的表格。支持的 DSH 版本和 CI 测试矩阵见 [docs/compatibility.md](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/v0.2.2/docs/compatibility.md)。
-
-**常见问题**
+<details>
+<summary><b>🩺 常见问题</b></summary>
+<br>
 
 - *提示 `pnpm was not found`*：DSH 用 pnpm 安装插件。运行 `corepack enable`（Node 自带）或 `npm i -g pnpm`。
-- *提示 `… is incompatible with dsh X`*：当前 DSH 版本不在支持范围内。可以升级 DSH（`npm i -g @deepseek-ai/dsh@latest`），或在[兼容性文档](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/v0.2.2/docs/compatibility.md)里找支持该版本的插件发行版。
+- *提示 `… is incompatible with dsh X`*：当前 DSH 版本不在支持范围内。可以升级 DSH（`npm i -g @deepseek-ai/dsh@latest`），或在[兼容性文档](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/compatibility.md)里找支持该版本的插件发行版。
 - *从 0.1.x 升级（以前用 `file:` 安装的 `dsh-intelligent-ui`）*：先运行 `dsh plugin --profile web remove dsh-intelligent-ui`。新旧两个包会插入同一个 `intelligent-ui` 行，`doctor` 能检测到这种冲突。
 - *界面没有出现*：安装后要重启 DSH Web，并确认启动的是安装插件时指定的 profile（`dsh web`）。
 
-## 开发与验证
+</details>
+
+### 兼容性
+
+| DeepSeek Harness | 安装冒烟测试 | 浏览器 E2E（24 项） |
+|---|:---:|:---:|
+| `0.1.7-rc.2` | ✅ | ✅ |
+| `0.2.0-rc.1` | ✅ | ✅ |
+| `0.2.0-rc.2`（`latest`） | ✅ | ✅ |
+| `0.2.1-alpha.2` | ✅ | ✅ |
+| `0.2.1-alpha.4`（`alpha`） | ✅ | ✅ |
+
+CI 每天定时在 Windows、Linux、macOS 上跑完整矩阵，DSH 一发新版就能发现问题。详见 [docs/compatibility.md](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/compatibility.md)。
+
+## 🧠 Agent 如何选择呈现方式
+
+<img src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/readme/routing.zh.svg" alt="Agent 把每次提问路由到纯文本、ui_render 或 ui_render_widget；本地交互不调用模型，显式操作才回到 Agent" width="100%">
+
+插件注入一段系统提示（`src/guidance.js`），让模型每一轮自行选择，用户无需输入任何命令：
+
+- **普通文本**：寒暄、简短事实、解释说明、要复制的代码、工作区内的编程任务。
+- **`ui_render`**：结构化内容，例如对比、数据、看板、流程、公式、可调参数的函数、选项、收集输入。
+- **`ui_render_widget`**：用户想探索、操作或观察组件目录画不出的东西，例如三维、模拟、动画、游戏、自定义工具。
+- **本地优先**：凡是能在浏览器里算出来的（滑块、旋转、缩放、筛选、排序、重新计算），都必须即时更新，不调用模型。
+
+`/ui <需求>` 命令仍然保留，用于强制以 UI 作答。
+
+| 工具 | 适用场景 | 渲染方式 |
+|---|---|---|
+| `ui_render` | 结构化回答 | 固定目录中的原生 React 组件，随 JSON 流式渐进渲染 |
+| `ui_render_widget` | 自定义可视化、三维、模拟、小应用 | 不透明源沙箱 iframe 中的 HTML/CSS/JS：先 CSS，再实时 morph HTML，最后执行 JS，全程**一个** iframe |
+
+## 🧩 组件目录（`ui_render`）
+
+| 类别 | 组件 |
+|---|---|
+| 布局 | `Card`、`Stack`、`Grid`、`Tabs`（支持键盘操作） |
+| 文本与提示 | `Text`（markdown 子集）、`Code`、`Alert`、`Badge`、`Divider` |
+| 数据 | `Stat`、`Progress`、`List`、`Table`（可排序）、`Timeline` |
+| 图表 | `Chart`（柱状、折线、面积、饼图；可堆叠，悬停提示，可点图例显隐系列） |
+| 数学与图示 | **`Plot`**、**`Math`**（KaTeX）、**`Mermaid`** |
+| 交互 | `Button`、`Form` |
+
+- **`Plot`**：绘制 y = f(x)，参数滑块拖动后曲线即时重绘。表达式由安全编译器解析，不使用 `eval`。
+- **`Form`**：字段类型有文本、数字、**范围滑块**、下拉、勾选、日期、多行文本。
+- **`Button` 与 `Form`**：点击或提交后，内容作为下一条用户消息发给 Agent。
+
+**传输与校验：** DSH 的工具 schema 不支持递归，所以界面以**扁平节点列表加 id 引用**的形式传输。Host 先校验再确认，检查项包括未知类型或属性；id 悬空、重复或成环；一个节点有多个父节点；图表数据长度不一致；`Plot` 表达式无法编译、参数默认值越界等。发现问题时返回 `ok:false` 并附带出错路径，模型据此修正后重试。
+
+**`Math` 与 `Mermaid` 的渲染：** 两者在与组件相同的沙箱中，从 CDN 白名单加载 KaTeX 或 Mermaid。第三方代码不在 DSH 页面中运行，宿主包体积保持在约 127 KB。CDN 不可用时，显示源码文本。
+
+## 🪟 沙箱组件（`ui_render_widget`）
+
+<img src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/readme/widget-streaming.zh.svg" alt="组件字段按顺序流式到达：先显示占位，再实时 morph 预览，最后在同一个 iframe 中定稿并执行代码" width="100%">
+
+字段顺序固定：`title`、`initialHeight`、`placeholderMessages`、`css`、`html`、`jsFunctions`、`jsExpressions`。
+
+- **流式过程：**
+  1. `css` 完成前，显示占位文字。
+  2. `css` 完成后打开预览 iframe，把清洗过的部分 HTML 实时 morph 进去（[idiomorph](https://github.com/bigskysoftware/idiomorph)）。
+  3. 参数完整后，在**同一个 iframe 内原地定稿**：morph 最终 HTML，然后执行代码。iframe 不重建，没有白屏闪烁，高度也不跳动。
+- **运行时辅助（全局 `UI`）：**
+
+  | 辅助方法 | 作用 |
+  |---|---|
+  | `UI.three(el, opts)` | 返回 renderer、场景、灯光和 OrbitControls（拖动旋转，滚轮或双指缩放），按需渲染并自适应尺寸 |
+  | `UI.canvas(el, draw)` | 高清 2D 画布，尺寸或主题变化时自动重绘 |
+  | `UI.state` / `UI.setState()` | 持久化状态；带 `id` 的输入控件会自动保存并恢复 |
+  | `UI.color('accent')` / `UI.css()` | 不透明主题色（可直接用于 three.js 和 Canvas）/ 原始 CSS 值 |
+  | `UI.onTheme(cb)`、`UI.scheme`、`UI.reducedMotion` | 响应主题变化与减少动效偏好 |
+  | `.ui-row`、`.ui-control`、`.ui-card`、`.ui-stage` | 辅助样式类 |
+
+- **Bridge：**
+  - `Bridge.sendPrompt({ text })`：在宿主应答前，自动禁用触发它的按钮，防止重复提交。
+  - `Bridge.openLink({ url })`：打开链接。
+  - `Websandbox.connection.remote.*`：为兼容 OpenIntelligentUI 而保留。
+- **依赖库：** 通过 importmap 从 esm.sh 引入 `three`、`three/addons/…`、`d3`、`chart.js/auto`、`gsap`、`canvas-confetti`。
+- **错误恢复：** 出现脚本错误时显示错误数量，并提供“重新加载”和“让模型修复”两个按钮。后者会把错误信息发给 Agent。
+
+### 显示位置与状态保持
+
+- **显示位置：**
+  - 回合进行中，UI 在工具调用处内联显示。从准备、执行到结果，始终是同一个组件实例，交互状态不会丢。
+  - 回合结束后，插件通过 `conversation.chat.turnTail` 把 UI **重新显示在回复下方**，内联处改为一行提示。
+- **按工具调用保存的交互状态：** 当前标签页、表格排序、表单值、已提交锁定、Plot 滑块、组件控件值、`UI.state`、iframe 高度。这些状态保存在内存和 `localStorage` 中（有容量上限），移到回复下方或刷新页面后都会恢复。UI 本身则从持久化的会话日志重建。
+- **中途停止：**
+  - 已进入会话日志的调用：保留已完成的部分（组件的静态预览，或已生成的组件），并显示提示和“重新生成”按钮。
+  - 参数仍在流式输出时就被停止的调用：DSH 会整体丢弃它。插件会暂存已生成的内容，同样在被停止的回合下方显示。
+
+## 🔒 安全模型
+
+<img src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/readme/security.zh.svg" alt="组件运行在不透明源沙箱 iframe 中并受严格 CSP 约束；访问宿主页面会被拦截，只有通过 token 校验的 postMessage 才能到达限流的 Bridge" width="100%">
+
+- **隔离：** iframe 设置 `sandbox="allow-scripts allow-forms"` 并使用 `srcdoc`，**不加** `allow-same-origin`。E2E 在浏览器中实测：访问 `parent.document`、`localStorage`、`cookie` 均抛出 `SecurityError`，`fetch` 被拦截，`window.origin` 为 `"null"`。
+- **CSP：** `default-src 'none'`；脚本、样式、字体、图片只能来自 `cdnAllowlist`；默认 `connect-src 'none'`；`form-action 'none'`、`base-uri 'none'`。
+- **消息校验：** 宿主只接受来自该 iframe 的 `contentWindow`、带随机 token、且格式合法的消息。持久化的组件状态是有大小上限的 JSON。E2E 实测，从页面或 iframe 伪造的消息都会被丢弃。
+- **sendPrompt 限制：** 挂载后 1 秒内拒绝发送；2 秒内最多发送一次；长度受 `sendPromptMaxChars` 限制；以普通的排队用户消息发送。
+- **openLink：** 只允许 https，可用 `openLinkAllowedOrigins` 白名单进一步限制。
+- **Plot 表达式：** 由分词器和解析器编译，只能调用固定的数学函数表，无法使用 `eval`、`Function` 或访问属性。
+
+## ⚙️ 配置
+
+安装后 bundle patch 会自动插入 `intelligent-ui` 这一行。要修改配置，在 profile 的 `cordis.patch.yml` 中添加：
+
+```yaml
+- id: intelligent-ui
+  config:
+    allowNetwork: true
+    cdnAllowlist: [https://esm.sh, https://cdn.jsdelivr.net]
+```
+
+| 配置项 | 默认值 | 含义 |
+|---|---|---|
+| `enableCatalog` | `true` | 注册 `ui_render` |
+| `enableWidget` | `true` | 注册 `ui_render_widget` |
+| `injectGuidance` | `true` | 注入“何时使用 UI”的系统提示 |
+| `cdnAllowlist` | esm.sh、jsdelivr、unpkg | 组件（以及 Math/Mermaid）可加载资源的来源 |
+| `allowNetwork` | `false` | 允许组件对上述来源发起 `fetch` 和 WebSocket |
+| `maxWidgetHeight` | `2400` | iframe 最大高度（px） |
+| `maxWidgetBytes` | `400000` | 超过此大小的组件会被拒绝 |
+| `sendPromptMaxChars` | `4000` | 组件、按钮、表单单条消息的最大长度 |
+| `openLinkAllowedOrigins` | `[]` | 非空时，`openLink` 只能打开这些来源 |
+
+## 🛠 开发与验证
 
 ```sh
 npm install
@@ -178,13 +272,16 @@ npm run e2e:all               # 构建 → 安装到临时 DSH 目录 → mock �
 npm run e2e:all -- --record   # 同时重新录制 docs/assets/demo.mp4 / demo.gif（需要 ffmpeg）
 npm run e2e:all -- --spec ./deepseek-harness-intelligent-ui-<版本>.tgz   # 改为对 npm pack 打出的包做 E2E
 npm run smoke -- --spec ./deepseek-harness-intelligent-ui-<版本>.tgz     # 安装冒烟测试（不需要浏览器）
+npm run docs:art              # 重新生成 docs/assets/readme/ 下的 README 动画插图
 ```
 
 E2E 可以在 Windows、Linux、macOS 上运行。它会按平台自动查找 Chrome（可用 `CHROME_PATH` 指定），`DSH_BIN` 可指定其他 `dsh` 可执行文件。检查项见 `scripts/e2e/browser.mjs`，最近一次报告在 [`docs/e2e-report.json`](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/v0.2.1/docs/e2e-report.json)。GitHub Actions 会在三个系统上，针对每个受支持的 DSH 版本跑完全部测试。
 
 `client/client.js` 已提交到仓库并随包发布，所以 npm、`file:` 和 git 安装都不需要构建。不要添加 `prepare` 或 `postinstall` 脚本，因为 DSH 使用的 pnpm 会拦截插件的构建脚本。
 
-**发布流程**（维护者）：
+<details>
+<summary><b>📦 发布流程</b>（维护者）</summary>
+<br>
 
 发布安全与 OIDC 配置见[维护者说明](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/releasing.md)。
 
@@ -197,7 +294,11 @@ E2E 可以在 Windows、Linux、macOS 上运行。它会按平台自动查找 Ch
    - 用 CHANGELOG 的对应小节和 tarball 创建 GitHub Release。
 4. 本地可以先运行 `npm run release:check` 做同样的预检。
 
-## 真实模型评测
+</details>
+
+<details>
+<summary><b>🤖 真实模型评测</b></summary>
+<br>
 
 API 测试套件覆盖 15 个提示词，检查模型路由、工具参数格式，以及部分指定组件和数据。它**不会在浏览器中执行模型生成的组件**，也不验证数据事实、视觉质量、物理正确性或交互行为。独立浏览器 E2E 使用脚本化模型回复。
 
@@ -218,6 +319,8 @@ node scripts/run-real-model-suite.mjs all
 ```
 
 每次仅将本次用例写入 `docs/real-model-eval-report.json`，分类运行不混入旧结果。断言或 API 请求失败时返回退出码 1；类别错误或密钥缺失会在改写报告前退出。请勿将密钥提交到 git。
+
+</details>
 
 ## 已知限制
 
