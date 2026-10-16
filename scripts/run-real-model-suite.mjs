@@ -167,8 +167,9 @@ async function main() {
     versions: { assertions: ASSERTION_VERSION, prompt: PROMPT_VERSION },
     environment,
     layers,
-    // Human review is recorded by hand after looking at the screenshots; keep it across reruns of the same prompt version.
-    manualReview: previous.versions?.prompt === PROMPT_VERSION ? previous.manualReview ?? [] : [],
+    // Human review is recorded by hand after looking at the screenshots; keep it while those screenshots stay.
+    // A re-run browser layer has new screenshots, so an earlier review no longer applies.
+    manualReview: previous.versions?.prompt === PROMPT_VERSION && !opts.stages.includes('browser') ? previous.manualReview ?? [] : [],
     history: HISTORY,
   }, [key])
   const json = JSON.stringify(report, null, 2)

@@ -68,36 +68,41 @@ Open tabs, sort order, form values, sliders and `UI.state` survive turn folding,
 
 ### The real DeepSeek model, end to end
 
+https://github.com/user-attachments/assets/e4eb0adc-659e-4c80-b473-449aa42ca00f
+
+<details>
+<summary><b>🎞️ GIF highlights</b> (for viewers that cannot play the video, e.g. npm)</summary>
+<br>
+
 <p align="center">
-  <img src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/demo.gif" alt="Real deepseek-flash model in DSH Web: a multi-series chart, a damped-oscillation Plot with sliders, and two in-place edits of a chart via ui_patch" width="100%">
+  <img src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/demo.gif" alt="Real deepseek-flash model in DSH Web, narrated by the whale girl: a form round trip, a damped-oscillation Plot with sliders, and two in-place chart edits via ui_patch" width="100%">
 </p>
 
-<img align="right" width="120" src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/xiaojing-wave.svg" alt="小鲸, the demo's narrator">
+</details>
 
-🎥 **Full video (H.264, 2 min 28 s, 8.9 MB):** [docs/assets/real-model/demo.mp4](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/assets/real-model/demo.mp4). It is narrated by **小鲸**, a chibi whale-girl mascot drawn for this project in SVG (an original, unofficial fan character; not DeepSeek branding). The video covers all 11 browser cases: text, chart, table, form round trip, Plot, Three.js with "Ask to fix", stop → regenerate, two in-place edits, Fast 3G, CDN offline and phone width.
+<img align="right" width="120" src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/scripts/eval/demo/assets/whale/greet.webp" alt="The DeepSeek whale girl who narrates the demo">
+
+🎥 **Full video (H.264, 2 min 27 s, 9.5 MB):** [docs/assets/real-model/demo.mp4](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/assets/real-model/demo.mp4). It covers all 11 browser cases, and every chapter ends on its real result: text, chart, table, form round trip, Plot, Three.js with "Ask to fix", stop → regenerate, two in-place edits, Fast 3G, CDN offline and phone width. The DeepSeek whale girl (鲸鱼娘) narrates; her art is from [dsh-whale-musume](https://github.com/Sutera-Diffusus/dsh-whale-musume) (MIT, see the [credits](#credits)).
 
 > [!NOTE]
-> Recorded on 2026-10-16 by `npm run eval:real -- --record` and edited with `npm run eval:demo`. Every card was generated live by the real **`deepseek-flash`** model in real **DSH Web 0.2.0-rc.1** with this plugin installed. Nothing is scripted, and failures are left in (the Three.js case hits a script error and is repaired with "让模型修复"). While the model is working the video is sped up; the stopwatch in the corner shows the real elapsed time. The results are in the [real-model quality baseline](#-real-model-quality-baseline).
+> Recorded on 2026-10-16 by `npm run eval:real -- --stage browser --record` and edited with `npm run eval:demo`. Every card was generated live by the real **`deepseek-flash`** model in real **DSH Web 0.2.0-rc.1** with this plugin installed. Nothing is scripted, and **failures are left in**: each chapter card is marked ✓ or ✗, and the narration says what went wrong. While the model is working the video is sped up; the stopwatch in the corner shows the real elapsed time. The results are in the [real-model quality baseline](#-real-model-quality-baseline).
 
-| Multi-series chart (labelled sample data) | Two in-place edits with `ui_patch` (version 3) |
+| Multi-series chart: **✗** (call cut off mid-stream) | Two in-place edits with `ui_patch`: ✓ |
 |:---:|:---:|
 | ![Chart](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/chart.png) | ![Patched](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/patched.png) |
-| *Two series × Q1–Q4; hover tooltips and sorting run locally* | *"Make it a line chart", then "add 小程序 30/45/60/80": one card, version 3, exact values* |
-
-| Form submit → the agent uses the values | Damped oscillation `Plot` with live sliders |
-|:---:|:---:|
+| *The chart is right, but the card says "generation interrupted": more components were still pending* | *"Make it a line chart", then "add 小程序 30/45/60/80": one card, version 3, exact values* |
+| **Form submit → the agent uses the values: ✓** | **Damped oscillation `Plot` with live sliders: ✓** |
 | ![Form follow-up](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/form-followup.png) | ![Plot](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/plot.png) |
-| *The submitted 全国 / 4 / 乐观 come back in the follow-up* | *y = A·e^(−γt)·cos(ωt) with envelopes; the sliders never call the model* |
-
-| Three.js: x²+y²+z²=2Rz | Stopped mid-stream → regenerated |
-|:---:|:---:|
-| ![Three.js](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/three.png) | ![Regenerated](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/regenerated.png) |
-| *Sphere centred at (0,0,R), tangent to z = 0 at the origin* | *The interrupted card keeps a static preview; Regenerate produces the full scene* |
-
-| Fast 3G, cache off | CDN unreachable | Phone width (390 px) |
-|:---:|:---:|:---:|
-| ![Weak network](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/weak-network.png) | ![Offline](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/offline.png) | ![Mobile](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/mobile.png) |
-| *three.js loads slowly, still renders* | *The failure is shown on the card; chat keeps working* | *No overflow; KPI grid reflows* |
+| *The submitted 全国 / 4 / 乐观 drive a quarterly forecast* | *y = A·e^(−γt)·cos(ωt) with envelopes; the sliders never call the model* |
+| **Three.js: ✗, then repaired with "Ask to fix"** | **Stopped mid-stream → regenerated: ✓** |
+| ![Three.js repaired](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/three-repaired.png) | ![Regenerated](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/regenerated.png) |
+| *First attempt: `view is not defined`. After "Ask to fix": sphere centred at (0,0,R) with axes* | *The interrupted card keeps a static preview; Regenerate produces the full scene* |
+| **Fast 3G, cache off: ✓** | **CDN unreachable: ✓ (degrades as designed)** |
+| ![Weak network](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/weak-network.png) | ![Offline](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/offline.png) |
+| *three.js loads slowly but still renders* | *The failure is shown on the card; the chat keeps working* |
+| **Phone width (390 px): ✓** | **Sortable table: ✗ (no table within 5 min)** |
+| ![Mobile](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/mobile.png) | ![Table](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/table.png) |
+| *No overflow; KPI text and charts fit* | *The agent spent the whole budget researching car specs on the web* |
 
 <details>
 <summary><b>🧪 Scripted-model demo</b> (the pipeline E2E: dark mode, reload, sandbox isolation)</summary>
@@ -347,22 +352,23 @@ A tool call whose arguments parse is not the same as a UI the user can use. `npm
 | --- | --- | :---: |
 | **Mock E2E** | Rendering, streaming, interaction, persistence and isolation, with **scripted** model answers | **30 / 30** |
 | **Real model · API** | The model picks the right tool, emits valid arguments on the **first** try, and the rendered UI contains the requested components and data. The model sees the plugin's real tools and guidance; the tools' own `execute()` runs, including `ui_patch` | **30 / 32** (94%) |
-| **Real model · browser** | What the model generated actually works in real DSH Web + Chrome: it renders, responds to interaction, survives stop/resume and bad networks, and logs no console errors | **11 / 12** (92%) |
+| **Real model · browser** | What the model generated actually works in real DSH Web + Chrome: it renders, responds to interaction, survives stop/resume and bad networks, and logs no console errors | **9 / 11** automated<br>**8 / 11** after manual review |
 
 | Timing (real model) | p50 | p95 |
 | --- | ---: | ---: |
-| First visible UI preview (browser) | 8.4 s | 74.9 s |
-| UI generation complete (browser) | 13.6 s | 78.2 s |
-| Browser-side execution after the stream (widget code, three.js from the CDN) | 33 ms | 2.9 s |
+| First visible UI preview (browser) | 7.6 s | 70.2 s |
+| UI generation complete (browser) | 11.8 s | 73.4 s |
+| Browser-side execution after the stream (widget code, three.js from the CDN) | 26 ms | 2.9 s |
 | One model API call | 2.4 s | 75.7 s |
 
 The long tail comes from large Three.js widgets: the model writes 10–20 KB of code before the preview starts.
 
-**What the run found.** These are real model behaviours, not harness noise; each one is a failed or flagged case in the [full report](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/real-model-eval.md):
+**What the run found.** These are real model and agent behaviours, not harness noise; each one is a failed or flagged case in the [full report](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/real-model-eval.md):
 
-- **Invalid first attempts:** a missing closing brace in nested `props` (D2, both turns) and duplicate component ids (B1). The plugin refuses these, and the model fixes them on retry. The user briefly sees a refused card, so these count as failures.
-- **Three.js scope slip:** one sphere widget used a global `THREE` that does not exist (`THREE is not defined`). The card flags "1 个脚本错误", and the user's **"让模型修复"** button produced a working scene. A second run of the same prompt was correct first time (1 / 2).
-- **Charts with no data supplied:** in earlier runs the model sometimes asked for the real numbers with a form *instead of* drawing the chart. In this run it drew the chart with clearly labelled sample data and offered the form as well (B3 2 / 2). This case varies between runs.
+- **A tool call cut off mid-stream (R-chart):** the chart rendered correctly, but the turn ended while more components were still streaming. The plugin correctly downgraded the card to "generation interrupted, showing the completed part" with a Regenerate button. The automated content checks passed, but the manual review counts it as a failure, and a new check now fails any case that leaves an interrupted card.
+- **Agent research instead of a UI (R-table):** DSH's agent spent the whole 5-minute budget researching car specs on the web (20 steps, about 1.3M tokens) and never rendered the table.
+- **Three.js scope slips:** two recordings, two variants of the same bug. `view is not defined` in this run and `THREE is not defined` in the previous one: the widget code used a variable outside its scope. The card flags "1 个脚本错误", and the user's **"让模型修复"** button produced a working scene both times.
+- **Invalid first attempts (API):** a missing closing brace in nested `props` (D2, both turns) and duplicate component ids (B1). The plugin refuses these and the model fixes them on retry, but the user briefly sees a refused card, so these count as failures.
 - **Agent behaviour around the UI:** DSH's agent may first search the workspace, ask a clarifying question, or send sub-agents to research facts. The browser stage answers clarifying questions like a user would (picking the recommended option) and waits for the UI itself, not just for the turn to go idle.
 
 <details>
@@ -376,6 +382,7 @@ export DEEPSEEK_API_KEY='<your-key>'          # PowerShell: $env:DEEPSEEK_API_KE
 npm run eval:real                              # mock E2E + API + browser; exits 1 on any failure
 npm run eval:real -- --repeat 3                # 3 runs per API case → per-case success rates, p50/p95
 npm run eval:real -- --record && npm run eval:demo   # also record and cut the demo video
+npm run eval:gallery                           # README screenshots on one uniform 1200×750 canvas
 ```
 
 | Option | Effect |
@@ -442,3 +449,5 @@ Automated checks cannot judge visual quality, so the report also carries a **sam
 ## Credits
 
 Concepts, the streaming widget contract, and parts of the prompt guidance come from [CopilotKit/OpenIntelligentUI](https://github.com/CopilotKit/OpenIntelligentUI) (MIT). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Licensed under MIT.
+
+**Whale girl in the demo video.** The DeepSeek whale girl (鲸鱼娘) who narrates the demo, in 26 poses, is by [Sutera-Diffusus/dsh-whale-musume](https://github.com/Sutera-Diffusus/dsh-whale-musume) (MIT © Sutera-Diffusus; illustrations by [@SuteraWu](https://github.com/SuteraWu)). The unmodified files and their licence are in [`scripts/eval/demo/assets/whale/`](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/tree/main/scripts/eval/demo/assets/whale). They are not part of the npm package.

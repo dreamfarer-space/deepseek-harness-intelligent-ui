@@ -158,6 +158,11 @@ class Session {
 
   /** Start a new conversation and prove it: no cards and the previous prompt gone from view. */
   async newConversation() {
+    this.rec.mark('cut')
+    try { await this.#newConversation() } finally { this.rec.mark('uncut') }
+  }
+
+  async #newConversation() {
     // The button's text also carries its shortcut hint ("新会话 Ctrl+Alt+N").
     const button = await this.page.evaluateHandle(() => [...document.querySelectorAll('button, a')].find(b => /^(新会话|New chat|New session)/.test(b.textContent.trim())))
     // At phone width the sidebar (and its button) is collapsed: use DSH's shortcut.
@@ -330,7 +335,29 @@ class Session {
     const el = h.asElement() && await h.asElement().$('iframe.diui-frame')
     return el ? { handle: el, frame: await el.contentFrame() } : undefined
   }
-  async shot(name, { card = false } = {}) {
+  async shot(name, opts = {}) {
+    this.rec.mark('cut')
+    try { return await this.#shot(name, opts) } finally { this.rec.mark('uncut') }
+  }
+
+  /**
+   * Recording only: hold the case's result on screen for a few seconds, marked
+   * so the editor keeps it at normal speed (and the transition after it is cut).
+   */
+  async showcase() {
+    if (!this.rec.enabled) return
+    await this.page.evaluate(() => {
+      const card = [...document.querySelectorAll('.diui-shell')].filter(x => x.querySelector('.diui-shell-body')).at(-1)
+      if (!card) { document.querySelectorAll('[class*=scroll], main').forEach(x => { x.scrollTop = x.scrollHeight }); return }
+      card.scrollIntoView({ block: card.getBoundingClientRect().height > innerHeight * 0.8 ? 'start' : 'center' })
+    })
+    await sleep(500)
+    this.rec.mark('hold')
+    await sleep(3000)
+    this.rec.mark('unhold')
+  }
+
+  async #shot(name, { card = false } = {}) {
     const file = path.join(this.shots, name)
     if (card) {
       const h = await this.latest(typeof card === 'string' ? card : '*')
@@ -388,7 +415,10 @@ const pluginErrors = errs => errs.filter(e => e.startsWith('console.error') && /
 async function threeChecks(s, label) {
   const shot = await s.frameStats()
   const stats = shot && imageStats(shot.buf)
-  const scriptErrors = await s.inCards(e => e.querySelector('.diui-error-count')?.getAttribute('title') ?? '')
+  // Only the card that holds this scene: after "Ask to fix" the broken
+  // original (with its error badge) is still further up the conversation.
+  const card = await s.latest('iframe.diui-frame')
+  const scriptErrors = card.asElement() ? await card.evaluate(e => e.querySelector('.diui-error-count')?.getAttribute('title') ?? '') : ''
   const out = [
     check(`${label}: widget finalized with a WebGL canvas`, !!shot && (await shot.handle.evaluate(e => e.tagName)) === 'CANVAS'),
     check(`${label}: canvas is drawn, not blank`, stats && stats.stddev > 4 && stats.colors > 12, stats && `luminance σ=${stats.stddev}, colours=${stats.colors}`),
@@ -618,7 +648,7 @@ export const BROWSER_SCENARIOS = [
     },
   },
   {
-    id: 'R-stop', category: 'stop-resume', title: 'Stop mid-stream, then regenerate',
+    id: 'R-stop', category: 'stop-resume', title: 'Stop mid-stream, then regenerate', expectsStopped: true,
     caption: ['⑦ 停止 / 恢复', '生成中途停止 → 保留预览 → 一键重新生成'],
     async run(s) {
       let stoppedAt = null
@@ -748,9 +778,11 @@ export const BROWSER_SCENARIOS = [
     id: 'R-mobile', category: 'mobile', title: 'Dashboard at phone width',
     caption: ['⑪ 移动端', '390 px 手机宽度：无横向溢出，KPI 网格自动换行'],
     async run(s) {
+      s.rec.mark('cut')
       await s.page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
       await sleep(2500)
       await s.dismissNotice()
+      s.rec.mark('uncut')
       try {
         await s.newConversation()
         const turn = await s.ask('帮我生成一个2026年Q1公司业务运营监控看板，包含总收入、活跃用户、转化率、客单价等核心指标，并按不同业务线展示数据。',
@@ -762,7 +794,9 @@ export const BROWSER_SCENARIOS = [
           pageScroll: document.documentElement.scrollWidth > innerWidth + 1,
         }))
         const screenshot = await s.shot('mobile.png')
+        await s.showcase()
         return {
+          showcased: true,
           turn,
           checks: [
             check('KPI tiles rendered', await s.inCards(e => e.querySelectorAll('.diui-stat').length >= 3)),
@@ -772,9 +806,11 @@ export const BROWSER_SCENARIOS = [
           screenshot,
         }
       } finally {
+        s.rec.mark('cut')
         await s.page.setViewport({ width: 1280, height: 800 })
         await sleep(2500)
         await s.dismissNotice()
+        s.rec.mark('uncut')
       }
     },
   },
@@ -829,14 +865,21 @@ export async function runBrowserStage({ model, out, only, record = false, dshHom
         if (scenario.id !== 'R-mobile') await s.newConversation()
         await rec.caption(...scenario.caption)
         const r = await scenario.run(s)
+        if (!r.showcased) await s.showcase()
         const consoleErrors = s.errors.slice(errorsBefore)
         const hostNow = await s.hostErrors().catch(() => [])
         // A reload (phone viewport) restarts the in-page list.
         const hostNew = hostNow.length >= hostBefore.length ? hostNow.slice(hostBefore.length) : hostNow
         const plugin = pluginErrors(consoleErrors)
+        const unfinished = await page.evaluate(() => [...document.querySelectorAll('.diui-shell[data-state=stopped], .diui-shell[data-state=error]')]
+          .filter(x => x.querySelector('.diui-shell-body'))
+          .map(x => `${x.dataset.state}: ${x.querySelector('.diui-shell-title')?.textContent ?? ''} ${x.querySelector('.diui-shell-notice')?.textContent ?? ''}`.slice(0, 120)))
         const checks = [...r.checks, check('turn finished', r.turn.idle),
           check('no uncaught errors in the DSH page', hostNew.length === 0, hostNew.slice(0, 3).join(' | ')),
-          check('no plugin errors in the console', plugin.length === 0, plugin.slice(0, 3).join(' | '))]
+          check('no plugin errors in the console', plugin.length === 0, plugin.slice(0, 3).join(' | ')),
+          // Content checks can pass on a card that was cut off mid-stream ("generation
+          // interrupted, showing the completed part"): the user did not get the full UI.
+          ...(scenario.expectsStopped ? [] : [check('no card was left interrupted or failed', unfinished.length === 0, unfinished.join(' | '))])]
         const infra = [r.turn, ...(r.extraTurns || [])].map(t => t.infraError).find(Boolean)
         const failed = checks.filter(c => !c.ok && !c.informational)
         Object.assign(record, {

@@ -459,11 +459,18 @@ check('10. iframe isolation and message validation', iso.parentDom === 'Security
 // 9) Dark theme and narrow layout.
 await caption('8 · Dark theme and phone width — widgets follow the host theme')
 await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
-await sleep(1200)
-sphere = await frameByTitle(SPHERE_TITLE)
-const darkFrame = await sphere.frame.evaluate(() => ({ theme: document.documentElement.dataset.theme, bg: getComputedStyle(document.documentElement).getPropertyValue('--ui-bg').trim(), scheme: getComputedStyle(document.documentElement).colorScheme }))
-const darkHost = await page.$eval('.diui-tail .diui-shell', e => getComputedStyle(e).backgroundColor)
-check('9a. dark theme reaches host cards and sandboxed widgets', darkFrame.theme === 'dark' && darkFrame.scheme === 'dark' && /^#1|rgb\(\s*[0-4]\d,/.test(darkFrame.bg + darkHost), `${JSON.stringify(darkFrame)} host=${darkHost}`)
+// The host re-themes, then forwards the theme to each widget frame: poll for
+// both instead of a fixed sleep (a slow macOS runner once measured too early).
+const readDark = async () => {
+  sphere = await frameByTitle(SPHERE_TITLE)
+  const frame = await sphere.frame.evaluate(() => ({ theme: document.documentElement.dataset.theme, bg: getComputedStyle(document.documentElement).getPropertyValue('--ui-bg').trim(), scheme: getComputedStyle(document.documentElement).colorScheme }))
+  const host = await page.$eval('.diui-tail .diui-shell', e => getComputedStyle(e).backgroundColor)
+  return { frame, host }
+}
+const isDark = ({ frame, host }) => frame.theme === 'dark' && frame.scheme === 'dark' && /^#1|rgb\(\s*[0-4]\d,/.test(frame.bg + host)
+const dark = (await waitFor(async () => { const d = await readDark(); return isDark(d) && d }, 15000, 200)) || await readDark()
+const { frame: darkFrame, host: darkHost } = dark
+check('9a. dark theme reaches host cards and sandboxed widgets', isDark(dark), `${JSON.stringify(darkFrame)} host=${darkHost}`)
 await scrollIntoView(sphere.handle)
 await shot('11-dark.png')
 await shellShot('11b-dark-dashboard.png', 'Quarterly sales (sample data)')

@@ -74,36 +74,41 @@ JSON 还在生成，组件就已出现。实时组件在**同一个** iframe 中
 
 ### 真实 DeepSeek 模型，端到端
 
+https://github.com/user-attachments/assets/e4eb0adc-659e-4c80-b473-449aa42ca00f
+
+<details>
+<summary><b>🎞️ GIF 精选片段</b>（适用于无法播放视频的页面，如 npm）</summary>
+<br>
+
 <p align="center">
-  <img src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/demo.gif" alt="真实 deepseek-flash 模型在 DSH Web 中生成多系列图表、带滑块的阻尼振动函数图像，并用 ui_patch 原位修改图表两次" width="100%">
+  <img src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/demo.gif" alt="真实 deepseek-flash 模型在 DSH Web 中的表现，由鲸鱼娘解说：表单回传、带滑块的阻尼振动 Plot、用 ui_patch 两轮原位修改图表" width="100%">
 </p>
 
-<img align="right" width="120" src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/xiaojing-wave.svg" alt="演示解说员小鲸">
+</details>
 
-🎥 **完整视频（H.264，2 分 28 秒，8.9 MB）：** [docs/assets/real-model/demo.mp4](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/assets/real-model/demo.mp4)。由 **小鲸** 全程解说：这是本项目用 SVG 原创绘制的 Q 版鲸鱼娘，属于非官方同人形象，与 DeepSeek 官方无关。视频覆盖全部 11 个浏览器用例：纯文本、图表、数据表、表单回传、Plot、Three.js 与「让模型修复」、停止 → 重新生成、两轮原位修改、Fast 3G、CDN 不可达、手机宽度。
+<img align="right" width="120" src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/scripts/eval/demo/assets/whale/greet.webp" alt="担任演示解说的 DeepSeek 鲸鱼娘">
+
+🎥 **完整视频（H.264，2 分 27 秒，9.5 MB）：** [docs/assets/real-model/demo.mp4](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/assets/real-model/demo.mp4)。视频覆盖全部 11 个浏览器用例，每一章都停在真实结果上：纯文本、图表、数据表、表单回传、Plot、Three.js 与「让模型修复」、停止 → 重新生成、两轮原位修改、Fast 3G、CDN 不可达、手机宽度。由 DeepSeek 鲸鱼娘解说，立绘来自 [dsh-whale-musume](https://github.com/Sutera-Diffusus/dsh-whale-musume)（MIT，见[致谢](#致谢)）。
 
 > [!NOTE]
-> 2026-10-16 由 `npm run eval:real -- --record` 录制，`npm run eval:demo` 剪辑合成。每张卡片都是真实 **`deepseek-flash`** 模型在装有本插件的真实 **DSH Web 0.2.0-rc.1** 里当场生成的。没有任何脚本回放，失败也原样保留（Three.js 用例出现脚本错误，再由「让模型修复」修好）。模型生成期间视频加速播放，右下角秒表显示真实耗时。评测结果见[真实模型质量基线](#-真实模型质量基线)。
+> 2026-10-16 由 `npm run eval:real -- --stage browser --record` 录制，`npm run eval:demo` 剪辑合成。每张卡片都是真实 **`deepseek-flash`** 模型在装有本插件的真实 **DSH Web 0.2.0-rc.1** 里当场生成的。没有任何脚本回放，**失败也原样保留**：每章标题卡都标出 ✓ 或 ✗，解说会说明哪里出了问题。模型生成期间视频加速播放，右下角秒表显示真实耗时。评测结果见[真实模型质量基线](#-真实模型质量基线)。
 
-| 多系列柱状图（示意数据已标注） | `ui_patch` 两轮原位修改（第 3 版） |
+| 多系列柱状图：**✗**（调用中途被截断） | `ui_patch` 两轮原位修改：✓ |
 |:---:|:---:|
 | ![图表](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/chart.png) | ![原位修改](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/patched.png) |
-| *两个系列 × Q1–Q4，悬停提示与排序都在本地完成* | *「改成折线图」→「加上小程序 30/45/60/80」：同一张卡片，第 3 版，数值准确* |
-
-| 提交表单 → 模型使用提交的值 | 阻尼振动 `Plot`，滑块实时重绘 |
-|:---:|:---:|
+| *图表内容正确，但卡片显示「生成已中断」：还有组件没生成完* | *「改成折线图」→「加上小程序 30/45/60/80」：同一张卡片，第 3 版，数值准确* |
+| **提交表单 → 模型使用提交的值：✓** | **阻尼振动 `Plot`，滑块实时重绘：✓** |
 | ![表单回传](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/form-followup.png) | ![Plot](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/plot.png) |
-| *提交的 全国 / 4 / 乐观 在后续回答中被原样使用* | *y = A·e^(−γt)·cos(ωt) 及包络线；拖动滑块不调用模型* |
-
-| Three.js：x²+y²+z²=2Rz | 中途停止 → 重新生成 |
-|:---:|:---:|
-| ![Three.js](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/three.png) | ![重新生成](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/regenerated.png) |
-| *球心 (0,0,R)，在原点与 z = 0 平面相切* | *中断的卡片保留静态预览，「重新生成」得到完整场景* |
-
-| Fast 3G、禁用缓存 | CDN 不可达 | 手机宽度（390 px） |
-|:---:|:---:|:---:|
-| ![弱网络](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/weak-network.png) | ![无网络](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/offline.png) | ![移动端](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/mobile.png) |
-| *three.js 加载变慢，但仍正常渲染* | *失败直接显示在卡片上，对话不受影响* | *无横向溢出，指标网格自动换行* |
+| *提交的 全国 / 4 / 乐观 生成了季度预测* | *y = A·e^(−γt)·cos(ωt) 及包络线；拖动滑块不调用模型* |
+| **Three.js：✗，再由「让模型修复」修好** | **中途停止 → 重新生成：✓** |
+| ![Three.js 修复后](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/three-repaired.png) | ![重新生成](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/regenerated.png) |
+| *首次生成报错 `view is not defined`；修复后球心 (0,0,R)，带坐标轴* | *中断的卡片保留静态预览，「重新生成」得到完整场景* |
+| **Fast 3G、禁用缓存：✓** | **CDN 不可达：✓（按设计降级）** |
+| ![弱网络](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/weak-network.png) | ![无网络](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/offline.png) |
+| *three.js 加载变慢，但仍正常渲染* | *失败直接显示在卡片上，对话不受影响* |
+| **手机宽度（390 px）：✓** | **可排序数据表：✗（5 分钟内没出表）** |
+| ![移动端](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/mobile.png) | ![数据表](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/table.png) |
+| *无溢出，指标与图表都能放下* | *Agent 把时间都花在上网查车型参数上* |
 
 <details>
 <summary><b>🧪 脚本化模型演示</b>（插件管线 E2E：深色主题、刷新恢复、沙箱隔离）</summary>
@@ -337,22 +342,23 @@ E2E 可以在 Windows、Linux、macOS 上运行。它会按平台自动查找 Ch
 | --- | --- | :---: |
 | **Mock E2E** | 渲染、流式、交互、持久化与隔离（模型回答是**脚本化**的） | **30 / 30** |
 | **真实模型 · API** | 模型选对工具、**首次**就给出合法参数、渲染出的界面包含所要求的组件和数据。模型看到的是插件真实的工具与引导，并执行工具自身的 `execute()`（含 `ui_patch`） | **30 / 32**（94%） |
-| **真实模型 · 浏览器** | 模型生成的界面在真实 DSH Web + Chrome 中真正可用：能渲染、能交互、经得起停止/恢复和弱网，控制台无错误 | **11 / 12**（92%） |
+| **真实模型 · 浏览器** | 模型生成的界面在真实 DSH Web + Chrome 中真正可用：能渲染、能交互、经得起停止/恢复和弱网，控制台无错误 | 自动化 **9 / 11**<br>人工复核后 **8 / 11** |
 
 | 耗时（真实模型） | p50 | p95 |
 | --- | ---: | ---: |
-| 首次出现可见预览（浏览器） | 8.4 s | 74.9 s |
-| 界面生成完成（浏览器） | 13.6 s | 78.2 s |
-| 流结束后的浏览器端执行（组件代码、从 CDN 加载 three.js） | 33 ms | 2.9 s |
+| 首次出现可见预览（浏览器） | 7.6 s | 70.2 s |
+| 界面生成完成（浏览器） | 11.8 s | 73.4 s |
+| 流结束后的浏览器端执行（组件代码、从 CDN 加载 three.js） | 26 ms | 2.9 s |
 | 单次模型 API 调用 | 2.4 s | 75.7 s |
 
 长尾来自体积较大的 Three.js 组件：模型要先写出 10–20 KB 代码，预览才会开始。
 
-**本次评测发现的问题。** 以下都是模型的真实行为，不是评测噪声，每一条都对应[完整报告](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/real-model-eval.md)中失败或被标注的用例：
+**本次评测发现的问题。** 以下都是模型与 Agent 的真实行为，不是评测噪声，每一条都对应[完整报告](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/real-model-eval.md)中失败或被标注的用例：
 
-- **首次参数无效：** 嵌套 `props` 漏写一个右花括号（D2，两轮都出现），以及组件 id 重复（B1）。插件会拒绝这些调用，模型重试后能改对。但用户会短暂看到一张被拒绝的卡片，所以这些用例算作失败。
-- **Three.js 作用域错误：** 一个球面组件使用了并不存在的全局 `THREE`（`THREE is not defined`）。卡片上标出「1 个脚本错误」，用户点击 **「让模型修复」** 后得到了正常场景。同一提示词第二次运行一次就成功（1 / 2）。
-- **没有提供数据时的图表：** 之前几轮中，模型有时会用表单索要真实数据，而*不是*直接画图。本轮它画出了明确标注为示意数据的图表，同时附上表单（B3 2 / 2）。这一行为在不同运行之间会变化。
+- **工具调用中途被截断（R-chart）：** 图表本身渲染正确，但这一轮在还有组件流式生成时就结束了。插件正确地把卡片降级为「生成已中断，以下为已完成的部分」，并提供「重新生成」。自动化内容检查通过了，但人工复核判为失败；现在新增的检查会让任何留下中断卡片的用例失败。
+- **Agent 去查资料而不是出界面（R-table）：** DSH 的 Agent 把 5 分钟预算全花在上网查车型参数上（20 步，约 130 万 token），始终没有渲染出表格。
+- **Three.js 作用域错误：** 两次录制，出现同一类错误的两种形式：本次是 `view is not defined`，上次是 `THREE is not defined`，都是组件代码在作用域之外使用了变量。卡片上标出「1 个脚本错误」，两次都是用户点击 **「让模型修复」** 后得到了正常场景。
+- **首次参数无效（API）：** 嵌套 `props` 漏写右花括号（D2，两轮都出现），以及组件 id 重复（B1）。插件会拒绝这些调用，模型重试后能改对，但用户会短暂看到一张被拒绝的卡片，所以这些用例算作失败。
 - **界面之外的 Agent 行为：** DSH 的 Agent 可能先搜索工作区、先反问用户，或派子智能体查资料。浏览器阶段会像真实用户一样回答反问（选推荐项），并等待界面本身出现，而不只是等这一轮结束。
 
 <details>
@@ -366,6 +372,7 @@ export DEEPSEEK_API_KEY='<your-key>'          # PowerShell：$env:DEEPSEEK_API_K
 npm run eval:real                              # Mock E2E + API + 浏览器；任何失败都以退出码 1 结束
 npm run eval:real -- --repeat 3                # 每个 API 用例跑 3 次 → 单用例成功率与 p50/p95
 npm run eval:real -- --record && npm run eval:demo   # 同时录制并剪辑演示视频
+npm run eval:gallery                           # 把 README 截图统一排版为 1200×750
 ```
 
 | 选项 | 作用 |
@@ -432,3 +439,5 @@ GitHub 上的 **Real-model eval** 工作流可按需手动触发，使用仓库�
 ## 致谢
 
 概念、流式组件协议和部分提示词来自 [CopilotKit/OpenIntelligentUI](https://github.com/CopilotKit/OpenIntelligentUI)（MIT 许可）。本项目采用 MIT 许可。
+
+**演示视频中的鲸鱼娘。** 担任视频解说的 DeepSeek 鲸鱼娘（共 26 个姿态）来自 [Sutera-Diffusus/dsh-whale-musume](https://github.com/Sutera-Diffusus/dsh-whale-musume)（MIT © Sutera-Diffusus，立绘作者 [@SuteraWu](https://github.com/SuteraWu)）。原始文件及其许可证见 [`scripts/eval/demo/assets/whale/`](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/tree/main/scripts/eval/demo/assets/whale)，不包含在 npm 包中。
