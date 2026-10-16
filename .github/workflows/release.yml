@@ -67,7 +67,7 @@ jobs:
       # Pin a CLI that supports OIDC; do not rely on setup-node's bundled npm.
       - run: npm install -g npm@11.9.0 --no-audit --no-fund
       - run: npm ci --no-audit --no-fund
-      - run: npm run build && git diff --exit-code -- client/client.js
+      - run: npm run build && git diff --exit-code -- client/client.js renderer/renderer.js
       - name: Publish ${{ needs.preflight.outputs.version }} as "${{ needs.preflight.outputs.dist-tag }}"
         run: node scripts/ci/registry-release.mjs publish
         env:
@@ -121,7 +121,7 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: node scripts/ci/release-check.mjs --tag "$GITHUB_REF_NAME" --notes release-notes.md
-      - run: npm run build && git diff --exit-code -- client/client.js
+      - run: npm run build && git diff --exit-code -- client/client.js renderer/renderer.js
       - name: Download and verify the exact npm tarball
         run: node scripts/ci/registry-release.mjs verify
       - name: Create GitHub Release
