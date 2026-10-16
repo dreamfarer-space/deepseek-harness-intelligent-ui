@@ -47,6 +47,13 @@ export const zh = {
   'plot.reset': '重置参数',
   'lib.math': '数学公式',
   'lib.diagram': '图表',
+  'patch.updating': '正在更新界面…',
+  'patch.invalid': '界面更新未通过校验，已保留上一版本；模型会修正后重试',
+  'patch.failed': '界面更新失败，上一版本保持不变',
+  'patch.stopped': '更新已中断，上一版本保持不变',
+  'patch.superseded': '已更新为第 {version} 版，见后续回复',
+  'patch.version': '第 {version} 版',
+  'prompt.regeneratePatch': '对界面「{title}」的更新被中断了，请重新执行这次更新。',
 } satisfies Record<string, string>
 
 export type IntelligentUiKey = keyof typeof zh
@@ -96,4 +103,11 @@ export const en = {
   'plot.reset': 'Reset',
   'lib.math': 'Math',
   'lib.diagram': 'Diagram',
+  'patch.updating': 'Updating the UI…',
+  'patch.invalid': 'The update failed validation; the previous version is kept and the model will retry',
+  'patch.failed': 'The update failed; the previous version is unchanged',
+  'patch.stopped': 'Update stopped; the previous version is unchanged',
+  'patch.superseded': 'Updated to version {version}, shown further down',
+  'patch.version': 'Version {version}',
+  'prompt.regeneratePatch': 'Updating the UI "{title}" was interrupted. Please apply the update again.',
 } satisfies Record<IntelligentUiKey, string>

@@ -266,6 +266,44 @@ check('5c. agent answers with a new UI; submit is locked against resubmission', 
 await sleep(400)
 await shot('4-form-sent.png')
 
+// 11) Cross-turn in-place patch of the dashboard.
+await caption('3b · "Switch the revenue chart to a line chart" → patched in place, state kept')
+const DASH_TITLE = 'Quarterly sales (sample data)'
+/** Live (bodied) copies of the dashboard and what the newest one shows. */
+const dashboards = () => page.evaluate((title) => {
+  // Ready copies only: the refused first attempt is an error card with the same title.
+  const live = [...document.querySelectorAll('.diui-shell[data-state=ready]')].filter(s => s.querySelector('.diui-shell-body') && s.querySelector('.diui-shell-title')?.textContent === title)
+  const s = live.at(-1)
+  return {
+    live: live.length,
+    pointers: [...document.querySelectorAll('.diui-tail .diui-shell')].filter(x => !x.querySelector('.diui-shell-body') && x.querySelector('.diui-shell-title')?.textContent === title).length,
+    status: s?.querySelector('.diui-shell-status')?.textContent ?? '',
+    tab: s?.querySelector('[role=tab][aria-selected=true]')?.textContent ?? '',
+    formLocked: !!s?.querySelector('form button[type=submit]:disabled'),
+  }
+}, DASH_TITLE)
+const callsBeforePatch = mock().length
+await send('Switch the revenue chart to a line chart')
+await waitIdle()
+const patchCalls = mock().slice(callsBeforePatch).map(e => e.decision)
+const retry = mock().filter(e => e.decision === 'patch-retry').at(-1)
+check('11a. an invalid patch is refused by the Host and the model retries', patchCalls.includes('patch') && /UI not changed[\s\S]*kind: expected one of/.test(retry?.toolResult ?? ''), `${patchCalls.join(' → ')} | ${retry?.toolResult?.slice(0, 160)}`)
+const patchedDash = await dashboards()
+check('11b. the patched dashboard replaces the old copy (one live copy, old one points to it)', patchedDash.live === 1 && patchedDash.pointers >= 1 && /Version 2|第 2 版/.test(patchedDash.status), JSON.stringify(patchedDash))
+check('11c. untouched components keep their state (selected tab, submitted form)', patchedDash.tab === 'Forecast' && patchedDash.formLocked, JSON.stringify(patchedDash))
+await tabClick('Revenue')
+const lineChart = await page.evaluate((title) => {
+  const shell = [...document.querySelectorAll('.diui-tail .diui-shell[data-state=ready]')].find(s => s.querySelector('.diui-shell-body') && s.querySelector('.diui-shell-title')?.textContent === title)
+  const svg = shell?.querySelector('.diui-chart-svg')
+  return svg && { bars: svg.querySelectorAll('rect[rx="2"]').length, lines: svg.querySelectorAll('path[fill=none]').length, title: svg.closest('.diui-chart')?.textContent.includes('(line)') }
+}, DASH_TITLE)
+check('11d. the chart changed from bar to line without re-sending the dashboard', lineChart && lineChart.bars === 0 && lineChart.lines >= 2 && lineChart.title, JSON.stringify(lineChart))
+await shellShot('4b-dashboard-patched.png', DASH_TITLE)
+await tabClick('Regions')
+const keptSort = await page.$eval('.diui-tail tbody tr td', td => td.textContent)
+check('11e. the table keeps its sort across the patch', keptSort === 'APAC', keptSort)
+await tabClick('Forecast')
+
 // 3/4) Three.js sphere with an R slider.
 await caption('4 · "Plot x²+y²+z²=2Rz, let me change R" → a live Three.js widget')
 const SPHERE_TITLE = 'Sphere x² + y² + z² = 2Rz'
@@ -461,6 +499,8 @@ const restoredUi = await page.evaluate(() => ({
 }))
 check('8. reload restores UIs and their interaction state', ready3dAfter && restored.R === '2' && restored.scale === 2 && restoredUi.tabs.includes('Forecast') && restoredUi.formLocked && restoredUi.stopped === 1,
   `shells=${after.length} sphere=${JSON.stringify(restored)} ui=${JSON.stringify(restoredUi)}`)
+const dashAfterReload = await dashboards()
+check('11f. reload rebuilds the latest patched version only', dashAfterReload.live === 1 && /Version 2|第 2 版/.test(dashAfterReload.status) && dashAfterReload.tab === 'Forecast', JSON.stringify(dashAfterReload))
 await scrollIntoView(sphere.handle)
 await shot('14-reload.png')
 await caption('All checks done')

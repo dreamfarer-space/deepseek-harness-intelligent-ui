@@ -6,6 +6,7 @@
  * @module deepseek-harness-intelligent-ui/guidance
  */
 import { RENDER_TOOL } from './tools/render.js';
+import { PATCH_TOOL } from './tools/patch.js';
 import { WIDGET_TOOL } from './tools/widget.js';
 
 /** Placement right after MCP server instructions (3100) and before the tools SDK (5000). */
@@ -43,7 +44,11 @@ export function guidanceText(config) {
   lines.push('', 'Interaction design:');
   lines.push('- Everything that can be computed in the browser happens there: sliders, toggles, rotation, zoom, filtering, sorting and recomputing formulas update the UI instantly without a message to you.');
   lines.push('- Send a message to yourself (Button, Form, Bridge.sendPrompt) only for explicit user requests that need you: an explanation, new data, a decision, the next step. Interactions reach you as the user\'s NEXT message; never trigger them automatically and do not wait for them in the current turn.');
-  lines.push('- When the user asks to change a UI, call the tool again with the complete updated UI.');
+  if (config.enableCatalog) {
+    lines.push(`- When the user asks to change a UI you showed (${RENDER_TOOL}), prefer \`${PATCH_TOOL}\`: send only the changed components by id (e.g. switch one Chart from bar to line), with the uiId and version from the last result for that UI. Untouched components keep the user's sorting, tab, form input and slider positions.`);
+    lines.push(`- Re-send the complete UI with ${RENDER_TOOL} only for a new UI, when most of it changes, or when ${PATCH_TOOL} reports the UI is unavailable.`);
+  }
+  if (config.enableWidget) lines.push(`- To change a widget, call ${WIDGET_TOOL} again with the complete updated widget.`);
   lines.push('', 'Quality:');
   lines.push('- One UI call per answer is usually enough. Real data only: never invent numbers to fill a chart; if data is missing, say so or ask.');
   lines.push('- Keep UI component trees clean and concise (e.g. 4-8 milestones for Timeline, 4-8 rows for Table). Keep text props succinct and avoid excessively long paragraphs inside components.');

@@ -37,9 +37,9 @@ async function mount(config = {}, { systemPrompt = true } = {}) {
 }
 
 describe('plugin mount', () => {
-  it('registers both tools, /ui and the guidance section', async () => {
+  it('registers the UI tools, /ui and the guidance section', async () => {
     const { tools, commands, sections } = await mount()
-    expect([...tools.keys()].sort()).toEqual(['ui_render', 'ui_render_widget'])
+    expect([...tools.keys()].sort()).toEqual(['ui_patch', 'ui_render', 'ui_render_widget'])
     expect([...commands.keys()]).toEqual(['ui'])
     expect([...sections.keys()]).toEqual(['intelligent-ui:guidance'])
     expect(sections.get('intelligent-ui:guidance').text).toMatch(/# Intelligent UI/)
@@ -47,14 +47,14 @@ describe('plugin mount', () => {
 
   it('honors feature flags', async () => {
     const { tools, commands, sections } = await mount({ enableWidget: false, injectGuidance: false })
-    expect([...tools.keys()]).toEqual(['ui_render'])
+    expect([...tools.keys()]).toEqual(['ui_render', 'ui_patch'])
     expect([...commands.keys()]).toEqual(['ui'])
     expect(sections.size).toBe(0)
   })
 
   it('still loads without a systemPrompt service', async () => {
     const { tools } = await mount({}, { systemPrompt: false })
-    expect(tools.size).toBe(2)
+    expect(tools.size).toBe(3)
   })
 
   it('/ui hands the request to the conversation model', async () => {

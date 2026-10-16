@@ -5,7 +5,7 @@
 // Usage: node scripts/e2e/mock-deepseek.mjs [port] [log-file]
 import { createServer } from 'node:http'
 import { appendFileSync, existsSync } from 'node:fs'
-import { DASHBOARD, explainSphere, forecast, MATH, SLOW, SPHERE } from './scenarios.mjs'
+import { chartPatch, DASHBOARD, explainSphere, forecast, MATH, SLOW, SPHERE } from './scenarios.mjs'
 
 const PORT = Number(process.argv[2] || 3199)
 const LOG = process.argv[3]
@@ -67,6 +67,7 @@ function decide(lastText, tools) {
   if (/Form "Request a forecast" submitted/.test(lastText)) return 'forecast'
   if (/Explain the surface/.test(lastText)) return 'explain-sphere'
   if (/interrupted\. Please generate/.test(lastText)) return 'regenerate'
+  if (/line chart/i.test(lastText)) return 'patch'
   if (/2Rz|sphere/i.test(lastText)) return 'sphere'
   if (/dashboard|sales/i.test(lastText)) return 'dashboard'
   if (/oscillat|damped/i.test(lastText)) return 'math'
@@ -77,7 +78,12 @@ function decide(lastText, tools) {
 const AFTER = {
   ui_render: 'The dashboard above is interactive — sort the table, switch tabs, or request a forecast.',
   ui_render_widget: 'Drag to rotate, scroll to zoom, and move the R slider; the surface updates instantly.',
+  ui_patch: 'The revenue chart is now a line chart; everything else is as you left it.',
 }
+
+/** The dashboard's uiId: the id of the ui_render call that showed it. */
+const dashboardId = messages => messages.flatMap(m => Array.isArray(m.content) ? m.content : [])
+  .find(c => c.type === 'tool_use' && c.name === 'ui_render' && c.input?.title === DASHBOARD.title)?.id
 
 createServer((req, res) => {
   let body = ''
@@ -90,10 +96,11 @@ createServer((req, res) => {
     const last = b.messages[b.messages.length - 1]
     const lastText = textOf(last.content)
     const toolResult = Array.isArray(last.content) && last.content.find(c => c.type === 'tool_result')
-    const decision = toolResult ? 'after-tool' : decide(lastText, tools)
     // The most recent tool call, to phrase the closing sentence.
     const prev = b.messages[b.messages.length - 2]
     const lastTool = toolResult && Array.isArray(prev?.content) ? prev.content.find(c => c.type === 'tool_use')?.name : undefined
+    const refusedPatch = lastTool === 'ui_patch' && /UI not changed/.test(textOf(toolResult.content))
+    const decision = toolResult ? (refusedPatch ? 'patch-retry' : 'after-tool') : decide(lastText, tools)
     log({ at: new Date().toISOString(), decision, uiTools: tools.filter(t => t.startsWith('ui_')), toolCount: tools.length, guidance: system.includes('# Intelligent UI'), lastText: lastText.slice(0, 200), toolResult: toolResult ? textOf(toolResult.content).slice(0, 300) : undefined })
     const model = b.model
     switch (decision) {
@@ -119,6 +126,8 @@ createServer((req, res) => {
         try { values = JSON.parse(json ? json[0] : '{}') } catch { /* keep defaults */ }
         return sse(res, toolEvents(model, 'ui_render', forecast(values), 36), 30)
       }
+      case 'patch': return sse(res, toolEvents(model, 'ui_patch', chartPatch(dashboardId(b.messages), false), 24), 30)
+      case 'patch-retry': return sse(res, toolEvents(model, 'ui_patch', chartPatch(dashboardId(b.messages), true), 24), 30)
       case 'math': return sse(res, toolEvents(model, 'ui_render', MATH, 36), 35)
       case 'sphere': {
         // Leave the completed HTML visible in preview before the JS arrives.

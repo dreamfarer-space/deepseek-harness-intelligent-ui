@@ -1,13 +1,15 @@
 /**
  * DeepSeek Harness Intelligent UI — browser half.
  *
- * Registers keyed `tool.call.toolview` entries for the two generative-UI
+ * Registers keyed `tool.call.toolview` entries for the generative-UI
  * tools and wires their interactions into the session as queued user
  * messages (through the same Session face the composer uses, so the message
  * echoes in the transcript immediately).
  */
+import { PATCH_TOOL } from '../src/tools/patch.js'
 import { RENDER_TOOL } from '../src/tools/render.js'
 import { WIDGET_TOOL } from '../src/tools/widget.js'
+import { PatchView } from './catalog/PatchView.tsx'
 import { RenderView } from './catalog/RenderView.tsx'
 import { en, NS, zh } from './locales.ts'
 import { STYLES } from './styles.ts'
@@ -69,7 +71,7 @@ export function apply(ctx: ClientCtx): void {
     sessionId,
   })
 
-  for (const [key, view] of [[RENDER_TOOL, RenderView], [WIDGET_TOOL, WidgetView]] as const) {
+  for (const [key, view] of [[RENDER_TOOL, RenderView], [PATCH_TOOL, PatchView], [WIDGET_TOOL, WidgetView]] as const) {
     ctx.slots.inject('tool.call.toolview', () => ctx.slots.register(
       { name: 'tool.call.toolview', key, locale: NS, inject: injected },
       inlineView(view),
