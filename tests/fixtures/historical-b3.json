@@ -1,0 +1,15 @@
+{
+  "_note": "Reconstruction of the 2026-10-10 B3 answer that the v2 evaluator wrongly passed. The report kept only the component types (Card 1, Alert 1, Form 1, Divider 1, List 1; no Chart); props are representative. It is schema-valid, which is exactly why schema validity alone must not pass B3.",
+  "title": "线上电商 vs 线下门店 营收对比",
+  "root": "card",
+  "components": [
+    { "id": "card", "type": "Card", "props": { "title": "线上电商 vs 线下门店：Q1-Q4 营收对比" }, "children": ["alert", "form", "divider", "list"] },
+    { "id": "alert", "type": "Alert", "props": { "tone": "info", "text": "请填写四个季度的营收数据，我会据此生成对比柱状图。" } },
+    { "id": "form", "type": "Form", "props": { "title": "季度营收", "fields": [
+      { "name": "online_q1", "label": "线上电商 Q1", "type": "number" },
+      { "name": "offline_q1", "label": "线下门店 Q1", "type": "number" }
+    ] } },
+    { "id": "divider", "type": "Divider", "props": {} },
+    { "id": "list", "type": "List", "props": { "items": ["对比维度：营收", "时间范围：Q1-Q4"] } }
+  ]
+}

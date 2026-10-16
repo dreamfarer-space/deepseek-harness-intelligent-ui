@@ -11,7 +11,7 @@
 [![OS](https://img.shields.io/badge/OS-Windows%20%7C%20Linux%20%7C%20macOS-a78bfa)](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/compatibility.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-97a1c9)](LICENSE)
 
-[Demo](#-demo) · [Quick start](#-quick-start) · [How it decides](#-how-the-agent-decides) · [Widgets](#-sandboxed-widgets-ui_render_widget) · [Security](#-security-model) · [Configuration](#%EF%B8%8F-configuration) · [Develop](#-develop-and-verify)
+[Demo](#-demo) · [Quality](#-real-model-quality-baseline) · [Quick start](#-quick-start) · [How it decides](#-how-the-agent-decides) · [Widgets](#-sandboxed-widgets-ui_render_widget) · [Security](#-security-model) · [Configuration](#%EF%B8%8F-configuration) · [Develop](#-develop-and-verify)
 
 </div>
 
@@ -66,36 +66,52 @@ Open tabs, sort order, form values, sliders and `UI.state` survive turn folding,
 
 ## 🎬 Demo
 
-![DeepSeek Harness Intelligent UI demo](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/demo.gif)
+### The real DeepSeek model, end to end
 
-🎥 **Full-quality video (H.264, ~2 min):** [docs/assets/demo.mp4](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/v0.2.1/docs/assets/demo.mp4)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/demo.gif" alt="Real deepseek-flash model in DSH Web: a multi-series chart, a damped-oscillation Plot with sliders, and two in-place edits of a chart via ui_patch" width="100%">
+</p>
+
+🎥 **Full video (H.264, 2 min 8 s, 4 MB):** [docs/assets/real-model/demo.mp4](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/assets/real-model/demo.mp4). It covers all 11 browser cases: text, chart, table, form round trip, Plot, Three.js with "Ask to fix", stop → regenerate, two in-place edits, Fast 3G, CDN offline and phone width.
 
 > [!NOTE]
-> The recording comes from the real DSH Web 0.2.0-rc.1 with this plugin installed, driven by `npm run e2e:all -- --record`. The model behind it is the **scripted mock** in `scripts/e2e/` (no API key was available), so the answers are canned. Everything you see (streaming, rendering, interaction, the round trips, persistence, isolation) is the real plugin running in DSH.
+> Recorded on 2026-10-16 by `npm run eval:real -- --record` and cut with `npm run eval:demo`. Every card was generated live by the real **`deepseek-flash`** model in real **DSH Web 0.2.0-rc.1** with this plugin installed. Nothing is scripted, and failures are left in (the Three.js case hits a script error and is repaired with "让模型修复"). While the model is working the video is sped up; the stopwatch in the corner shows the real elapsed time. The results are in the [real-model quality baseline](#-real-model-quality-baseline).
+
+| Multi-series chart (labelled sample data) | Two in-place edits with `ui_patch` (version 3) |
+|:---:|:---:|
+| ![Chart](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/chart.png) | ![Patched](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/patched.png) |
+| *Two series × Q1–Q4; hover tooltips and sorting run locally* | *"Make it a line chart", then "add 小程序 30/45/60/80": one card, version 3, exact values* |
+
+| Form submit → the agent uses the values | Damped oscillation `Plot` with live sliders |
+|:---:|:---:|
+| ![Form follow-up](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/form-followup.png) | ![Plot](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/plot.png) |
+| *The submitted 全国 / 4 / 乐观 come back in the follow-up* | *y = A·e^(−γt)·cos(ωt) with envelopes; the sliders never call the model* |
+
+| Three.js: x²+y²+z²=2Rz | Stopped mid-stream → regenerated |
+|:---:|:---:|
+| ![Three.js](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/three.png) | ![Regenerated](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/regenerated.png) |
+| *Sphere centred at (0,0,R), tangent to z = 0 at the origin* | *The interrupted card keeps a static preview; Regenerate produces the full scene* |
+
+| Fast 3G, cache off | CDN unreachable | Phone width (390 px) |
+|:---:|:---:|:---:|
+| ![Weak network](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/weak-network.png) | ![Offline](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/offline.png) | ![Mobile](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/mobile.png) |
+| *three.js loads slowly, still renders* | *The failure is shown on the card; chat keeps working* | *No overflow; KPI grid reflows* |
 
 <details>
-<summary><b>📸 Screenshot gallery</b> (dashboard, Three.js, math, forms, streaming, dark mode, phone, reload)</summary>
+<summary><b>🧪 Scripted-model demo</b> (the pipeline E2E: dark mode, reload, sandbox isolation)</summary>
 <br>
+
+![DeepSeek Harness Intelligent UI demo with the scripted model](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/demo.gif)
+
+🎥 [docs/assets/demo.mp4](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/v0.2.1/docs/assets/demo.mp4). This recording is from `npm run e2e:all -- --record`. The model behind it is the **scripted mock** in `scripts/e2e/`, so the answers are canned. It shows the plugin pipeline (streaming, rendering, round trips, persistence, isolation), not how a real model behaves.
 
 | Dashboard streams in, then settles | Three.js widget: R slider, rotate, zoom |
 |:---:|:---:|
 | ![Dashboard](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/3-dashboard.png) | ![Sphere](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/7-widget-rotated.png) |
-| *Stat, Grid, Tabs, stacked bar chart with hover tooltip, sortable table, timeline, form* | *`x²+y²+z²=2Rz` via `UI.three()`: the slider re-shapes the surface locally* |
-
-| Math, live Plot, Mermaid | Form → agent → new UI |
-|:---:|:---:|
-| ![Math](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/9-math.png) | ![Form](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/4-form-sent.png) |
-| *KaTeX formula, `Plot` with parameter sliders (no model call), Mermaid flowchart* | *Submitted values reach the agent, which answers with a forecast chart* |
-
-| Streaming preview (same iframe becomes final) | Stopped mid-generation |
-|:---:|:---:|
-| ![Preview](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/5-widget-preview.png) | ![Stopped](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/10-stopped.png) |
 
 | Dark theme | Phone width (dark) | After reload |
 |:---:|:---:|:---:|
 | ![Dark](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/11b-dark-widget.png) | ![Mobile](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/12-mobile-dark.png) | ![Reload](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/v0.2.1/docs/assets/screenshots/14-reload.png) |
-
-To get an inline player on GitHub, drag `docs/assets/demo.mp4` into a GitHub comment or release editor and paste the resulting `https://github.com/user-attachments/assets/…` URL on its own line here. GitHub only renders inline video for uploaded attachments, not for repository files.
 
 </details>
 
@@ -265,11 +281,12 @@ npm install
 npm run build       # client-src/ → client/client.js (DSH __ModuleLoader__ factory; React and Cordis external)
 npm test            # vitest (catalog, expressions, tools, plugin mount, streaming parser, frame/CSP/bridge, state, theme, views, interruption, turn tail, DSH compatibility gate, installer CLI)
 npm run typecheck
-npm run e2e:all     # build → install into a temp DSH home → mock model + real DSH Web → 24 browser checks
+npm run e2e:all     # build → install into a temp DSH home → mock model + real DSH Web → 30 browser checks
 npm run e2e:all -- --record   # also re-records docs/assets/demo.mp4 / demo.gif (needs ffmpeg)
 npm run e2e:all -- --spec ./deepseek-harness-intelligent-ui-<v>.tgz   # E2E the packed tarball instead of the checkout
 npm run smoke -- --spec ./deepseek-harness-intelligent-ui-<v>.tgz     # install smoke test (no browser): version gate, bundle row, DSH Web boot
 npm run docs:art    # regenerate the animated README illustrations in docs/assets/readme/
+npm run eval:real   # real-model quality baseline (needs DEEPSEEK_API_KEY): see below
 ```
 
 The E2E runs on Windows, Linux and macOS. It finds Chrome per platform (set `CHROME_PATH` to override) and uses `DSH_BIN` to test another `dsh` binary. CI runs everything on all three OSes against every supported DSH line ([compatibility](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/compatibility.md)).
@@ -320,31 +337,99 @@ See [release security and OIDC setup](https://github.com/dreamfarer-space/deepse
 
 </details>
 
+## 📊 Real-model quality baseline
+
+A tool call whose arguments parse is not the same as a UI the user can use. `npm run eval:real` measures three layers **separately**, and a pass in one is not evidence for another:
+
+| Layer | What it proves | Latest · 2026-10-16 · `deepseek-flash` |
+| --- | --- | :---: |
+| **Mock E2E** | Rendering, streaming, interaction, persistence and isolation, with **scripted** model answers | **30 / 30** |
+| **Real model · API** | The model picks the right tool, emits valid arguments on the **first** try, and the rendered UI contains the requested components and data. The model sees the plugin's real tools and guidance; the tools' own `execute()` runs, including `ui_patch` | **30 / 32** (94%) |
+| **Real model · browser** | What the model generated actually works in real DSH Web + Chrome: it renders, responds to interaction, survives stop/resume and bad networks, and logs no console errors | **11 / 12** (92%) |
+
+| Timing (real model) | p50 | p95 |
+| --- | ---: | ---: |
+| First visible UI preview (browser) | 8.4 s | 74.9 s |
+| UI generation complete (browser) | 13.6 s | 78.2 s |
+| Browser-side execution after the stream (widget code, three.js from the CDN) | 33 ms | 2.9 s |
+| One model API call | 2.4 s | 75.7 s |
+
+The long tail comes from large Three.js widgets: the model writes 10–20 KB of code before the preview starts.
+
+**What the run found.** These are real model behaviours, not harness noise; each one is a failed or flagged case in the [full report](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/real-model-eval.md):
+
+- **Invalid first attempts:** a missing closing brace in nested `props` (D2, both turns) and duplicate component ids (B1). The plugin refuses these, and the model fixes them on retry. The user briefly sees a refused card, so these count as failures.
+- **Three.js scope slip:** one sphere widget used a global `THREE` that does not exist (`THREE is not defined`). The card flags "1 个脚本错误", and the user's **"让模型修复"** button produced a working scene. A second run of the same prompt was correct first time (1 / 2).
+- **Charts with no data supplied:** in earlier runs the model sometimes asked for the real numbers with a form *instead of* drawing the chart. In this run it drew the chart with clearly labelled sample data and offered the form as well (B3 2 / 2). This case varies between runs.
+- **Agent behaviour around the UI:** DSH's agent may first search the workspace, ask a clarifying question, or send sub-agents to research facts. The browser stage answers clarifying questions like a user would (picking the recommended option) and waits for the UI itself, not just for the turn to go idle.
+
 <details>
-<summary><b>🤖 Real-model evaluation</b></summary>
+<summary><b>▶️ Run it</b></summary>
 <br>
 
-The API suite checks model routing, tool-argument schemas, and selected requested components or data across 15 prompts. It does **not** execute model-generated widgets in a browser or verify factual data, visual quality, physics, or interaction behavior. The separate browser E2E uses scripted model responses.
-
-The checked-in [historical report](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/v0.2.1/docs/real-model-eval-report.json) was produced by the earlier evaluator. Its 15/15 result is not a current pass rate: B3 was incorrectly accepted despite containing no Chart. Other cases need a new run under the stricter assertions; the original report is retained with an audit note.
-
-The current suite requires rendered components (not orphan nodes), a sortable table for B2, a four-quarter multi-series bar chart for B3, range/checkbox form controls for B4, and parameter sliders for a native C2 Plot. Multi-turn cases validate all tool calls, acknowledge each call, require the submitted APAC/4/Optimistic parameters, and check all three requested screen sizes while retaining existing table values. These are automated assertions, not a complete quality assessment.
-
-Set `DEEPSEEK_API_KEY` in the environment before running; no credentials file is read:
+Put the key in the environment. No credentials file is read, and the run refuses to write a report that still contains the key.
 
 ```sh
-export DEEPSEEK_API_KEY='<your-key>'
-node scripts/run-real-model-suite.mjs all   # A, B, C, D or all
+export DEEPSEEK_API_KEY='<your-key>'          # PowerShell: $env:DEEPSEEK_API_KEY = '<your-key>'
+npm run eval:real                              # mock E2E + API + browser; exits 1 on any failure
+npm run eval:real -- --repeat 3                # 3 runs per API case → per-case success rates, p50/p95
+npm run eval:real -- --record && npm run eval:demo   # also record and cut the demo video
 ```
 
-```powershell
-$env:DEEPSEEK_API_KEY = '<your-key>'
-node scripts/run-real-model-suite.mjs all
-```
+| Option | Effect |
+| --- | --- |
+| `--stage mock,api,browser` | Run only some layers (`all` by default). `A`/`B`/`C`/`D` selects API categories, as before. |
+| `--only B3,R-chart` | Run only these cases. |
+| `--keep-other-layers` | Keep the layers (or, with `--only`, the cases) this run did not execute. Each keeps its own date. |
+| `--append` | With `--only`: add the rerun as extra samples. A failure is never replaced by a lucky retry. |
+| `--rescore` | Re-judge the last API run from its saved transcripts with the current assertions, with no model calls. |
+| `DEEPSEEK_EVAL_MODEL` | Model id (default `deepseek-flash`). |
 
-Each invocation writes only that run's cases to `docs/real-model-eval-report.json`. A partial run does not merge older cases into a new timestamp. Failed assertions/API calls exit with code 1; an invalid category or missing key fails before changing the report. Keep keys out of git.
+The **Real-model eval** GitHub workflow runs the same command on demand with the `DEEPSEEK_API_KEY` secret and uploads the report and screenshots. A full run costs about ¥1.5 with `deepseek-flash`.
 
 </details>
+
+<details>
+<summary><b>🔬 What each case checks</b></summary>
+<br>
+
+**API stage** (`scripts/eval/api-stage.mjs`, 16 cases, assertions v3). Every criterion is its own check, so the report says *which* one failed:
+
+- **Plain text (A1–A4):** no UI tool, a substantive answer.
+- **Charts/tables (B1–B3, B5):**
+  - KPI tiles named by meaning (revenue, active users incl. 月活/MAU, conversion, order value);
+  - a sortable table with all five requested columns;
+  - a **bar chart with Q1–Q4 and both an online and an offline series** (the 2026-10-10 B3 answer, a form without a chart, is kept as a test fixture and must fail);
+  - a chronology with 4+ milestones (a `Timeline`, or a Mermaid diagram with 4+ ordered years).
+- **Form (B4, D1):** range, checkbox and select fields. D1 submits the form exactly as the browser would and requires the follow-up to use the submitted region, quarter count and scenario.
+- **Math Plot (C2):** three sliders, *every slider used in the expression*, and an `exp(…)·sin/cos(…)` shape.
+- **Three.js and widgets (C1, C3, C4):** `UI.three()`/`import("three")`, animation, lights, start/pause and parameter controls.
+- **Multi-turn edits:** D2 adds a column with every per-model value correct and every old value kept. D3 makes two successive edits (bar → line, then a third series with exact values, original series unchanged). `ui_patch` in place is recorded.
+
+Each case records tool choice, first-attempt schema validity versus recovery, API time per call, the model id the API reports and its `system_fingerprint`, and the prompt hash.
+
+**Browser stage** (`scripts/eval/browser-stage.mjs`, 11 cases, each in a new conversation):
+
+- **Plain text:** no card is created.
+- **Chart:** legend, Q1–Q4, 8+ bars, local hover tooltip.
+- **Table:** clicking a header re-sorts rows with no model call.
+- **Form:** filled and submitted with the real mouse and keyboard; the follow-up must mention the submitted values; the form locks.
+- **Plot:** dragging a slider redraws the curve.
+- **Three.js:** the canvas is **drawn, not blank** (pixel statistics), dragging changes the image, and there are no widget script errors. On failure, the "Ask to fix" path is tried and reported.
+- **Stop/resume:** stop mid-stream → static preview, notice and Regenerate → a complete scene.
+- **Two in-place edits:** one live card, version 3, line chart, third series.
+- **Weak network:** Fast 3G with the cache off.
+- **No network:** the CDN is blocked; the failure must be shown on the card, the DSH page must have no uncaught errors, and the chat must keep working.
+- **Phone width (390 px):** no overflow; the KPI grid uses at most 2 columns.
+
+Every case also records console errors, with the host page separated from widget frames. DSH run failures such as quota errors are reported as *infrastructure* errors, outside the model's success rate.
+
+Automated checks cannot judge visual quality, so the report also carries a **sampled manual review** of every screenshot.
+
+</details>
+
+> [!IMPORTANT]
+> The [2026-10-10 report](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/history/2026-10-10-real-model-eval-report.json) (15/15) is a **historical snapshot**, not a pass rate. It came from an API-only evaluator that passed B3 although no chart was rendered, and it did not keep the arguments needed to rescore it. The current numbers are in [`docs/real-model-eval.md`](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/real-model-eval.md) (human-readable) and [`docs/real-model-eval-report.json`](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/real-model-eval-report.json).
 
 ## Limitations
 

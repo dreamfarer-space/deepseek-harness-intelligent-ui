@@ -65,17 +65,20 @@ export function installPlugin(spec, dshHome, profile = 'web') {
 
 /**
  * Boot `dsh --profile web` and resolve with the tokenized URL it prints.
+ * Without `mockPort` DSH talks to the real DeepSeek API with the caller's
+ * DEEPSEEK_API_KEY; `patches` adds loader patch entries (e.g. the model).
  * @returns {Promise<{ child: import('node:child_process').ChildProcess, url: string, output: () => string }>}
  */
-export function startDshWeb({ dshHome, port, mockPort, timeoutMs = 120000 }) {
+export function startDshWeb({ dshHome, port, mockPort, patches = [], timeoutMs = 120000 }) {
   // CI hosts may have no system Documents directory (notably Linux without
   // xdg-user-dir). Keep first-use workspace creation inside this test home.
   const documents = path.join(dshHome, 'documents')
   mkdirSync(documents, { recursive: true })
   const patch = path.join(dshHome, 'e2e-workspace.patch.yml')
-  writeFileSync(patch, JSON.stringify([{ id: 'workspace-controller', config: { documentsDirectory: documents } }]))
+  writeFileSync(patch, JSON.stringify([{ id: 'workspace-controller', config: { documentsDirectory: documents } }, ...patches]))
+  const model = mockPort ? { DEEPSEEK_API_KEY: 'mock', DEEPSEEK_BASE_URL: `http://127.0.0.1:${mockPort}` } : {}
   const child = start(DSH, ['--profile', 'web', '--patch', patch, '--no-open', '--port', String(port)], {
-    env: { ...process.env, DSH_HOME: dshHome, DEEPSEEK_API_KEY: 'mock', DEEPSEEK_BASE_URL: `http://127.0.0.1:${mockPort}` },
+    env: { ...process.env, DSH_HOME: dshHome, ...model },
   })
   let log = ''
   return new Promise((resolve, reject) => {

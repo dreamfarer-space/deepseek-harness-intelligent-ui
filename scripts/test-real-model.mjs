@@ -1,5 +1,7 @@
 import https from 'node:https';
+import { createHash } from 'node:crypto';
 import { createRenderTool } from '../src/tools/render.js';
+import { createPatchTool } from '../src/tools/patch.js';
 import { createWidgetTool } from '../src/tools/widget.js';
 import { guidanceText } from '../src/guidance.js';
 import { resolveConfig } from '../src/config.js';
@@ -13,51 +15,39 @@ export function getApiKey(env = process.env) {
   return key;
 }
 
-export const MODEL = 'deepseek-flash';
+export const MODEL = process.env.DEEPSEEK_EVAL_MODEL?.trim() || 'deepseek-flash';
+const ENDPOINT = process.env.DEEPSEEK_EVAL_ENDPOINT?.trim() || 'https://api.deepseek.com/chat/completions';
 const config = resolveConfig({});
 
-// Setup system guidance and tools
+// The same tools, descriptions and system guidance the plugin registers in DSH.
 const systemGuidance = guidanceText(config);
-const renderTool = createRenderTool(config);
-const widgetTool = createWidgetTool(config);
+export const pluginTools = [createRenderTool(config), createPatchTool(config), createWidgetTool(config)];
+const SYSTEM = `You are a helpful AI assistant in DeepSeek Harness.\n\n${systemGuidance}`;
 
-const tools = [
-  {
-    type: 'function',
-    function: {
-      name: renderTool.name,
-      description: renderTool.description,
-      parameters: renderTool.parameters,
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: widgetTool.name,
-      description: widgetTool.description,
-      parameters: widgetTool.parameters,
-    },
-  },
-];
+const tools = pluginTools.map(tool => ({
+  type: 'function',
+  function: { name: tool.name, description: tool.description, parameters: tool.parameters },
+}));
 
-async function callChat(messages, useTools = true) {
+/** Short hash of everything the model is shown besides the user turn: any change makes runs incomparable. */
+export const PROMPT_VERSION = createHash('sha256').update(JSON.stringify({ SYSTEM, tools })).digest('hex').slice(0, 12);
+
+/**
+ * One chat completion with timing and model identity.
+ * @returns {Promise<{ message: any, model: string, fingerprint: string | null, ms: number }>}
+ */
+export function callChatDetailed(messages, useTools = true) {
   const apiKey = getApiKey();
   const payload = {
     model: MODEL,
-    messages: [
-      {
-        role: 'system',
-        content: `You are a helpful AI assistant in DeepSeek Harness.\n\n${systemGuidance}`,
-      },
-      ...messages,
-    ],
+    messages: [{ role: 'system', content: SYSTEM }, ...messages],
     tools: useTools ? tools : undefined,
     temperature: 0.3,
   };
-
+  const started = performance.now();
   return new Promise((resolve, reject) => {
     const data = JSON.stringify(payload);
-    const req = https.request('https://api.deepseek.com/chat/completions', {
+    const req = https.request(ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -76,18 +66,23 @@ async function callChat(messages, useTools = true) {
           const json = JSON.parse(body);
           const message = json.choices?.[0]?.message;
           if (!message || message.role !== 'assistant') throw new Error('DeepSeek API returned no assistant message');
-          resolve(message);
+          resolve({ message, model: json.model || MODEL, fingerprint: json.system_fingerprint ?? null, ms: Math.round(performance.now() - started) });
         } catch (e) {
           reject(e);
         }
       });
     });
-    req.on('error', reject);
+    // Network failures carry no credentials; keep only the code for the report.
+    req.on('error', err => reject(err.code ? new Error(`DeepSeek API unreachable: ${err.code}`) : err));
     req.setTimeout(120000, () => req.destroy(new Error('DeepSeek API request timed out after 120 seconds')));
     req.on('response', res => res.on('error', reject));
     req.write(data);
     req.end();
   });
+}
+
+async function callChat(messages, useTools = true) {
+  return (await callChatDetailed(messages, useTools)).message;
 }
 
 export { callChat, config, validateTree, validateWidget };
