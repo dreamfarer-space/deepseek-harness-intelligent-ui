@@ -1,8 +1,30 @@
 {
   "reportVersion": 3,
-  "generatedAt": "2026-10-16T08:39:50.715Z",
-  "finishedAt": "2026-10-16T08:41:19.369Z",
-  "command": "node scripts/run-real-model-suite.mjs all --stage browser --only R-three --keep-other-layers",
+  "generatedAt": "2026-10-16T14:00:21.910Z",
+  "finishedAt": "2026-10-16T14:15:15.070Z",
+  "command": "node scripts/run-real-model-suite.mjs all --stage browser --record --keep-other-layers",
+  "provenance": [
+    {
+      "command": "node scripts/run-real-model-suite.mjs all --repeat 2 --record",
+      "at": "2026-10-16T08:12:53.088Z",
+      "note": "all three layers; API ×2 per case; recorded the demo (cost ¥1.54)"
+    },
+    {
+      "command": "node scripts/run-real-model-suite.mjs all --rescore",
+      "at": "2026-10-16T08:38:48.911Z",
+      "note": "API layer re-judged from the saved transcripts after fixing three over-strict assertions (月活 as active users, 指导价 as price, a dated Mermaid flow as a timeline); no model calls"
+    },
+    {
+      "command": "node scripts/run-real-model-suite.mjs all --stage browser --only R-three --keep-other-layers",
+      "at": "2026-10-16T08:41:19.368Z",
+      "note": "a second R-three sample, added as run #2 next to the failed run #1 (merged once by hand with the --append logic, which was added right after)"
+    },
+    {
+      "command": "node scripts/run-real-model-suite.mjs all --stage browser --record --keep-other-layers",
+      "at": "2026-10-16T14:00:21.910Z",
+      "note": "browser layer re-recorded for the demo video (all 11 cases, replacing the previous browser layer; cost ¥0.86). API and mock layers kept."
+    }
+  ],
   "model": {
     "requested": "deepseek-flash",
     "reported": [
@@ -43,13 +65,13 @@
       "carriedOver": true
     },
     "browser": {
-      "testedAt": "2026-10-16T08:38:23.349Z",
+      "testedAt": "2026-10-16T14:15:15.069Z",
       "scope": "Real model inside real DSH Web with this plugin, driven in Chrome. Rendering, interaction round trips, stop/resume, network conditions and console errors.",
       "summary": {
-        "total": 12,
-        "passed": 11,
-        "failed": 1,
-        "successRate": 0.917,
+        "total": 11,
+        "passed": 9,
+        "failed": 2,
+        "successRate": 0.818,
         "byCategory": {
           "text": {
             "total": 1,
@@ -58,8 +80,8 @@
           },
           "chart-table": {
             "total": 2,
-            "passed": 2,
-            "successRate": 1
+            "passed": 1,
+            "successRate": 0.5
           },
           "form": {
             "total": 1,
@@ -72,9 +94,9 @@
             "successRate": 1
           },
           "threejs": {
-            "total": 2,
-            "passed": 1,
-            "successRate": 0.5
+            "total": 1,
+            "passed": 0,
+            "successRate": 0
           },
           "stop-resume": {
             "total": 1,
@@ -100,22 +122,22 @@
       },
       "timing": {
         "firstPreviewMs": {
-          "n": 11,
-          "p50": 8394,
-          "p95": 74887,
-          "max": 74887
+          "n": 9,
+          "p50": 7573,
+          "p95": 70237,
+          "max": 70237
         },
         "generationMs": {
-          "n": 11,
-          "p50": 13603,
-          "p95": 78192,
-          "max": 78192
+          "n": 9,
+          "p50": 11840,
+          "p95": 73427,
+          "max": 73427
         },
         "browserExecMs": {
-          "n": 10,
-          "p50": 33,
-          "p95": 2874,
-          "max": 2874
+          "n": 8,
+          "p50": 26,
+          "p95": 2942,
+          "max": 2942
         }
       },
       "cases": [
@@ -153,16 +175,14 @@
             }
           ],
           "timing": {
-            "turnMs": 3955,
-            "caseMs": 5059
+            "turnMs": 4802,
+            "caseMs": 9361
           },
           "notes": [],
           "clarifications": [],
           "subagents": 0,
           "consoleErrors": [],
-          "screenshots": [],
-          "run": 1,
-          "testedAt": "2026-10-16T08:38:23.349Z"
+          "screenshots": []
         },
         {
           "id": "R-chart",
@@ -187,7 +207,7 @@
             {
               "name": "Q1-Q4 on the x axis",
               "ok": true,
-              "detail": "0 2000 4000 6000 8000 Q1 Q2 Q3 Q4"
+              "detail": "0 250 500 750 1000 1250 Q1 Q2 Q3 Q4"
             },
             {
               "name": "at least 8 bars (4 quarters × 2 series)",
@@ -197,7 +217,7 @@
             {
               "name": "hover shows a tooltip (local, no model call)",
               "ok": true,
-              "detail": "Q1线上电商: 3200 万元线下门店: 5400 万元"
+              "detail": "Q1线上电商: 782 万元线下门店: 806 万元"
             },
             {
               "name": "turn finished",
@@ -213,11 +233,11 @@
             }
           ],
           "timing": {
-            "firstPreviewMs": 10515,
-            "generationMs": 12841,
-            "turnMs": 15057,
+            "firstPreviewMs": 4344,
+            "generationMs": 8667,
+            "turnMs": 8660,
             "browserExecMs": 0,
-            "caseMs": 17816
+            "caseMs": 14791
           },
           "notes": [],
           "clarifications": [],
@@ -225,9 +245,7 @@
           "consoleErrors": [],
           "screenshots": [
             "browser/chart.png"
-          ],
-          "run": 1,
-          "testedAt": "2026-10-16T08:38:23.349Z"
+          ]
         },
         {
           "id": "R-table",
@@ -237,25 +255,21 @@
             "deepseek-flash"
           ],
           "modelLabel": "DeepSeek-V41-Flash",
-          "passed": true,
-          "reason": null,
+          "passed": false,
+          "reason": "table rendered with 3+ rows (0 rows); columns are sortable; turn finished",
           "checks": [
             {
               "name": "table rendered with 3+ rows",
-              "ok": true,
-              "detail": "15 rows"
+              "ok": false,
+              "detail": "0 rows"
             },
             {
               "name": "columns are sortable",
-              "ok": true
-            },
-            {
-              "name": "clicking a header re-orders rows locally",
-              "ok": true
+              "ok": false
             },
             {
               "name": "turn finished",
-              "ok": true
+              "ok": false
             },
             {
               "name": "no uncaught errors in the DSH page",
@@ -267,11 +281,7 @@
             }
           ],
           "timing": {
-            "firstPreviewMs": 6401,
-            "generationMs": 9455,
-            "turnMs": 11394,
-            "browserExecMs": 33,
-            "caseMs": 14950
+            "caseMs": 307432
           },
           "notes": [],
           "clarifications": [],
@@ -279,9 +289,7 @@
           "consoleErrors": [],
           "screenshots": [
             "browser/table.png"
-          ],
-          "run": 1,
-          "testedAt": "2026-10-16T08:38:23.349Z"
+          ]
         },
         {
           "id": "R-form",
@@ -302,12 +310,12 @@
             {
               "name": "submission reached the agent as a new turn",
               "ok": true,
-              "detail": "turn 10425 ms"
+              "detail": "turn 5644 ms"
             },
             {
               "name": "follow-up uses the submitted region and scenario",
               "ok": true,
-              "detail": "new mentions {\"region\":5,\"scenario\":7} (全国 / 乐观)"
+              "detail": "new mentions {\"region\":4,\"scenario\":6} (全国 / 乐观)"
             },
             {
               "name": "submitted form locks against resubmission",
@@ -327,16 +335,16 @@
             }
           ],
           "timing": {
-            "firstPreviewMs": 5079,
-            "generationMs": 6219,
-            "turnMs": 7841,
-            "browserExecMs": 36,
-            "caseMs": 21989,
+            "firstPreviewMs": 4453,
+            "generationMs": 5267,
+            "turnMs": 6938,
+            "browserExecMs": 26,
+            "caseMs": 19510,
             "followUps": [
               {
-                "firstPreviewMs": 6080,
-                "generationMs": 8533,
-                "turnMs": 10425
+                "firstPreviewMs": 2994,
+                "generationMs": 5657,
+                "turnMs": 5644
               }
             ]
           },
@@ -346,9 +354,7 @@
           "consoleErrors": [],
           "screenshots": [
             "browser/form-followup.png"
-          ],
-          "run": 1,
-          "testedAt": "2026-10-16T08:38:23.349Z"
+          ]
         },
         {
           "id": "R-plot",
@@ -384,11 +390,11 @@
             }
           ],
           "timing": {
-            "firstPreviewMs": 6216,
-            "generationMs": 7649,
-            "turnMs": 9421,
+            "firstPreviewMs": 7926,
+            "generationMs": 9986,
+            "turnMs": 12219,
             "browserExecMs": 0,
-            "caseMs": 12806
+            "caseMs": 19080
           },
           "notes": [],
           "clarifications": [],
@@ -396,9 +402,7 @@
           "consoleErrors": [],
           "screenshots": [
             "browser/plot.png"
-          ],
-          "run": 1,
-          "testedAt": "2026-10-16T08:38:23.349Z"
+          ]
         },
         {
           "id": "R-three",
@@ -409,7 +413,7 @@
           ],
           "modelLabel": "DeepSeek-V41-Flash",
           "passed": false,
-          "reason": "3D sphere: no widget script errors (promise: THREE is not defined)",
+          "reason": "3D sphere: no widget script errors (jsExpressions[1]: view is not defined)",
           "checks": [
             {
               "name": "3D sphere: widget finalized with a WebGL canvas",
@@ -418,19 +422,19 @@
             {
               "name": "3D sphere: canvas is drawn, not blank",
               "ok": true,
-              "detail": "luminance σ=39.15, colours=279"
+              "detail": "luminance σ=33.45, colours=260"
             },
             {
               "name": "3D sphere: no widget script errors",
               "ok": false,
-              "detail": "promise: THREE is not defined"
+              "detail": "jsExpressions[1]: view is not defined"
             },
             {
               "name": "3D sphere: \"Ask to fix\" produced a working scene",
               "ok": false,
-              "detail": "repair turn 12448 ms",
+              "detail": "repair turn 12497 ms",
               "informational": true,
-              "invalidated": "harness bug: the check waited for a new iframe, but the fix replaced the widget in place (fixed in this PR). The screenshot three-repaired.png shows the repaired scene drawing without errors."
+              "invalidated": "harness bug: the script-error check read every card in the conversation, so the broken original kept failing it (fixed in this PR). The screenshot three-repaired.png shows the repaired scene without errors."
             },
             {
               "name": "turn finished",
@@ -446,86 +450,22 @@
             }
           ],
           "timing": {
-            "firstPreviewMs": 8394,
-            "generationMs": 17121,
-            "turnMs": 19136,
-            "browserExecMs": 904,
-            "caseMs": 275446
+            "firstPreviewMs": 4540,
+            "generationMs": 11840,
+            "turnMs": 14348,
+            "browserExecMs": 1380,
+            "caseMs": 275803
           },
           "notes": [
             "\"Ask to fix\" outcome not measured (harness bug, fixed); screenshot shows the repaired scene working"
           ],
           "clarifications": [],
           "subagents": 0,
-          "consoleErrors": [
-            "pageerror: THREE is not defined",
-            "pageerror: THREE is not defined"
-          ],
+          "consoleErrors": [],
           "screenshots": [
             "browser/three.png",
             "browser/three-repaired.png"
-          ],
-          "run": 1,
-          "testedAt": "2026-10-16T08:38:23.349Z"
-        },
-        {
-          "id": "R-three",
-          "category": "threejs",
-          "title": "Three.js 3D surface",
-          "model": [
-            "deepseek-flash"
-          ],
-          "modelLabel": "DeepSeek-V41-Flash",
-          "passed": true,
-          "reason": null,
-          "checks": [
-            {
-              "name": "3D sphere: widget finalized with a WebGL canvas",
-              "ok": true
-            },
-            {
-              "name": "3D sphere: canvas is drawn, not blank",
-              "ok": true,
-              "detail": "luminance σ=25.56, colours=439"
-            },
-            {
-              "name": "3D sphere: no widget script errors",
-              "ok": true
-            },
-            {
-              "name": "dragging rotates the view (pixels change)",
-              "ok": true,
-              "detail": "mean Δ=5.672"
-            },
-            {
-              "name": "turn finished",
-              "ok": true
-            },
-            {
-              "name": "no uncaught errors in the DSH page",
-              "ok": true
-            },
-            {
-              "name": "no plugin errors in the console",
-              "ok": true
-            }
-          ],
-          "timing": {
-            "firstPreviewMs": 59007,
-            "generationMs": 69890,
-            "turnMs": 72377,
-            "browserExecMs": 1099,
-            "caseMs": 76972
-          },
-          "notes": [],
-          "clarifications": [],
-          "subagents": 0,
-          "consoleErrors": [],
-          "screenshots": [
-            "browser/three-run2.png"
-          ],
-          "testedAt": "2026-10-16T08:41:19.368Z",
-          "run": 2
+          ]
         },
         {
           "id": "R-stop",
@@ -558,7 +498,7 @@
             {
               "name": "regenerated scene: canvas is drawn, not blank",
               "ok": true,
-              "detail": "luminance σ=57.96, colours=662"
+              "detail": "luminance σ=23.33, colours=545"
             },
             {
               "name": "regenerated scene: no widget script errors",
@@ -578,16 +518,16 @@
             }
           ],
           "timing": {
-            "firstPreviewMs": 74887,
-            "generationMs": 78192,
-            "turnMs": 78153,
-            "caseMs": 141788,
+            "firstPreviewMs": 70237,
+            "generationMs": 73427,
+            "turnMs": 73405,
+            "caseMs": 113784,
             "followUps": [
               {
-                "firstPreviewMs": 11910,
-                "generationMs": 53824,
-                "turnMs": 57393,
-                "browserExecMs": 0
+                "firstPreviewMs": 13264,
+                "generationMs": 30089,
+                "turnMs": 32081,
+                "browserExecMs": 1680
               }
             ]
           },
@@ -598,9 +538,7 @@
           "screenshots": [
             "browser/stopped.png",
             "browser/regenerated.png"
-          ],
-          "run": 1,
-          "testedAt": "2026-10-16T08:38:23.349Z"
+          ]
         },
         {
           "id": "R-patch",
@@ -647,17 +585,17 @@
             }
           ],
           "timing": {
-            "firstPreviewMs": 4497,
-            "generationMs": 5527,
-            "turnMs": 6937,
-            "browserExecMs": 0,
-            "caseMs": 20521,
+            "firstPreviewMs": 4804,
+            "generationMs": 5394,
+            "turnMs": 7218,
+            "browserExecMs": 30,
+            "caseMs": 23182,
             "followUps": [
               {
-                "turnMs": 4605
+                "turnMs": 4281
               },
               {
-                "turnMs": 6107
+                "turnMs": 5789
               }
             ]
           },
@@ -667,9 +605,7 @@
           "consoleErrors": [],
           "screenshots": [
             "browser/patched.png"
-          ],
-          "run": 1,
-          "testedAt": "2026-10-16T08:38:23.349Z"
+          ]
         },
         {
           "id": "R-weak",
@@ -693,7 +629,7 @@
             {
               "name": "cube on Fast 3G: canvas is drawn, not blank",
               "ok": true,
-              "detail": "luminance σ=27.99, colours=596"
+              "detail": "luminance σ=21.57, colours=420"
             },
             {
               "name": "cube on Fast 3G: no widget script errors",
@@ -713,11 +649,11 @@
             }
           ],
           "timing": {
-            "firstPreviewMs": 23952,
-            "generationMs": 31628,
-            "turnMs": 31866,
-            "browserExecMs": 2874,
-            "caseMs": 36950
+            "firstPreviewMs": 9248,
+            "generationMs": 18084,
+            "turnMs": 18383,
+            "browserExecMs": 2942,
+            "caseMs": 26823
           },
           "notes": [],
           "clarifications": [],
@@ -725,9 +661,7 @@
           "consoleErrors": [],
           "screenshots": [
             "browser/weak-network.png"
-          ],
-          "run": 1,
-          "testedAt": "2026-10-16T08:38:23.349Z"
+          ]
         },
         {
           "id": "R-offline",
@@ -767,14 +701,14 @@
             }
           ],
           "timing": {
-            "firstPreviewMs": 4420,
-            "generationMs": 13603,
-            "turnMs": 15346,
+            "firstPreviewMs": 7573,
+            "generationMs": 13705,
+            "turnMs": 16032,
             "browserExecMs": 47,
-            "caseMs": 23474,
+            "caseMs": 25775,
             "followUps": [
               {
-                "turnMs": 6093
+                "turnMs": 4407
               }
             ]
           },
@@ -787,9 +721,7 @@
           ],
           "screenshots": [
             "browser/offline.png"
-          ],
-          "run": 1,
-          "testedAt": "2026-10-16T08:38:23.349Z"
+          ]
         },
         {
           "id": "R-mobile",
@@ -830,26 +762,23 @@
             }
           ],
           "timing": {
-            "firstPreviewMs": 9988,
-            "generationMs": 18839,
-            "turnMs": 22143,
+            "firstPreviewMs": 18886,
+            "generationMs": 25195,
+            "turnMs": 27668,
             "browserExecMs": 0,
-            "caseMs": 30755
+            "caseMs": 39879
           },
           "notes": [],
           "clarifications": [],
           "subagents": 0,
           "consoleErrors": [
-            "pageerror: T.AmbientLight is not a constructor"
+            "pageerror: THREE is not defined"
           ],
           "screenshots": [
             "browser/mobile.png"
-          ],
-          "run": 1,
-          "testedAt": "2026-10-16T08:38:23.349Z"
+          ]
         }
-      ],
-      "partialRerunAt": "2026-10-16T08:41:19.368Z"
+      ]
     },
     "api": {
       "testedAt": "2026-10-16T08:28:06.381Z",
@@ -3030,16 +2959,16 @@
     {
       "id": "R-chart",
       "screenshot": "assets/real-model/chart.png",
-      "verdict": "pass",
-      "notes": "Two series × Q1–Q4 grouped bars, legend and axis correct. Values are explicitly labelled as sample data (示意数据) with a form to enter real figures — honest, not fabricated as fact.",
+      "verdict": "fail (automated pass is a false positive)",
+      "notes": "Chart content is right (two series × Q1–Q4, four KPI tiles), but the card says \"生成已中断，以下为已完成的部分\": the ui_render call was cut off mid-stream while more components (skeletons in the recording) were still pending, so the user got an interrupted card. The checks only looked at content; a new check now fails any case that leaves an interrupted or failed card.",
       "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
       "reviewedAt": "2026-10-16"
     },
     {
       "id": "R-table",
       "screenshot": "assets/real-model/table.png",
-      "verdict": "pass",
-      "notes": "All five requested columns, sortable headers. Spot-checked rows match public specs (e.g. Model Y RWD 593 km CLTC / 5.9 s / ¥26.35万 / 62.5 kWh); automation does not verify facts.",
+      "verdict": "fail",
+      "notes": "No table: the agent spent the whole 5-minute budget researching car specs on the web (20 steps, ~1.3M tokens) before rendering anything.",
       "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
       "reviewedAt": "2026-10-16"
     },
@@ -3047,7 +2976,7 @@
       "id": "R-form",
       "screenshot": "assets/real-model/form-followup.png",
       "verdict": "pass",
-      "notes": "Follow-up restates the submitted values (全国 / 4 / 乐观) in a table and asks only for the missing base-quarter sales.",
+      "notes": "The follow-up builds a quarterly forecast table from the submitted 全国 / 4 / 乐观 values (+10% per quarter) and explains the optimistic assumption.",
       "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
       "reviewedAt": "2026-10-16"
     },
@@ -3055,23 +2984,15 @@
       "id": "R-plot",
       "screenshot": "assets/real-model/plot.png",
       "verdict": "pass",
-      "notes": "Correct damped oscillation y = A·e^(−γt)·cos(ωt) with ±A·e^(−γt) envelopes, KaTeX formula, three working sliders.",
+      "notes": "Correct damped oscillation y = A·e^(−γt)·cos(ωt) with ±A·e^(−γt) envelopes, KaTeX formula, working sliders.",
       "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
       "reviewedAt": "2026-10-16"
     },
     {
-      "id": "R-three #1",
-      "screenshot": "assets/real-model/three-script-error.png",
-      "verdict": "fail",
-      "notes": "Sphere and axes draw, but one script error (THREE is not defined) is flagged on the card. After \"让模型修复\" the scene renders with a lat/long mesh and no error (three-repaired.png).",
-      "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
-      "reviewedAt": "2026-10-16"
-    },
-    {
-      "id": "R-three #2",
+      "id": "R-three",
       "screenshot": "assets/real-model/three.png",
-      "verdict": "pass",
-      "notes": "Geometry correct: sphere centred at C(0,0,R), tangent to the z = 0 plane at the origin; labelled axes and plane; R slider updates the equation text.",
+      "verdict": "fail",
+      "notes": "The sphere draws, but the card flags one script error (view is not defined). After \"让模型修复\" the scene renders without errors (three-repaired.png): x²+y²+(z−R)²=R², centre (0,0,R), labelled axes.",
       "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
       "reviewedAt": "2026-10-16"
     },
@@ -3079,7 +3000,7 @@
       "id": "R-stop",
       "screenshot": "assets/real-model/stopped.png",
       "verdict": "pass",
-      "notes": "Interrupted card keeps a static preview, shows the interruption notice and a Regenerate button; the regenerated solar system (regenerated.png) has sun, orbits, ringed Saturn and labels.",
+      "notes": "Interrupted card keeps its preview with the notice and Regenerate; the regenerated solar system (regenerated.png) shows the sun, orbits and lit planets.",
       "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
       "reviewedAt": "2026-10-16"
     },
@@ -3087,7 +3008,7 @@
       "id": "R-patch",
       "screenshot": "assets/real-model/patched.png",
       "verdict": "pass",
-      "notes": "Version 3 shows exactly the requested values (online 120→170, offline 90→100, 小程序 30→80); the added difference column is arithmetically correct (30/40/62/70).",
+      "notes": "Version 3: line chart with 线上 120→170, 线下 90→100 and 小程序 30→80, exactly as requested.",
       "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
       "reviewedAt": "2026-10-16"
     },
@@ -3095,7 +3016,7 @@
       "id": "R-weak",
       "screenshot": "assets/real-model/weak-network.png",
       "verdict": "pass",
-      "notes": "Cube with colour-coded, labelled X/Y/Z axes and grid renders on Fast 3G.",
+      "notes": "Colour cube with labelled ±X/±Y axes renders on Fast 3G.",
       "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
       "reviewedAt": "2026-10-16"
     },
@@ -3103,15 +3024,15 @@
       "id": "R-offline",
       "screenshot": "assets/real-model/offline.png",
       "verdict": "pass (degraded as designed)",
-      "notes": "With the CDN blocked the stage stays empty but the card says \"1 个脚本错误\" and offers Reload / Ask to fix; the conversation continues.",
+      "notes": "CDN blocked: empty stage, \"1 个脚本错误\" with Reload / Ask to fix; the conversation continues.",
       "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
       "reviewedAt": "2026-10-16"
     },
     {
       "id": "R-mobile",
       "screenshot": "assets/real-model/mobile.png",
-      "verdict": "pass, minor",
-      "notes": "No page overflow at 390 px; KPI grid and pie chart fit. The wide business-line table needs horizontal scrolling inside its card and wraps currency values onto two lines — usable but cramped.",
+      "verdict": "pass",
+      "notes": "Phone width: KPI text, line chart and pie chart fit; no horizontal overflow.",
       "reviewer": "Claude Code (AI assistant) by inspecting the screenshots; pending maintainer confirmation",
       "reviewedAt": "2026-10-16"
     }
@@ -3120,23 +3041,6 @@
     {
       "file": "docs/history/2026-10-10-real-model-eval-report.json",
       "note": "historical snapshot from the v2 evaluator (API only). Its 15/15 is not a pass rate: B3 had no Chart; other cases cannot be rescored because arguments were not kept."
-    }
-  ],
-  "provenance": [
-    {
-      "command": "node scripts/run-real-model-suite.mjs all --repeat 2 --record",
-      "at": "2026-10-16T08:12:53.088Z",
-      "note": "all three layers; API ×2 per case; recorded the demo (cost ¥1.54)"
-    },
-    {
-      "command": "node scripts/run-real-model-suite.mjs all --rescore",
-      "at": "2026-10-16T08:38:48.911Z",
-      "note": "API layer re-judged from the saved transcripts after fixing three over-strict assertions (月活 as active users, 指导价 as price, a dated Mermaid flow as a timeline); no model calls"
-    },
-    {
-      "command": "node scripts/run-real-model-suite.mjs all --stage browser --only R-three --keep-other-layers",
-      "at": "2026-10-16T08:41:19.368Z",
-      "note": "a second R-three sample, added as run #2 next to the failed run #1 (merged once by hand with the --append logic, which was added right after)"
     }
   ]
 }

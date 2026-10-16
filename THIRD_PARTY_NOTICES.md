@@ -23,3 +23,11 @@ Copyright (c) Big Sky Software. Permission to use, copy, modify, and/or distribu
 ## React — MIT License
 
 React is provided at runtime by the DSH Web shell. It is not bundled.
+
+## dsh-whale-musume whale-girl illustrations (demo video only) — MIT License
+
+https://github.com/Sutera-Diffusus/dsh-whale-musume
+
+26 unmodified illustrations in `scripts/eval/demo/assets/whale/` narrate the demo video and GIF in `docs/assets/real-model/`. They are not included in the npm package. The full licence text is in `scripts/eval/demo/assets/whale/LICENSE`.
+
+Copyright (c) 2026 Sutera-Diffusus. Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, subject to the condition that the above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.

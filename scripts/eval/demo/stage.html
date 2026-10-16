@@ -40,7 +40,12 @@
 
   /* mascot + bubble */
   #mascot { position: absolute; left: 960px; top: 330px; width: 290px; transform-origin: 50% 100%; }
-  #mascot svg { width: 100%; height: auto; display: block; }
+  #poses { position: relative; width: 100%; aspect-ratio: 1; transform-origin: 50% 92%; }
+  #poses img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  #shadow { position: absolute; left: 18%; right: 18%; bottom: -6px; height: 18px; border-radius: 50%; background: radial-gradient(closest-side, rgba(54, 81, 216, .22), transparent); }
+  #fx { position: absolute; inset: 0; pointer-events: none; font: 400 30px/1 'Segoe UI Emoji', 'Apple Color Emoji', sans-serif; }
+  #fx span { position: absolute; }
+  #fx .dots { font: 900 30px/1 var(--bold); color: var(--ink); background: #fff; border: 3.5px solid var(--ink); border-radius: 999px; padding: 0 12px 10px; box-shadow: 0 4px 0 var(--ink); }
   #bubble { position: absolute; left: 952px; top: 96px; width: 300px; min-height: 120px; padding: 18px 20px; border-radius: 26px; background: #fff; border: 4px solid var(--ink); box-shadow: 0 7px 0 var(--ink); font: 400 21px/1.55 var(--cute); white-space: pre-wrap; transform-origin: 50% 100%; }
   #bubble::after { content: ''; position: absolute; left: 132px; bottom: -26px; width: 30px; height: 30px; background: #fff; border-right: 4px solid var(--ink); border-bottom: 4px solid var(--ink); transform: rotate(45deg) skew(8deg, 8deg); border-radius: 0 0 8px 0; }
   #bubble .hl { color: var(--blue); font-weight: 700; }
@@ -72,7 +77,7 @@
   </div>
   <div id="ff">⏩ 快进中<small id="ffs"></small></div>
   <div id="bubble"></div>
-  <div id="mascot"></div>
+  <div id="mascot"><div id="shadow"></div><div id="poses"><img id="petPrev" alt=""><img id="pet" alt=""></div><div id="fx"></div></div>
   <div id="card"></div>
   <svg id="confetti" viewBox="0 0 1280 720"></svg>
 <script>
@@ -113,6 +118,18 @@ function confetti(t, on) {
   $('confetti').innerHTML = s
 }
 
+/** Small effect overlays around the whale girl, as pure functions of t. */
+function effects(kind, t) {
+  const tw = (ph) => (Math.sin(t * 5 + ph) + 1) / 2
+  switch (kind) {
+    case 'sparkle': return [[8, 12, 0], [78, 6, 2], [86, 40, 4], [2, 46, 1]].map(([x, y, ph]) => `<span style="left:${x}%;top:${y}%;opacity:${tw(ph).toFixed(2)};transform:scale(${(0.6 + tw(ph) * 0.6).toFixed(2)})">✨</span>`).join('')
+    case 'sweat': return `<span style="left:74%;top:${(14 + (t * 30) % 14).toFixed(1)}%">💦</span>`
+    case 'think': return `<span class="dots" style="left:66%;top:-2%">${[0, 1, 2].map(k => `<b style="opacity:${(0.25 + 0.75 * ((Math.floor(t * 4) % 3) >= k)).toFixed(2)}">•</b>`).join('')}</span>`
+    case 'note': return [[6, 18, 0], [84, 10, 1.5]].map(([x, y, ph]) => `<span style="left:${x}%;top:${(y - ((t * 12 + ph * 8) % 12)).toFixed(1)}%;opacity:${tw(ph).toFixed(2)}">🎵</span>`).join('')
+    default: return ''
+  }
+}
+
 window.renderFrame = async (st) => {
   background(st.t)
   confetti(st.t, st.confetti)
@@ -145,8 +162,23 @@ window.renderFrame = async (st) => {
     if (st.bubblePos) Object.assign($('bubble').style, st.bubblePos)
     else Object.assign($('bubble').style, { left: '952px', top: '96px', width: '300px' })
   }
-  $('mascot').innerHTML = st.mascot
   Object.assign($('mascot').style, { left: `${st.mx}px`, top: `${st.my}px`, width: `${st.mw}px`, transform: `scale(${st.ms ?? 1}) rotate(${st.mr ?? 0}deg)` })
+  const p = st.pet
+  // Two layers: the pose fading out under the current one (crossfade).
+  const setPose = async (img, name) => {
+    const src = name ? `assets/whale/${name}.webp` : ''
+    if (img.dataset.pose !== src) {
+      img.dataset.pose = src
+      if (src) { img.src = src; try { await img.decode() } catch { /* keep going */ } } else img.removeAttribute('src')
+    }
+  }
+  await setPose($('pet'), p.img)
+  await setPose($('petPrev'), p.prev)
+  $('petPrev').style.opacity = p.prev ? (1 - p.mix).toFixed(3) : '0'
+  $('pet').style.opacity = p.mix.toFixed(3)
+  Object.assign($('poses').style, { transform: `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) rotate(${p.r.toFixed(2)}deg) scale(${p.s.toFixed(3)})`, filter: `${p.filter} drop-shadow(0 10px 0 rgba(34, 48, 95, .12))` })
+  $('shadow').style.transform = `scaleX(${(1 + p.y / 120).toFixed(3)})`
+  $('fx').innerHTML = effects(p.fx, p.t)
 }
 </script>
 </body>

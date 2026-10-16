@@ -92,6 +92,9 @@ export function toMarkdown(report) {
   row('Mock E2E', 'Rendering, streaming, interaction, persistence and isolation with **scripted** model answers', layers.mockE2E)
   row('Real model · API', 'The real model picks the right tool, emits valid arguments and the requested components/data', layers.api)
   row('Real model · browser', 'What the real model generated actually renders and works in real DSH Web + Chrome', layers.browser)
+  // A manual review can overturn an automated pass; say so next to the number.
+  const overturned = (report.manualReview || []).filter(r => /^fail/.test(r.verdict) && layers.browser?.cases?.some(c => c.id === r.id.split(' ')[0] && c.passed))
+  if (overturned.length) lines[lines.length - 1] = lines.at(-1).replace(/ \|$/, ` · **manual review: ${overturned.length} more failed** (${overturned.map(r => r.id).join(', ')}) |`)
   lines.push('')
 
   for (const [key, title] of [['api', 'Real model · API structural assertions'], ['browser', 'Real model · browser runtime']]) {

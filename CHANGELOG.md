@@ -17,7 +17,19 @@ All notable changes to this project are documented here. The format follows
   - Timings are recorded per stage: API time per model call, and in the browser first visible preview, complete generation and browser-side execution, each with p50/p95. `--repeat N` gives per-case success rates.
   - The report (`docs/real-model-eval-report.json` + `.md`) records date, model (requested, API-reported and fingerprint), prompt hash, assertion version, environment and failure reasons. It is redacted, and the run refuses to write a report that still contains the key.
   - A manually triggered `Real-model eval` workflow uses the `DEEPSEEK_API_KEY` secret.
-- `scripts/eval/edit-demo.mjs` (`npm run eval:demo`) turns the browser-stage recording into a designed demo video narrated by 小鲸, an original chibi whale-girl mascot drawn in SVG (`scripts/eval/demo/`; an unofficial fan character, not DeepSeek branding). Every frame is rendered deterministically. Model waits are sped up, and the real-time stopwatch from the recording plus a speed-factor sticker keep that honest.
+- `scripts/eval/edit-demo.mjs` (`npm run eval:demo`) turns the browser-stage recording into a designed demo video, narrated by the DeepSeek whale girl in 26 poses from [Sutera-Diffusus/dsh-whale-musume](https://github.com/Sutera-Diffusus/dsh-whale-musume) (MIT). She switches poses with crossfades to fit each beat (hello, thinking at her laptop, an umbrella for the slow network, tears for a failure, confetti for a success), with motion on top. Each chapter is marked ✓/✗ and the narration follows the real outcome. Every frame is rendered deterministically.
+  - The recorder marks non-content spans (new conversations, screenshots, viewport switches) to cut, and holds each case's result on screen for a few seconds.
+  - Model waits are sped up; the recording's real-time stopwatch and a speed-factor sticker keep that visible.
+- `scripts/eval/gallery.mjs` puts the README screenshots on one uniform 1200×750 canvas.
+- Portable renderer for remote clients ([#22](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/22), experimental):
+  - `renderer/renderer.js` is a prebuilt, host-neutral WebView bundle (`DshIntelligentUiRenderer.mount(element, host)`) that renders accepted `ui_render`, `ui_patch` and `ui_render_widget` artifacts without DSH Web. It ships in the npm package and is checked in CI and before release.
+  - `deepseek-harness-intelligent-ui/portable` exports `projectNativeUiEvents`, which turns native Session events into artifacts.
+  - Widget errors inside the sandbox are reported to the remote client.
+  - See [docs/portable-renderer.md](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/portable-renderer.md).
+
+### Fixed
+
+- Browser E2E: the dark-theme check polls until the host card and the widget frame have both switched, instead of measuring after a fixed 1.2 s. The nightly `dsh latest · macos-latest` job had measured too early.
 
 ### Changed
 
