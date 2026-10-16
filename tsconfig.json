@@ -11,9 +11,19 @@
     "allowImportingTsExtensions": true,
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "types": [],
     "isolatedModules": true
   },
-  "include": ["client-src/**/*.ts", "client-src/**/*.tsx", "client-src/**/*.d.ts"]
+  "include": [
+    "client-src/**/*.ts",
+    "client-src/**/*.tsx",
+    "client-src/**/*.d.ts",
+    "renderer-src/**/*.ts",
+    "renderer-src/**/*.tsx"
+  ]
 }
