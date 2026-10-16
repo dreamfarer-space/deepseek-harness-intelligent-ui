@@ -6,7 +6,7 @@
 // Usage: node scripts/ci/release-check.mjs [--tag v1.2.3] [--notes <out-file>]
 //   --tag defaults to $GITHUB_REF_NAME when it starts with "v".
 //   --notes writes this version's changelog section (the GitHub Release body).
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import semver from 'semver'
@@ -32,6 +32,19 @@ if (mainRef) {
 
 const banner = read('client/client.js').split('\n', 1)[0]
 if (!banner.includes(`${pkg.name} ${pkg.version} `)) errors.push(`client/client.js was built for another version (${banner.slice(0, 80)}…) — run npm run build`)
+
+// The standalone renderer is a public package export. Assert that a publish
+// cannot succeed while the required prebuilt offline artifact is absent.
+const rendererPath = path.join(root, 'renderer/renderer.js')
+if (!existsSync(rendererPath)) {
+  errors.push('renderer/renderer.js is missing — run npm run build and commit it')
+} else {
+  const rendererCode = readFileSync(rendererPath, 'utf8')
+  const expectedApi = ['DshIntelligentUiRenderer', 'mount', 'render', 'setTheme', 'dispose']
+  if (statSync(rendererPath).size < 50_000 || !expectedApi.every(symbol => rendererCode.includes(symbol))) {
+    errors.push('renderer/renderer.js is incomplete or does not expose the expected API')
+  }
+}
 
 const notes = changelogSection(read('CHANGELOG.md'), pkg.version)
 if (notes === undefined) errors.push(`CHANGELOG.md has no "## [${pkg.version}]" section`)
