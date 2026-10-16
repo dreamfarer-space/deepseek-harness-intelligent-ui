@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.4]
+
 ### Added
 
 - `ui_patch`: change a UI shown earlier in the conversation by component id (`setProps`, `replaceNode`, `insertChild`, `removeNode`) instead of re-sending the whole tree ([#14](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/14)). `ui_render` results now report the UI's `uiId` and version. Patches are atomic, revalidated as a whole tree, version-checked (`baseVersion`; stale patches are refused with the current version), and limited to UIs of the same conversation. The Host rebuilds versions by replaying the session history, so it keeps no state.
@@ -95,7 +97,8 @@ All notable changes to this project are documented here. The format follows
   - The declarative component catalog (`ui_render`) and sandboxed streaming HTML widgets (`ui_render_widget`).
   - The `/ui` command and the guidance system-prompt section.
 
-[Unreleased]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/releases/tag/v0.2.1
