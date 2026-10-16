@@ -47,6 +47,7 @@ const readDefinition = (value: unknown): Record<string, unknown> | undefined =>
 function Surface({ artifact, host, theme }: { artifact: PortableUiArtifact; host: RendererHost; theme: 'light' | 'dark' }) {
   const definition = readDefinition(artifact.definition)
   const policy = useMemo(() => policyFromMeta({ policy: artifact.policy ?? DEFAULT_POLICY }), [artifact.policy])
+  const [widgetErrors, setWidgetErrors] = useState<readonly string[]>([])
   const guard = useMemo(() => new BridgeGuard({ policy, armDelayMs: 200, minIntervalMs: 1000 }), [policy])
   const t = ((key: keyof typeof zh, vars?: Record<string, string | number>) => {
     // English is the portable renderer default; consumers may provide locale in future.
@@ -90,8 +91,10 @@ function Surface({ artifact, host, theme }: { artifact: PortableUiArtifact; host
                   jsExpressions={Array.isArray(definition.jsExpressions) ? definition.jsExpressions.filter((s): s is string => typeof s === 'string') : []}
                   initialHeight={typeof definition.initialHeight === 'number' ? definition.initialHeight : undefined}
                   policy={policy}
+                  onErrors={setWidgetErrors}
                   sendPrompt={host.sendPrompt}
                 />
+                {widgetErrors.length > 0 && <div className="diui-remote-error">Widget script error: {widgetErrors[0]}</div>}
               </div>}
     </div>
   )
