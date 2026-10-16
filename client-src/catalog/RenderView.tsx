@@ -7,12 +7,13 @@ import { useStashOnDrop } from '../interrupted.ts'
 import { argsRawOf, interrupted, refused, resultText, type ToolViewProps } from '../types/dsh.ts'
 import { renderNode, type RenderEnv, type UiNode } from './components.tsx'
 import { usePartialArguments } from '../stream/args.ts'
+import { useLatestUiVersion } from '../versions.ts'
 
 function isNode(v: unknown): v is UiNode {
   return !!v && typeof v === 'object' && typeof (v as UiNode).id === 'string' && typeof (v as UiNode).type === 'string'
 }
 
-function indexNodes(list: unknown): Map<string, UiNode> {
+export function indexNodes(list: unknown): Map<string, UiNode> {
   const map = new Map<string, UiNode>()
   if (Array.isArray(list)) for (const n of list) if (isNode(n) && !map.has(n.id)) map.set(n.id, n)
   return map
@@ -58,6 +59,8 @@ export function RenderView(props: ToolViewProps) {
   const policy = useMemo(() => meta === undefined ? DEFAULT_POLICY : policyFromMeta(meta), [meta])
   const guard = useMemo(() => new BridgeGuard({ policy, armDelayMs: 0, minIntervalMs: 1000 }), [policy])
   const [sending, setSending] = useState(false)
+  // A later ui_patch shows this UI's newer version; this copy becomes a pointer.
+  const latest = useLatestUiVersion(props.phase === 'result' ? props.callId : undefined)
   const { t } = props
   const title = tree?.title || t('render.title')
 
@@ -75,6 +78,9 @@ export function RenderView(props: ToolViewProps) {
   }
 
   const settled = props.phase !== 'preparing' && !stopped
+  if (settled && latest && latest.version > 1) {
+    return <Shell kind="render" title={title} state="ready" status={t('patch.superseded', { version: latest.version })} />
+  }
   const env: RenderEnv = {
     nodes: tree?.nodes ?? new Map(),
     streaming: !settled,

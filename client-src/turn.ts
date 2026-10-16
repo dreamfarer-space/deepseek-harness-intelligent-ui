@@ -8,12 +8,14 @@
  * events, so Session replay reproduces the cards.
  */
 import { useSyncExternalStore } from 'react'
+import { PATCH_TOOL } from '../src/tools/patch.js'
 import { RENDER_TOOL } from '../src/tools/render.js'
 import { WIDGET_TOOL } from '../src/tools/widget.js'
 import type { ToolResultNode } from './types/dsh.ts'
+import { noteUiVersion } from './versions.ts'
 
 export const TURN_DATA_KEY = 'intelligent-ui'
-const UI_TOOLS = new Set<string>([RENDER_TOOL, WIDGET_TOOL])
+const UI_TOOLS = new Set<string>([RENDER_TOOL, PATCH_TOOL, WIDGET_TOOL])
 
 /** Settled UI results of one Turn, in settlement order. */
 export interface UiTurnData {
@@ -44,6 +46,38 @@ export function presentable(meta: unknown, isError: boolean): boolean {
   return !(meta && typeof meta === 'object' && (meta as { ok?: unknown }).ok === false)
 }
 
+/** The snapshot a successful `ui_patch` result carries in its meta. */
+export interface PatchedUi {
+  readonly uiId: string
+  readonly version: number
+  readonly title?: string
+  readonly root: string
+  readonly components: readonly unknown[]
+}
+
+export function patchedUiOf(meta: unknown): PatchedUi | undefined {
+  const ui = meta && typeof meta === 'object' ? (meta as { ui?: unknown }).ui : undefined
+  if (!ui || typeof ui !== 'object') return undefined
+  const u = ui as Partial<PatchedUi>
+  return typeof u.uiId === 'string' && typeof u.version === 'number' && typeof u.root === 'string' && Array.isArray(u.components) ? u as PatchedUi : undefined
+}
+
+/** Feed the cross-Turn version registry from one presentable result. */
+function noteVersion(callId: string, call: CallHead, meta: unknown): void {
+  if (call.name === PATCH_TOOL) {
+    const ui = patchedUiOf(meta)
+    if (ui) noteUiVersion(ui.uiId, ui.version, ui.title)
+    return
+  }
+  if (call.name !== RENDER_TOOL) return
+  let title: string | undefined
+  try {
+    const args = JSON.parse(call.argsRaw) as { title?: unknown }
+    title = typeof args.title === 'string' ? args.title : undefined
+  } catch { /* malformed calls are never presentable anyway */ }
+  noteUiVersion(callId, 1, title)
+}
+
 /** The Conversation Node Definition (accumulator only; publishes no view node). */
 export const uiTurnDefinition = {
   kind: TURN_DATA_KEY,
@@ -70,6 +104,7 @@ export const uiTurnDefinition = {
     const callId = String(message.source.callId)
     const call = context.state.calls.get(callId)
     if (!call || !presentable(event.data.meta, message.isError === true)) return context.state
+    noteVersion(callId, call, event.data.meta)
     const node: ToolResultNode = {
       kind: 'tool-result',
       callId,

@@ -63,7 +63,7 @@ export function createRenderTool(config) {
       presentationMeta: (_args, value) => ({ ok: value.ok, policy }),
     },
     isConcurrencySafe: () => true,
-    async execute(args) {
+    async execute(args, exec) {
       const result = validateTree(args);
       if (!result.ok) {
         return {
@@ -75,9 +75,11 @@ export function createRenderTool(config) {
       const kinds = Object.entries(result.types).map(([t, n]) => (n > 1 ? `${n}x ${t}` : t)).join(', ');
       const title = typeof args.title === 'string' && args.title ? ` "${args.title}"` : '';
       const warn = result.warnings.length ? ` Warning: ${result.warnings.join('; ')}.` : '';
+      // The call id doubles as the UI's identity for later in-place patches.
+      const handle = exec?.callId ? ` uiId ${exec.callId}, version 1 (change it later with ui_patch).` : '';
       return {
         ok: true,
-        summary: `UI${title} is now displayed to the user (${result.count} components: ${kinds}).${warn} User interactions will arrive as new user messages.`,
+        summary: `UI${title} is now displayed to the user (${result.count} components: ${kinds}).${warn}${handle} User interactions will arrive as new user messages.`,
       };
     },
   };

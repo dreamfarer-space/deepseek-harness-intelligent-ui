@@ -21,6 +21,14 @@ export const DASHBOARD = {
   ],
 }
 
+/**
+ * Second-turn change of the dashboard by component id. The first attempt uses
+ * an invalid chart kind, so the Host refuses it and the "model" retries.
+ */
+export function chartPatch(uiId, valid) {
+  return { uiId, baseVersion: 1, ops: [{ op: 'setProps', id: 'chart', props: { kind: valid ? 'line' : 'scatter', title: 'Revenue by channel (line)' } }] }
+}
+
 export function forecast(values) {
   const q = Math.max(1, Math.min(8, Number(values.quarters) || 4))
   const growth = { Base: 0.03, Optimistic: 0.055, Conservative: 0.012 }[values.scenario] ?? 0.03

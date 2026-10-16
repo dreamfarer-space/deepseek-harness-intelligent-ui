@@ -163,6 +163,7 @@ The plugin injects a system-prompt section (`src/guidance.js`) that makes the mo
 | Tool | Use it for | Rendering |
 |---|---|---|
 | `ui_render` | Structured answers | Native React components from a fixed catalog, rendered progressively as the JSON streams |
+| `ui_patch` | Changing a UI shown earlier | Component-level operations on that UI; untouched components keep their state ([details](#-updating-a-ui-in-place-ui_patch)) |
 | `ui_render_widget` | Custom visuals, 3D, simulations, mini-apps | HTML/CSS/JS in an opaque-origin sandboxed iframe: CSS first, HTML morphed in live, JS last, all in **one** iframe |
 
 ## 🧩 Component catalog (`ui_render`)
@@ -179,6 +180,18 @@ The plugin injects a system-prompt section (`src/guidance.js`) that makes the mo
 A UI travels as a **flat node list with id references**, because DSH's tool-schema subset has no recursion. The Host validates it before acknowledging: unknown types or props, dangling or duplicate ids, cycles, two parents, chart length mismatches, `Plot` expressions that do not compile, slider defaults out of range, and so on. Problems come back as `ok:false` with paths, so the model can fix them and retry.
 
 `Math` and `Mermaid` render inside the same sandbox as widgets, loading KaTeX or Mermaid from the CDN allowlist. No third-party code runs in the DSH page and the host bundle stays small (~127 KB). If the CDN is unreachable, the source text is shown instead.
+
+## 🔁 Updating a UI in place (`ui_patch`)
+
+When the user asks to change a UI shown earlier ("make that bar chart a line chart; leave the rest"), the agent patches it by component id instead of re-sending the whole tree.
+
+- **Identity:** every `ui_render` result tells the model the UI's `uiId` (its call id) and `version` 1. Each accepted patch reports the new version and an `id:Type` outline of the components.
+- **Operations:** `setProps` (merge props, `unset` to remove), `replaceNode` (same id, new type/props/children), `insertChild` (new components under a container), and `removeNode`. They apply in order and **all-or-nothing**. The whole next version then passes the same checks as a fresh `ui_render` (types, props, references, cycles, depth, sizes, Tabs labels).
+- **Concurrency:** `baseVersion` is required. A patch based on an older version is refused as stale and reports the current version, so the model re-derives the patch and retries. Patches run exclusively (never in parallel), so versions form one ordered chain.
+- **Scope:** the Host stores nothing. It rebuilds the current version by replaying the conversation's own history (accepted renders, then accepted patches), so a patch can only address UIs of the same conversation. Unknown ids, other conversations' UIs and UIs dropped by context compaction are refused, and the model falls back to `ui_render`.
+- **State:** components keep their ids across versions, and interaction state is keyed by `uiId` + component id. Every component a patch does not replace keeps its table sort, selected tab, form input, submitted lock and Plot slider positions. A `replaceNode`d component starts fresh; to reset any component, give it a new id. Form fields added by a patch start at their defaults.
+- **Display:** while a patch streams or runs, its card is a one-line "Updating the UI…" status and the previous version stays live, so a half-applied patch is never drawn. On success the next version renders beneath the new reply and the older copy collapses to "Updated to version N". A refused, failed or stopped patch leaves the previous version untouched. The full snapshot travels in the durable result meta, so a reload shows the latest version.
+- **Widgets** (`ui_render_widget`) are not patched: the agent re-renders them, and they keep their `UI.state` when it does.
 
 ## 🪟 Sandboxed widgets (`ui_render_widget`)
 
@@ -206,7 +219,7 @@ Fields follow the OpenIntelligentUI streaming contract, **in this order**: `titl
 
 - While a turn runs, the UI renders inline inside the tool call. One component instance spans preparing → running → result, so interaction state carries over.
 - When the turn ends, DSH folds tool calls into the "process" section. The plugin re-presents each UI **beneath the reply** (`conversation.chat.turnTail`), and the inline copy shrinks to a pointer.
-- **Interaction state persists per tool call:** the open tab, table sort, form values, the submitted lock, Plot sliders, widget controls and `UI.state`, and frame heights. It lives in memory and in `localStorage` (bounded), so moving beneath the reply or reloading the page restores it. The UIs themselves are rebuilt from the durable session log.
+- **Interaction state persists per UI** (per tool call; patched versions share their `ui_render` call's state): the open tab, table sort, form values, the submitted lock, Plot sliders, widget controls and `UI.state`, and frame heights. It lives in memory and in `localStorage` (bounded), so moving beneath the reply or reloading the page restores it. The UIs themselves are rebuilt from the durable session log.
 - **Stopped generation:**
   - If the call already reached DSH, the view keeps the finished part (a static widget preview or the completed components) with a notice and a **Regenerate** button.
   - If the user stops while the arguments are still streaming, DSH drops the call entirely. The plugin stashes what was streamed and shows it beneath the stopped turn the same way.
@@ -235,7 +248,7 @@ The bundle patch inserts the plugin row automatically. To change settings, add t
 
 | Option | Default | Meaning |
 |---|---|---|
-| `enableCatalog` | `true` | Register `ui_render` |
+| `enableCatalog` | `true` | Register `ui_render` and `ui_patch` |
 | `enableWidget` | `true` | Register `ui_render_widget` |
 | `injectGuidance` | `true` | Add the "when to use UI" system-prompt section |
 | `cdnAllowlist` | esm.sh, jsdelivr, unpkg | Origins widgets (and Math/Mermaid) may load resources from |
@@ -274,6 +287,7 @@ Report: [`docs/e2e-report.json`](https://github.com/dreamfarer-space/deepseek-ha
 - The dashboard streams progressively.
 - Chart hover, table sort and tabs are local.
 - A form round-trip returns a new UI.
+- A second-turn `ui_patch` turns the dashboard chart from bar to line: an invalid first attempt is refused, the old copy collapses, and sort, tab and form state are kept, including after a reload.
 - The preview iframe is finalized in place.
 - The Three.js scene renders, and the R slider, drag-rotate and wheel-zoom work.
 - The `Bridge.sendPrompt` round trip works.

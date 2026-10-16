@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, type ReactElement } from 'react'
+import { PatchView } from './catalog/PatchView.tsx'
 import { RenderView } from './catalog/RenderView.tsx'
 import { inTurn, useInterrupted } from './interrupted.ts'
 import { Shell } from './shell.tsx'
@@ -6,6 +7,7 @@ import { presented, selectTurnResults, usePresentedBelow, type TurnTailOwner } f
 import type { IntelligentUiInjected, ToolResultNode, ToolViewProps, Translate } from './types/dsh.ts'
 import { WidgetView } from './widget/WidgetView.tsx'
 import { WIDGET_TOOL } from '../src/tools/widget.js'
+import { PATCH_TOOL } from '../src/tools/patch.js'
 
 type TailProps = TurnTailOwner & IntelligentUiInjected & { t: Translate }
 
@@ -40,7 +42,7 @@ function TailItem(props: { block: ToolResultNode; t: Translate } & IntelligentUi
   // Claim the call before paint so the inline copy collapses in the same frame.
   useLayoutEffect(() => presented.add(block.callId), [block.callId])
   const toolName = block.call?.name ?? ''
-  const View = toolName === WIDGET_TOOL ? WidgetView : RenderView
+  const View = toolName === WIDGET_TOOL ? WidgetView : toolName === PATCH_TOOL ? PatchView : RenderView
   return <View phase="result" block={block} callId={block.callId} toolName={toolName} t={props.t} sendPrompt={props.sendPrompt} sessionId={props.sessionId} />
 }
 

@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `ui_patch`: change a UI shown earlier in the conversation by component id (`setProps`, `replaceNode`, `insertChild`, `removeNode`) instead of re-sending the whole tree ([#14](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/14)). `ui_render` results now report the UI's `uiId` and version. Patches are atomic, revalidated as a whole tree, version-checked (`baseVersion`; stale patches are refused with the current version), and limited to UIs of the same conversation. The Host rebuilds versions by replaying the session history, so it keeps no state.
+- Untouched components keep their interaction state across versions (table sort, tab, form input and submitted lock, Plot sliders). Streaming, refused, failed or stopped patches never replace the previous version; superseded copies collapse to a pointer; a reload restores the latest version.
+- Browser E2E: a cross-turn patch scenario against real DSH Web (refusal and retry, in-place bar → line, state kept, reload).
+
+### Changed
+
+- The guidance prefers `ui_patch` for changes to an existing `ui_render` UI; widgets are still re-rendered in full.
+- `Form` fields added by a later version start at their defaults; a `Table` sort on a removed column is ignored.
+
 ## [0.2.3]
 
 ### Changed

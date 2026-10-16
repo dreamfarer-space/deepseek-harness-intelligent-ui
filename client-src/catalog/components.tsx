@@ -202,7 +202,9 @@ function Tabs(props: { labels: string[]; children: ReactNode[]; env: RenderEnv; 
 type Cell = string | number | boolean | null
 
 function Table(props: { columns: string[]; rows: Cell[][]; caption?: string; sortable?: boolean; env: RenderEnv; nodeId: string }) {
-  const [sort, setSort] = useUiState<{ col: number; dir: 1 | -1 } | null>(props.env.callId, `${props.nodeId}:sort`, null)
+  const [stored, setSort] = useUiState<{ col: number; dir: 1 | -1 } | null>(props.env.callId, `${props.nodeId}:sort`, null)
+  // A patch may drop columns; a sort on a column that no longer exists is void.
+  const sort = stored && stored.col < props.columns.length ? stored : null
   const rows = useMemo(() => {
     if (!sort) return props.rows
     const { col, dir } = sort
@@ -297,7 +299,9 @@ function initialValue(f: FieldSpec): unknown {
 
 function Form({ props, env, nodeId }: { props: Record<string, any>; env: RenderEnv; nodeId: string }) {
   const fields = props.fields as FieldSpec[]
-  const [values, setValues] = useUiState<Record<string, unknown>>(env.callId, `${nodeId}:values`, () => Object.fromEntries(fields.map(f => [f.name, initialValue(f)])))
+  const [stored, setValues] = useUiState<Record<string, unknown>>(env.callId, `${nodeId}:values`, () => Object.fromEntries(fields.map(f => [f.name, initialValue(f)])))
+  // Fields a patch added start from their defaults; the user's input in the others is kept.
+  const values = useMemo(() => ({ ...Object.fromEntries(fields.map(f => [f.name, initialValue(f)])), ...stored }), [fields, stored])
   const [send, busy, note] = useSend(env)
   // Submitted forms stay locked across remounts and reloads.
   const [done, setDone] = useUiState(env.callId, `${nodeId}:submitted`, false)
