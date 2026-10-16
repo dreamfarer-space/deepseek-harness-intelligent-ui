@@ -40,8 +40,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Build client bundle
         run: npm run build
-      - name: Committed client/client.js is up to date
-        run: git diff --exit-code -- client/client.js || { echo "::error::client/client.js is stale — run 'npm run build' and commit it"; exit 1; }
+      - name: Committed browser bundles are up to date
+        run: git diff --exit-code -- client/client.js renderer/renderer.js || { echo "::error::Client/renderer bundle is stale — run 'npm run build' and commit both"; exit 1; }
       - run: npm run typecheck
       - run: npm test
       - name: Package contents
