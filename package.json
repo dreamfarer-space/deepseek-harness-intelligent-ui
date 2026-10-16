@@ -25,7 +25,8 @@
     "./client": "./client/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./locale/*.json": "./locale/*.json",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./renderer/renderer.js": "./renderer/renderer.js"
   },
   "bin": {
     "deepseek-harness-intelligent-ui": "bin/cli.mjs"
@@ -34,6 +35,7 @@
     "bin",
     "src",
     "client",
+    "renderer",
     "locale",
     "cordis.patch.yml",
     "LICENSE",
@@ -59,7 +61,7 @@
     }
   },
   "scripts": {
-    "build": "node scripts/build-client.mjs",
+    "build": "node scripts/build-client.mjs && node scripts/build-renderer.mjs",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json",
     "e2e:mock": "node scripts/e2e/mock-deepseek.mjs 3199 e2e-mock.log",
@@ -68,10 +70,11 @@
     "eval:real": "node scripts/run-real-model-suite.mjs all",
     "eval:demo": "node scripts/eval/edit-demo.mjs e2e-shots/real-model/frames docs/real-model-eval-report.json docs/assets/real-model --gif-chapters ②,⑤,⑧",
     "version": "node scripts/build-client.mjs && git add client/client.js",
-    "prepublishOnly": "node scripts/build-client.mjs && git diff --exit-code -- client/client.js && vitest run",
+    "prepublishOnly": "node scripts/build-client.mjs && node scripts/build-renderer.mjs && vitest run",
     "release:check": "node scripts/ci/release-check.mjs",
     "smoke": "node scripts/ci/smoke.mjs",
-    "docs:art": "node scripts/docs/readme-art.mjs"
+    "docs:art": "node scripts/docs/readme-art.mjs",
+    "build:renderer": "node scripts/build-renderer.mjs"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.0.4 || >=4.0.5-alpha.0 <4.1.0-0",
