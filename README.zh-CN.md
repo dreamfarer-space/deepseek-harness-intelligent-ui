@@ -78,10 +78,12 @@ JSON 还在生成，组件就已出现。实时组件在**同一个** iframe 中
   <img src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/demo.gif" alt="真实 deepseek-flash 模型在 DSH Web 中生成多系列图表、带滑块的阻尼振动函数图像，并用 ui_patch 原位修改图表两次" width="100%">
 </p>
 
-🎥 **完整视频（H.264，2 分 8 秒，4 MB）：** [docs/assets/real-model/demo.mp4](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/assets/real-model/demo.mp4)。视频覆盖全部 11 个浏览器用例：纯文本、图表、数据表、表单回传、Plot、Three.js 与「让模型修复」、停止 → 重新生成、两轮原位修改、Fast 3G、CDN 不可达、手机宽度。
+<img align="right" width="120" src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/xiaojing-wave.svg" alt="演示解说员小鲸">
+
+🎥 **完整视频（H.264，2 分 28 秒，8.9 MB）：** [docs/assets/real-model/demo.mp4](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/assets/real-model/demo.mp4)。由 **小鲸** 全程解说：这是本项目用 SVG 原创绘制的 Q 版鲸鱼娘，属于非官方同人形象，与 DeepSeek 官方无关。视频覆盖全部 11 个浏览器用例：纯文本、图表、数据表、表单回传、Plot、Three.js 与「让模型修复」、停止 → 重新生成、两轮原位修改、Fast 3G、CDN 不可达、手机宽度。
 
 > [!NOTE]
-> 2026-10-16 由 `npm run eval:real -- --record` 录制，`npm run eval:demo` 剪辑。每张卡片都是真实 **`deepseek-flash`** 模型在装有本插件的真实 **DSH Web 0.2.0-rc.1** 里当场生成的。没有任何脚本回放，失败也原样保留（Three.js 用例出现脚本错误，再由「让模型修复」修好）。模型生成期间视频加速播放，右下角秒表显示真实耗时。评测结果见[真实模型质量基线](#-真实模型质量基线)。
+> 2026-10-16 由 `npm run eval:real -- --record` 录制，`npm run eval:demo` 剪辑合成。每张卡片都是真实 **`deepseek-flash`** 模型在装有本插件的真实 **DSH Web 0.2.0-rc.1** 里当场生成的。没有任何脚本回放，失败也原样保留（Three.js 用例出现脚本错误，再由「让模型修复」修好）。模型生成期间视频加速播放，右下角秒表显示真实耗时。评测结果见[真实模型质量基线](#-真实模型质量基线)。
 
 | 多系列柱状图（示意数据已标注） | `ui_patch` 两轮原位修改（第 3 版） |
 |:---:|:---:|

@@ -72,10 +72,12 @@ Open tabs, sort order, form values, sliders and `UI.state` survive turn folding,
   <img src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/demo.gif" alt="Real deepseek-flash model in DSH Web: a multi-series chart, a damped-oscillation Plot with sliders, and two in-place edits of a chart via ui_patch" width="100%">
 </p>
 
-🎥 **Full video (H.264, 2 min 8 s, 4 MB):** [docs/assets/real-model/demo.mp4](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/assets/real-model/demo.mp4). It covers all 11 browser cases: text, chart, table, form round trip, Plot, Three.js with "Ask to fix", stop → regenerate, two in-place edits, Fast 3G, CDN offline and phone width.
+<img align="right" width="120" src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/xiaojing-wave.svg" alt="小鲸, the demo's narrator">
+
+🎥 **Full video (H.264, 2 min 28 s, 8.9 MB):** [docs/assets/real-model/demo.mp4](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/assets/real-model/demo.mp4). It is narrated by **小鲸**, a chibi whale-girl mascot drawn for this project in SVG (an original, unofficial fan character; not DeepSeek branding). The video covers all 11 browser cases: text, chart, table, form round trip, Plot, Three.js with "Ask to fix", stop → regenerate, two in-place edits, Fast 3G, CDN offline and phone width.
 
 > [!NOTE]
-> Recorded on 2026-10-16 by `npm run eval:real -- --record` and cut with `npm run eval:demo`. Every card was generated live by the real **`deepseek-flash`** model in real **DSH Web 0.2.0-rc.1** with this plugin installed. Nothing is scripted, and failures are left in (the Three.js case hits a script error and is repaired with "让模型修复"). While the model is working the video is sped up; the stopwatch in the corner shows the real elapsed time. The results are in the [real-model quality baseline](#-real-model-quality-baseline).
+> Recorded on 2026-10-16 by `npm run eval:real -- --record` and edited with `npm run eval:demo`. Every card was generated live by the real **`deepseek-flash`** model in real **DSH Web 0.2.0-rc.1** with this plugin installed. Nothing is scripted, and failures are left in (the Three.js case hits a script error and is repaired with "让模型修复"). While the model is working the video is sped up; the stopwatch in the corner shows the real elapsed time. The results are in the [real-model quality baseline](#-real-model-quality-baseline).
 
 | Multi-series chart (labelled sample data) | Two in-place edits with `ui_patch` (version 3) |
 |:---:|:---:|

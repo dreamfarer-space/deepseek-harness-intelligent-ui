@@ -17,7 +17,7 @@ All notable changes to this project are documented here. The format follows
   - Timings are recorded per stage: API time per model call, and in the browser first visible preview, complete generation and browser-side execution, each with p50/p95. `--repeat N` gives per-case success rates.
   - The report (`docs/real-model-eval-report.json` + `.md`) records date, model (requested, API-reported and fingerprint), prompt hash, assertion version, environment and failure reasons. It is redacted, and the run refuses to write a report that still contains the key.
   - A manually triggered `Real-model eval` workflow uses the `DEEPSEEK_API_KEY` secret.
-- `scripts/eval/edit-demo.mjs` (`npm run eval:demo`) cuts the browser-stage recording into a demo video. Model waits are sped up while an on-screen real-time stopwatch keeps them honest.
+- `scripts/eval/edit-demo.mjs` (`npm run eval:demo`) turns the browser-stage recording into a designed demo video narrated by 小鲸, an original chibi whale-girl mascot drawn in SVG (`scripts/eval/demo/`; an unofficial fan character, not DeepSeek branding). Every frame is rendered deterministically. Model waits are sped up, and the real-time stopwatch from the recording plus a speed-factor sticker keep that honest.
 
 ### Changed
 
