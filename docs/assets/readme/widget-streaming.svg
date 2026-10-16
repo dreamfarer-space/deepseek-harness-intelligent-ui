@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="440" viewBox="0 0 1200 440" role="img" aria-labelledby="t d">
+<title id="t">Widget streaming</title>
+<desc id="d">Widget fields stream in order; placeholders show until css is complete, partial HTML is morphed into a preview frame, then the same frame is finalized and the code runs.</desc>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#0a0f1f"/><stop offset="1" stop-color="#141b3c"/>
+  </linearGradient>
+  <linearGradient id="brand" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#22d3ee"/><stop offset=".5" stop-color="#4d6bfe"/><stop offset="1" stop-color="#a78bfa"/>
+  </linearGradient>
+  <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+    <path d="M32 0H0V32" fill="none" stroke="#ffffff" stroke-opacity=".035"/>
+  </pattern>
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+  
+</defs>
+<style>
+  text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', Helvetica, Arial, sans-serif; }
+  .mono { font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, Consolas, monospace; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+
+  .progress { transform-box: fill-box; transform-origin: left; animation: prog 10s linear infinite; }
+  @keyframes prog { 0% { transform: scaleX(0); } 85% { transform: scaleX(1); } 100% { transform: scaleX(1); } }
+  .chipfill { opacity: 0; animation: chip 10s linear infinite; }
+  @keyframes chip { 0% { opacity: 0; } 2%, 94% { opacity: 1; } 100% { opacity: 0; } }
+  .chipfill.c0 { animation-delay: 0.10s; } .chipfill.c1 { animation-delay: 1.31s; } .chipfill.c2 { animation-delay: 2.53s; } .chipfill.c3 { animation-delay: 3.74s; } .chipfill.c4 { animation-delay: 4.96s; } .chipfill.c5 { animation-delay: 6.17s; } .chipfill.c6 { animation-delay: 7.39s; }
+  .chipfill { animation-fill-mode: backwards; }
+  .L0 { animation: l0 10s infinite; }
+  @keyframes l0 { 0%, 26% { opacity: 1; } 30%, 100% { opacity: 0; } }
+  .L1 { animation: l1 10s infinite; }
+  @keyframes l1 { 0%, 26% { opacity: 0; } 30%, 94% { opacity: 1; } 100% { opacity: 0; } }
+  .L2 { animation: l2 10s infinite; }
+  @keyframes l2 { 0%, 60% { opacity: 0; } 64%, 94% { opacity: 1; } 100% { opacity: 0; } }
+  .m { animation: m 10s infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes m { 0%, 28% { opacity: 0; transform: translateY(6px); } 33%, 94% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+  .m1 { animation-delay: .7s; } .m2 { animation-delay: 1.4s; } .m3 { animation-delay: 2.1s; }
+  .knob { animation: knob 10s ease-in-out infinite; }
+  @keyframes knob { 0%, 66% { transform: none; } 76% { transform: translateX(90px); } 86% { transform: translateX(-40px); } 94% { transform: none; } }
+  .shimmer { animation: sh 1.2s ease-in-out infinite alternate; }
+  @keyframes sh { from { opacity: .45; } to { opacity: 1; } }
+  .hl { opacity: 0; }
+  .ph0 { animation: h0 10s infinite; } @keyframes h0 { 0%, 26% { opacity: 1; } 30%, 100% { opacity: 0; } }
+  .ph1 { animation: h1 10s infinite; } @keyframes h1 { 0%, 26% { opacity: 0; } 30%, 60% { opacity: 1; } 64%, 100% { opacity: 0; } }
+  .ph2 { animation: h2 10s infinite; } @keyframes h2 { 0%, 60% { opacity: 0; } 64%, 94% { opacity: 1; } 100% { opacity: 0; } }
+  </style>
+<rect width="1200" height="440" rx="20" fill="url(#bg)"/>
+<rect width="1200" height="440" rx="20" fill="url(#grid)"/>
+
+<text x="40" y="40" font-size="13" font-weight="700" fill="#5f6a98" letter-spacing="2">UI_RENDER_WIDGET · STREAMING CONTRACT</text>
+<g class="chip c0"><rect x="40" y="64" width="70" height="30" rx="8" fill="#18213f" stroke="#2a3563"/>
+      <rect class="chipfill c0" x="40" y="64" width="70" height="30" rx="8" fill="#97a1c9" fill-opacity=".18" stroke="#97a1c9"/>
+      <text x="75" y="83.5" text-anchor="middle" font-size="12.5" class="mono" fill="#e8ecff">title</text></g><g class="chip c1"><rect x="122" y="64" width="110" height="30" rx="8" fill="#18213f" stroke="#2a3563"/>
+      <rect class="chipfill c1" x="122" y="64" width="110" height="30" rx="8" fill="#97a1c9" fill-opacity=".18" stroke="#97a1c9"/>
+      <text x="177" y="83.5" text-anchor="middle" font-size="12.5" class="mono" fill="#e8ecff">initialHeight</text></g><g class="chip c2"><rect x="244" y="64" width="170" height="30" rx="8" fill="#18213f" stroke="#2a3563"/>
+      <rect class="chipfill c2" x="244" y="64" width="170" height="30" rx="8" fill="#fbbf24" fill-opacity=".18" stroke="#fbbf24"/>
+      <text x="329" y="83.5" text-anchor="middle" font-size="12.5" class="mono" fill="#e8ecff">placeholderMessages</text></g><g class="chip c3"><rect x="426" y="64" width="60" height="30" rx="8" fill="#18213f" stroke="#2a3563"/>
+      <rect class="chipfill c3" x="426" y="64" width="60" height="30" rx="8" fill="#f472b6" fill-opacity=".18" stroke="#f472b6"/>
+      <text x="456" y="83.5" text-anchor="middle" font-size="12.5" class="mono" fill="#e8ecff">css</text></g><g class="chip c4"><rect x="498" y="64" width="70" height="30" rx="8" fill="#18213f" stroke="#2a3563"/>
+      <rect class="chipfill c4" x="498" y="64" width="70" height="30" rx="8" fill="#22d3ee" fill-opacity=".18" stroke="#22d3ee"/>
+      <text x="533" y="83.5" text-anchor="middle" font-size="12.5" class="mono" fill="#e8ecff">html</text></g><g class="chip c5"><rect x="580" y="64" width="110" height="30" rx="8" fill="#18213f" stroke="#2a3563"/>
+      <rect class="chipfill c5" x="580" y="64" width="110" height="30" rx="8" fill="#a78bfa" fill-opacity=".18" stroke="#a78bfa"/>
+      <text x="635" y="83.5" text-anchor="middle" font-size="12.5" class="mono" fill="#e8ecff">jsFunctions</text></g><g class="chip c6"><rect x="702" y="64" width="120" height="30" rx="8" fill="#18213f" stroke="#2a3563"/>
+      <rect class="chipfill c6" x="702" y="64" width="120" height="30" rx="8" fill="#a78bfa" fill-opacity=".18" stroke="#a78bfa"/>
+      <text x="762" y="83.5" text-anchor="middle" font-size="12.5" class="mono" fill="#e8ecff">jsExpressions</text></g>
+<rect x="40" y="104" width="782" height="4" rx="2" fill="#2a3563"/>
+<rect class="progress" x="40" y="104" width="782" height="4" rx="2" fill="url(#brand)"/>
+
+<g>
+  <rect x="40" y="140" width="700" height="270" rx="14" fill="#111833" stroke="#2a3563"/>
+  <path d="M40 174h700" stroke="#2a3563"/>
+  <text x="58" y="162" font-size="12" class="mono" fill="#5f6a98">&lt;iframe sandbox srcdoc&gt;</text>
+  <text x="722" y="162" font-size="12" text-anchor="end" fill="#e8ecff" font-weight="600">Sphere explorer</text>
+
+  <g class="L0">
+    <rect x="70" y="210" width="420" height="16" rx="8" fill="#2a3563" class="shimmer"/><rect x="70" y="244" width="340" height="16" rx="8" fill="#2a3563" class="shimmer"/><rect x="70" y="278" width="380" height="16" rx="8" fill="#2a3563" class="shimmer"/>
+    <text x="70" y="340" font-size="14" fill="#fbbf24">✎ Sketching the sphere…</text>
+  </g>
+
+  <g class="L1">
+    <text class="m m0" x="70" y="214" font-size="20" font-weight="700" fill="#e8ecff">x² + y² + z² = 2Rz</text>
+    <g class="m m1">
+      <text x="70" y="250" font-size="13" fill="#97a1c9">R</text>
+      <rect x="92" y="242" width="300" height="6" rx="3" fill="#2a3563"/>
+      <rect x="92" y="242" width="150" height="6" rx="3" fill="#22d3ee"/>
+      <circle class="knob" cx="242" cy="245" r="9" fill="#fff"/>
+    </g>
+    <g class="m m2">
+      <rect x="70" y="270" width="200" height="34" rx="8" fill="#18213f" stroke="#2a3563"/>
+      <text x="86" y="292" font-size="13" fill="#e8ecff">Explain this surface</text>
+    </g>
+    <g class="m m3">
+      <rect x="450" y="200" width="220" height="200" rx="12" fill="#0c1230" stroke="#2a3563"/>
+    </g>
+  </g>
+
+  <g class="L2">
+    <circle cx="560" cy="300" r="64" fill="none" stroke="#a78bfa"/>
+    <ellipse cx="560" cy="300" rx="64" ry="20" fill="none" stroke="#a78bfa" stroke-opacity=".5"/>
+    <ellipse cx="560" cy="300" rx="64" ry="44" fill="none" stroke="#a78bfa" stroke-opacity=".3"/>
+    <ellipse cx="560" cy="300" rx="64" ry="64" fill="none" stroke="#a78bfa" stroke-opacity=".7"><animate attributeName="rx" values="64;0;64" dur="3.2s" begin="0s" repeatCount="indefinite" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"/></ellipse><ellipse cx="560" cy="300" rx="64" ry="64" fill="none" stroke="#a78bfa" stroke-opacity=".7"><animate attributeName="rx" values="64;0;64" dur="3.2s" begin="-0.8s" repeatCount="indefinite" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"/></ellipse><ellipse cx="560" cy="300" rx="64" ry="64" fill="none" stroke="#a78bfa" stroke-opacity=".7"><animate attributeName="rx" values="64;0;64" dur="3.2s" begin="-1.6s" repeatCount="indefinite" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"/></ellipse><ellipse cx="560" cy="300" rx="64" ry="64" fill="none" stroke="#a78bfa" stroke-opacity=".7"><animate attributeName="rx" values="64;0;64" dur="3.2s" begin="-2.4000000000000004s" repeatCount="indefinite" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"/></ellipse>
+    <rect x="70" y="326" width="176" height="26" rx="13" fill="#34d399" fill-opacity=".15" stroke="#34d399"/>
+    <text x="84" y="343.5" font-size="12" fill="#34d399">● JS running · same iframe</text>
+  </g>
+</g>
+
+<g transform="translate(780 140)">
+  
+  <g transform="translate(0 0)">
+    <rect width="380" height="78" rx="14" fill="#111833" stroke="#2a3563"/>
+    <rect class="hl ph0" width="380" height="78" rx="14" fill="#fbbf24" fill-opacity=".1" stroke="#fbbf24" stroke-width="1.5"/>
+    <circle cx="30" cy="39" r="14" fill="#fbbf24" fill-opacity=".2" stroke="#fbbf24"/>
+    <text x="30" y="44" text-anchor="middle" font-size="13" font-weight="700" fill="#fbbf24">1</text>
+    <text x="58" y="33" font-size="15" font-weight="700" fill="#e8ecff">Placeholder</text>
+    <text x="58" y="56" font-size="12.5" fill="#97a1c9">placeholderMessages until css is complete</text>
+  </g>
+  <g transform="translate(0 92)">
+    <rect width="380" height="78" rx="14" fill="#111833" stroke="#2a3563"/>
+    <rect class="hl ph1" width="380" height="78" rx="14" fill="#22d3ee" fill-opacity=".1" stroke="#22d3ee" stroke-width="1.5"/>
+    <circle cx="30" cy="39" r="14" fill="#22d3ee" fill-opacity=".2" stroke="#22d3ee"/>
+    <text x="30" y="44" text-anchor="middle" font-size="13" font-weight="700" fill="#22d3ee">2</text>
+    <text x="58" y="33" font-size="15" font-weight="700" fill="#e8ecff">Live preview</text>
+    <text x="58" y="56" font-size="12.5" fill="#97a1c9">partial html morphed in with idiomorph</text>
+  </g>
+  <g transform="translate(0 184)">
+    <rect width="380" height="78" rx="14" fill="#111833" stroke="#2a3563"/>
+    <rect class="hl ph2" width="380" height="78" rx="14" fill="#a78bfa" fill-opacity=".1" stroke="#a78bfa" stroke-width="1.5"/>
+    <circle cx="30" cy="39" r="14" fill="#a78bfa" fill-opacity=".2" stroke="#a78bfa"/>
+    <text x="30" y="44" text-anchor="middle" font-size="13" font-weight="700" fill="#a78bfa">3</text>
+    <text x="58" y="33" font-size="15" font-weight="700" fill="#e8ecff">Finalized in place</text>
+    <text x="58" y="56" font-size="12.5" fill="#97a1c9">final html + code run — no rebuild, no flash</text>
+  </g>
+</g>
+<rect x=".5" y=".5" width="1199" height="439" rx="19.5" fill="none" stroke="#ffffff" stroke-opacity=".08"/>
+</svg>

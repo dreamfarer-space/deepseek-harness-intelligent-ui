@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-labelledby="t d">
+<title id="t">DeepSeek Harness Intelligent UI</title>
+<desc id="d">A chat answer streams in as KPI cards, a stacked bar chart and a sandboxed 3D widget.</desc>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#0a0f1f"/><stop offset="1" stop-color="#141b3c"/>
+  </linearGradient>
+  <linearGradient id="brand" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#22d3ee"/><stop offset=".5" stop-color="#4d6bfe"/><stop offset="1" stop-color="#a78bfa"/>
+  </linearGradient>
+  <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+    <path d="M32 0H0V32" fill="none" stroke="#ffffff" stroke-opacity=".035"/>
+  </pattern>
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+  
+</defs>
+<style>
+  text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', Helvetica, Arial, sans-serif; }
+  .mono { font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, Consolas, monospace; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+
+  .orb { animation: breathe 6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .o2 { animation-delay: -3s; }
+  @keyframes breathe { 50% { opacity: .08; transform: scale(1.12); } }
+  .caret { animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .pop { opacity: 0; animation: pop 9s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes pop { 0% { opacity: 0; transform: translateY(8px); } 6%, 90% { opacity: 1; transform: none; } 97%, 100% { opacity: 0; } }
+  .s-user { animation-delay: .2s; } .s-tool { animation-delay: .9s; }
+  .s0 { animation-delay: 1.3s; } .s1 { animation-delay: 1.6s; } .s2 { animation-delay: 1.9s; }
+  .s3 { animation-delay: 2.3s; } .s4 { animation-delay: 3.6s; }
+  .bar { transform-box: fill-box; transform-origin: bottom; transform: scaleY(0); animation: grow 9s cubic-bezier(.2,.8,.2,1) infinite; }
+  @keyframes grow { 0% { transform: scaleY(0); opacity: 1; } 8%, 88% { transform: scaleY(1); opacity: 1; } 95%, 100% { transform: scaleY(1); opacity: 0; } }
+  .b0 { animation-delay: 2.5s; } .b1 { animation-delay: 2.7s; } .b2 { animation-delay: 2.9s; } .b3 { animation-delay: 3.1s; }
+  </style>
+<rect width="1280" height="400" rx="20" fill="url(#bg)"/>
+<rect width="1280" height="400" rx="20" fill="url(#grid)"/>
+
+<circle class="orb o1" cx="210" cy="90" r="160" fill="#4d6bfe" opacity=".22" filter="url(#glow)"/>
+<circle class="orb o2" cx="1100" cy="330" r="190" fill="#a78bfa" opacity=".16" filter="url(#glow)"/>
+
+<g transform="translate(64 0)">
+  <rect x="0" y="70" width="300" height="28" rx="14" fill="#ffffff" fill-opacity=".06" stroke="#ffffff" stroke-opacity=".12"/>
+  <circle cx="16" cy="84" r="4" fill="#34d399"><animate attributeName="opacity" values="1;.25;1" dur="1.6s" repeatCount="indefinite"/></circle>
+  <text x="28" y="88.5" font-size="13" fill="#97a1c9">DeepSeek Harness plugin · generative UI</text>
+  <text x="0" y="164" font-size="58" font-weight="800" fill="url(#brand)" letter-spacing="-1">Intelligent UI</text>
+  <text x="2" y="204" font-size="22" font-weight="600" fill="#e8ecff">Generative, interactive UI for DeepSeek Harness</text>
+  <text x="2" y="240" font-size="15" fill="#97a1c9">The agent answers with text, native components or a sandboxed</text>
+  <text x="2" y="263" font-size="15" fill="#97a1c9">live widget — streamed into the chat, interactive in the browser.</text>
+  <g transform="translate(0 296)">
+    <rect width="590" height="44" rx="10" fill="#060a18" stroke="#2a3563"/>
+    <text x="18" y="27.5" font-size="13.5" class="mono" fill="#34d399">$</text>
+    <text x="34" y="27.5" font-size="13.5" class="mono" fill="#e8ecff">dsh plugin --profile web add <tspan fill="#22d3ee">deepseek-harness-intelligent-ui</tspan></text>
+    <rect class="caret" x="488" y="14" width="8" height="17" fill="#e8ecff"/>
+  </g>
+</g>
+
+<g>
+  <rect x="720" y="44" width="520" height="312" rx="14" fill="#111833" stroke="#2a3563"/>
+  <path d="M720 78h520" stroke="#2a3563"/>
+  <circle cx="740" cy="61" r="5" fill="#ff5f57"/><circle cx="758" cy="61" r="5" fill="#febc2e"/><circle cx="776" cy="61" r="5" fill="#28c840"/>
+  <text x="980" y="65.5" text-anchor="middle" font-size="12" fill="#5f6a98">DSH Web</text>
+
+  <g class="pop s-user">
+    <rect x="996" y="94" width="220" height="32" rx="16" fill="#4d6bfe"/>
+    <text x="1106" y="114.5" text-anchor="middle" font-size="13" fill="#fff">Revenue by channel, Q1–Q4?</text>
+  </g>
+  <g class="pop s-tool">
+    <rect x="744" y="134" width="118" height="20" rx="10" fill="#4d6bfe" fill-opacity=".15"/>
+    <text x="754" y="148" font-size="11" class="mono" fill="#22d3ee">◆ ui_render</text>
+  </g>
+  <g class="pop s0">
+      <rect x="744" y="160" width="148" height="66" rx="10" fill="#18213f" stroke="#2a3563"/>
+      <text x="758" y="182" font-size="11" fill="#97a1c9">Revenue</text>
+      <text x="758" y="210" font-size="22" font-weight="700" fill="#e8ecff">$2.4M</text>
+      <text x="878" y="210" font-size="11" text-anchor="end" font-weight="600" fill="#22d3ee">+18%</text>
+    </g>
+<g class="pop s1">
+      <rect x="906" y="160" width="148" height="66" rx="10" fill="#18213f" stroke="#2a3563"/>
+      <text x="920" y="182" font-size="11" fill="#97a1c9">Orders</text>
+      <text x="920" y="210" font-size="22" font-weight="700" fill="#e8ecff">1,284</text>
+      <text x="1040" y="210" font-size="11" text-anchor="end" font-weight="600" fill="#a78bfa">+9%</text>
+    </g>
+<g class="pop s2">
+      <rect x="1068" y="160" width="148" height="66" rx="10" fill="#18213f" stroke="#2a3563"/>
+      <text x="1082" y="182" font-size="11" fill="#97a1c9">Online share</text>
+      <text x="1082" y="210" font-size="22" font-weight="700" fill="#e8ecff">62%</text>
+      <text x="1202" y="210" font-size="11" text-anchor="end" font-weight="600" fill="#34d399">+4pt</text>
+    </g>
+  <g class="pop s3">
+    <rect x="744" y="238" width="336" height="104" rx="10" fill="#18213f" stroke="#2a3563"/>
+  </g>
+  <rect class="bar b0" x="768" y="286" width="30" height="14" rx="3" fill="#a78bfa"/>
+      <rect class="bar b0" x="768" y="300" width="30" height="22" rx="3" fill="#4d6bfe"/>
+      <text x="783" y="336" text-anchor="middle" font-size="10" fill="#5f6a98">Q1</text>
+<rect class="bar b1" x="834" y="276" width="30" height="16" rx="3" fill="#a78bfa"/>
+      <rect class="bar b1" x="834" y="292" width="30" height="30" rx="3" fill="#4d6bfe"/>
+      <text x="849" y="336" text-anchor="middle" font-size="10" fill="#5f6a98">Q2</text>
+<rect class="bar b2" x="900" y="266" width="30" height="18" rx="3" fill="#a78bfa"/>
+      <rect class="bar b2" x="900" y="284" width="30" height="38" rx="3" fill="#4d6bfe"/>
+      <text x="915" y="336" text-anchor="middle" font-size="10" fill="#5f6a98">Q3</text>
+<rect class="bar b3" x="966" y="254" width="30" height="20" rx="3" fill="#a78bfa"/>
+      <rect class="bar b3" x="966" y="274" width="30" height="48" rx="3" fill="#4d6bfe"/>
+      <text x="981" y="336" text-anchor="middle" font-size="10" fill="#5f6a98">Q4</text>
+  <g class="pop s4">
+      <rect x="1088" y="237" width="124" height="104" rx="10" fill="#0c1230" stroke="#2a3563"/>
+      <text x="1098" y="253" font-size="9" fill="#5f6a98" class="mono">iframe · three.js</text>
+      <circle cx="1150" cy="295" r="34" fill="none" stroke="#22d3ee" stroke-opacity=".9"/>
+      <ellipse cx="1150" cy="295" rx="34" ry="11" fill="none" stroke="#22d3ee" stroke-opacity=".45"/>
+      <ellipse cx="1150" cy="295" rx="34" ry="24" fill="none" stroke="#22d3ee" stroke-opacity=".25"/>
+      <ellipse cx="1150" cy="295" ry="34" rx="34" fill="none" stroke="#22d3ee" stroke-opacity=".6"><animate attributeName="rx" values="34;0;34" dur="4s" begin="0s" repeatCount="indefinite" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"/></ellipse><ellipse cx="1150" cy="295" ry="34" rx="34" fill="none" stroke="#22d3ee" stroke-opacity=".6"><animate attributeName="rx" values="34;0;34" dur="4s" begin="-1.3333333333333333s" repeatCount="indefinite" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"/></ellipse><ellipse cx="1150" cy="295" ry="34" rx="34" fill="none" stroke="#22d3ee" stroke-opacity=".6"><animate attributeName="rx" values="34;0;34" dur="4s" begin="-2.6666666666666665s" repeatCount="indefinite" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"/></ellipse>
+    </g>
+</g>
+<rect x=".5" y=".5" width="1279" height="399" rx="19.5" fill="none" stroke="#ffffff" stroke-opacity=".08"/>
+</svg>

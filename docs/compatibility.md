@@ -33,7 +33,8 @@ Each release also installs the **published** package from npm on all three OSes 
 | 0.1.7-rc.2 | pass | pass |
 | 0.2.0-rc.1 | pass | pass |
 | 0.2.0-rc.2 (`latest`) | pass | pass |
-| 0.2.1-alpha.2 (`alpha`) | pass | pass |
+| 0.2.1-alpha.2 | pass | pass |
+| 0.2.1-alpha.4 (`alpha`, re-verified 2026-10-15 with the 0.2.2 tarball) | pass (9 checks) | pass |
 
 **Known API differences between DSH versions:**
 
