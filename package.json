@@ -68,6 +68,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "e2e:mock": "node scripts/e2e/mock-deepseek.mjs 3199 e2e-mock.log",
     "e2e:browser": "node scripts/e2e/browser.mjs",
+    "e2e:controlled": "node scripts/e2e/controlled.mjs",
     "e2e:all": "node scripts/e2e/run-all.mjs",
     "eval:real": "node scripts/run-real-model-suite.mjs all",
     "eval:demo": "node scripts/eval/edit-demo.mjs e2e-shots/real-model/frames docs/real-model-eval-report.json docs/assets/real-model --gif-chapters ④,⑤,⑧",

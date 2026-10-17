@@ -78,6 +78,42 @@ describe('allowlisted action execution', () => {
     await expect(runtime.invokeAction(ctx, request(), click())).rejects.toThrow('offline')
     expect(run).toHaveBeenCalledTimes(1)
   })
+  it('lets a cancelled operation be confirmed again with the same request id', async () => {
+    const confirm = vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true)
+    const { runtime, run } = setup({ confirm })
+    const first = await Promise.allSettled([
+      runtime.invokeAction(ctx, request(), click()),
+      runtime.invokeAction(ctx, request(), click()),
+    ])
+    expect(first.every(r => r.status === 'rejected' && r.reason.message === 'Action cancelled')).toBe(true)
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(run).not.toHaveBeenCalled()
+    await expect(runtime.invokeAction(ctx, request(), click())).resolves.toEqual({ accepted: true })
+    expect(confirm).toHaveBeenCalledTimes(2)
+    expect(run).toHaveBeenCalledTimes(1)
+  })
+  it('rechecks a denied permission on a later explicit attempt', async () => {
+    for (const failedCheck of [1, 2]) {
+      let checks = 0
+      const authorize = vi.fn(async () => ++checks !== failedCheck)
+      const { runtime, run } = setup({ authorize })
+      await expect(runtime.invokeAction(ctx, request(), click())).rejects.toThrow('Action permission denied')
+      expect(run).not.toHaveBeenCalled()
+      await expect(runtime.invokeAction(ctx, request(), click())).resolves.toEqual({ accepted: true })
+      expect(run).toHaveBeenCalledTimes(1)
+      expect(authorize).toHaveBeenCalledTimes(failedCheck + 2)
+    }
+  })
+  it('releases receipts when permission/confirmation callbacks fail before run', async () => {
+    for (const callback of ['authorize', 'confirm']) {
+      const check = vi.fn().mockRejectedValueOnce(new Error('approval offline')).mockResolvedValue(true)
+      const { runtime, run } = setup({ [callback]: check })
+      await expect(runtime.invokeAction(ctx, request(), click())).rejects.toThrow('approval offline')
+      expect(run).not.toHaveBeenCalled()
+      await expect(runtime.invokeAction(ctx, request(), click())).resolves.toEqual({ accepted: true })
+      expect(run).toHaveBeenCalledTimes(1)
+    }
+  })
   it('rechecks revocation/disposal after async permission/confirmation', async () => {
     const { runtime, run } = setup({ confirm: async () => { runtime.releaseScope('board'); return true } })
     await expect(runtime.invokeAction(ctx, request(), click())).rejects.toThrow(/revoked/); expect(run).not.toHaveBeenCalled()

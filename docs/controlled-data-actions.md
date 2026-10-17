@@ -13,6 +13,8 @@ python3 -m http.server 8080 --bind 127.0.0.1
 
 Open `http://127.0.0.1:8080/examples/controlled-dashboard.html`. The example reads JSON once, registers it once, and uses the same `dataRef` in Table and Chart. Search, exact column filtering and ascending/descending sort update both locally. Table pagination does not truncate Chart data. Export downloads the filtered/sorted rows as CSV. Retry is a simulated write with a native confirmation and refreshes the registered dataset. It does not call GitHub or a model. A prompt Button still demonstrates the original host callback.
 
+After building, `npm run e2e:controlled` checks real Chromium clicks, parent approval, repeated filtered exports, cancellation recovery and uncertain-write deduplication. It starts its own loopback server; set `CHROME_PATH` if Chrome is not installed in a standard location. The compatibility CI runs this alongside the existing browser suite.
+
 ## Host contract
 
 ```js
@@ -68,7 +70,7 @@ A sandbox can tamper with its own bootstrap. Therefore **the parent never treats
 
 ## Receipts, lifetime and privacy
 
-Action Buttons and widget Promises expose loading/success/error states. Native Buttons allocate one receipt per unchanged action/args for their mounted lifetime. Widget adapters can supply a stable `requestId`; the same id/args shares an in-flight/success/error receipt. Reuse with different args is rejected. Errors are cached because the backend might already have applied a write before a transport error. An uncertain write must not be retried using a fresh key without checking the backend. Remounts, process restarts and scope disposal require backend idempotency; browser memory is not durable exactly-once delivery.
+Action Buttons and widget Promises expose loading/success/error states. Native Buttons share one receipt while an operation is pending; after success, the next deliberate click allocates a new request id (for example, exporting again after changing a filter). Widget adapters can supply a stable `requestId`; the same id/args shares an in-flight/success/execution-error receipt. Reuse with different args is rejected. Permission or approval failures before `run` starts release the receipt, so another explicit click can request permission/confirmation again. Once `run` starts, errors remain cached because the backend might already have applied a write before a transport error; native Buttons retain that request id on failure. An uncertain write must not be retried using a fresh key without checking the backend. Remounts, process restarts and scope disposal require backend idempotency; browser memory is not durable exactly-once delivery.
 
 Defaults per session: 64 resources; 512 KB and 500 rows × 24 columns per dataset; 16 KB per request; 64 KB per result; 128 receipts; JSON depth 20 and schema depth 12. At capacity new requests fail closed; completed receipts are not silently evicted. For updated data, call its registration disposer and register the replacement under the same id. Consumers subscribe to changes. Data and query state survive ordinary UI patch versions and inline/turn-tail remounts while the host registry lives.
 

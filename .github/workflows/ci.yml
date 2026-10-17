@@ -83,6 +83,8 @@ jobs:
         run: node scripts/ci/smoke.mjs --spec "./$TARBALL"
       - name: Browser E2E (real DSH Web, scripted model)
         run: node scripts/e2e/run-all.mjs --spec "./$TARBALL" --no-build --out e2e-shots
+      - name: Controlled actions (real browser clicks)
+        run: npm run e2e:controlled
       - name: Upload screenshots on failure
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

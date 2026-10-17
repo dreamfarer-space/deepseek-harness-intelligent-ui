@@ -113,12 +113,19 @@ export function createControlledRuntime(sessionId) {
       if (receipts.size >= CONTROL_LIMITS.receipts) fail('Receipt limit reached; start a new surface/session');
       const context = freeze({ sessionId, uiId: scope, requestId: request.requestId });
       const assertLive = () => { scopeOf(ctx); if (actions.get(key(scope, request.actionId)) !== entry) fail('Action revoked'); };
-      // Cache before any await: concurrent duplicate requests share the same receipt, including errors.
+      // Cache before any await: concurrent duplicate requests share one receipt.
+      let started = false;
       const promise = Promise.resolve().then(async () => {
         assertLive(); if (await entry.authorize(context, args) !== true) fail('Action permission denied');
         assertLive(); if (entry.effect === 'write' && await entry.confirm(context, args) !== true) fail('Action cancelled');
         assertLive(); if (await entry.authorize(context, args) !== true) fail('Action permission denied');
-        assertLive(); return copy(await entry.run(args, context), CONTROL_LIMITS.resultBytes);
+        assertLive(); started = true;
+        return copy(await entry.run(args, context), CONTROL_LIMITS.resultBytes);
+      }).catch(error => {
+        // Permission/approval failures cannot have applied the operation. Allow
+        // another explicit click to recheck them, but retain uncertain run errors.
+        if (!started && receipts.get(receiptKey)?.promise === promise) receipts.delete(receiptKey);
+        throw error;
       });
       receipts.set(receiptKey, { fingerprint, promise }); return promise;
     },

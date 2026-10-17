@@ -419,6 +419,9 @@ function ControlledButton({ label, action, env }: { label: string; action: { act
     try {
       if (!env.controlled) throw new Error('Actions are unavailable in this host')
       const value = await env.controlled.invokeAction(contextOf(env), { ...action, requestId: receipt.current.id }, event)
+      // A completed operation makes the next deliberate click a new request.
+      // Keep the key after errors: execution may have reached the backend.
+      receipt.current = undefined
       setStatus('Success: ' + JSON.stringify(value))
     } catch (err) { setStatus('Error: ' + (err instanceof Error ? err.message : String(err))) }
     finally { flight.current = false; setBusy(false) }
