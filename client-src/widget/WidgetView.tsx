@@ -108,6 +108,8 @@ export function WidgetView(props: ToolViewProps) {
       {showFrame
         ? (
             <WidgetFrame
+              controlled={props.controlled}
+              sessionId={props.sessionId}
               callId={props.callId}
               mode={mode}
               css={args.css}

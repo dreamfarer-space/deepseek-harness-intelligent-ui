@@ -31,8 +31,8 @@ export function TurnTail(props: TailProps) {
   if (results.length === 0 && dropped.length === 0) return null
   return (
     <div className="diui-tail">
-      {results.map(block => <TailItem key={block.callId} block={block} t={props.t} sendPrompt={props.sendPrompt} sessionId={props.sessionId} />)}
-      {dropped.map(block => <TailItem key={block.callId} block={block} t={props.t} sendPrompt={props.sendPrompt} sessionId={props.sessionId} />)}
+      {results.map(block => <TailItem key={block.callId} block={block} t={props.t} sendPrompt={props.sendPrompt} sessionId={props.sessionId} controlled={props.controlled} />)}
+      {dropped.map(block => <TailItem key={block.callId} block={block} t={props.t} sendPrompt={props.sendPrompt} sessionId={props.sessionId} controlled={props.controlled} />)}
     </div>
   )
 }
@@ -43,7 +43,7 @@ function TailItem(props: { block: ToolResultNode; t: Translate } & IntelligentUi
   useLayoutEffect(() => presented.add(block.callId), [block.callId])
   const toolName = block.call?.name ?? ''
   const View = toolName === WIDGET_TOOL ? WidgetView : toolName === PATCH_TOOL ? PatchView : RenderView
-  return <View phase="result" block={block} callId={block.callId} toolName={toolName} t={props.t} sendPrompt={props.sendPrompt} sessionId={props.sessionId} />
+  return <View phase="result" block={block} callId={block.callId} toolName={toolName} t={props.t} sendPrompt={props.sendPrompt} sessionId={props.sessionId} controlled={props.controlled} />
 }
 
 /**

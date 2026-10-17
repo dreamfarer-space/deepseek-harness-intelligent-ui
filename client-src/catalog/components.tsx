@@ -1,4 +1,6 @@
-import { useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
+import { useId, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
+import { projectData } from '../../src/controlled/runtime.js'
+import { contextOf, type ControlledEnv, type DataRef } from '../controlled.ts'
 import { CATALOG, validateProps } from '../../src/catalog/catalog.js'
 import { formatFormSubmission } from '../bridge.ts'
 import type { WidgetPolicy } from '../policy.ts'
@@ -11,7 +13,7 @@ import { Plot, type PlotProps } from './Plot.tsx'
 
 export interface UiNode { id: string; type: string; props?: Record<string, unknown>; children?: string[] }
 
-export interface RenderEnv {
+export interface RenderEnv extends ControlledEnv {
   nodes: ReadonlyMap<string, UiNode>
   /** Still streaming: unknown children render as shimmer, invalid nodes are skipped quietly. */
   streaming: boolean
@@ -119,10 +121,13 @@ function Component({ node, env, children }: { node: UiNode; env: RenderEnv; chil
       return <Tag className="diui-list">{(p.items as string[]).map((it, i) => <li key={i}><Inline text={it} /></li>)}</Tag>
     }
     case 'Table':
+      if (p.dataRef) return <BoundData kind="Table" props={p} env={env} nodeId={node.id} />
       return <Table columns={p.columns} rows={p.rows} caption={p.caption} sortable={p.sortable} env={env} nodeId={node.id} />
     case 'Chart':
+      if (p.dataRef) return <BoundData kind="Chart" props={p} env={env} nodeId={node.id} />
       return <Chart {...(p as ChartProps)} emptyText={env.t('chart.empty')} />
     case 'Button':
+      if (p.action) return <ControlledButton label={p.label} action={p.action} env={env} />
       return <ActionButton label={p.label} prompt={p.prompt} variant={p.variant} env={env} />
     case 'Form':
       return <Form props={p} env={env} nodeId={node.id} />
@@ -373,4 +378,53 @@ function Form({ props, env, nodeId }: { props: Record<string, any>; env: RenderE
       </div>
     </form>
   )
+}
+
+/** Data/query state lives only in the trusted session registry, never localStorage. */
+function BoundData({ kind, props: p, env, nodeId }: { kind: 'Table' | 'Chart'; props: Record<string, any>; env: RenderEnv; nodeId: string }) {
+  const runtime = env.controlled
+  useSyncExternalStore(runtime ? f => runtime.subscribe(f) : () => () => {}, runtime ? () => runtime.getRevision() : () => 0)
+  try {
+    if (!runtime) throw new Error('Data binding is unavailable in this host')
+    const ref = p.dataRef as DataRef, ctx = contextOf(env)
+    const entry = runtime.readData(ctx, ref)
+    const { columns, rows } = projectData(entry) as { columns: string[]; rows: Cell[][] }
+    const set = (patch: Record<string, unknown>) => runtime.setView(ctx, ref, patch)
+    if (kind === 'Chart') {
+      const cols = p.valueColumns as number[]
+      if (p.labelColumn >= columns.length || cols.some(c => c >= columns.length) || rows.some(r => cols.some(c => typeof r[c] !== 'number'))) throw new Error('Chart columns must reference numeric data')
+      return <Chart {...p as ChartProps} labels={rows.map(r => r[p.labelColumn] ?? null)} series={cols.map(c => ({ name: columns[c]!, values: rows.map(r => r[c] as number) }))} emptyText={env.t('chart.empty')} />
+    }
+    const size = p.pageSize ?? 20, pages = Math.max(1, Math.ceil(rows.length / size)), page = Math.min(entry.view.page, pages - 1)
+    return <div>
+      <label>Search <input aria-label="Search dataset" value={entry.view.search} onChange={e => set({ search: e.target.value, page: 0 })} /></label>
+      <label>Filter <select aria-label="Filter column" value={entry.view.filterColumn} onChange={e => set({ filterColumn: Number(e.target.value), page: 0 })}><option value={-1}>All columns</option>{columns.map((c, i) => <option key={i} value={i}>{c}</option>)}</select></label>
+      {entry.view.filterColumn >= 0 && <input aria-label="Filter value" value={entry.view.filterValue} onChange={e => set({ filterValue: e.target.value, page: 0 })} />}
+      <label>Sort <select aria-label="Sort dataset" value={entry.view.sortColumn} onChange={e => set({ sortColumn: Number(e.target.value), page: 0 })}><option value={-1}>Original order</option>{columns.map((c, i) => <option key={i} value={i}>{c}</option>)}</select></label>
+      <button type="button" onClick={() => set({ descending: !entry.view.descending })}>{entry.view.descending ? 'Descending' : 'Ascending'}</button>
+      <Table columns={columns} rows={rows.slice(page * size, (page + 1) * size)} caption={p.caption} env={env} nodeId={nodeId} />
+      <button type="button" disabled={page === 0} onClick={() => set({ page: page - 1 })}>Previous</button><span role="status">{page + 1} / {pages} ({rows.length})</span><button type="button" disabled={page + 1 >= pages} onClick={() => set({ page: page + 1 })}>Next</button>
+    </div>
+  } catch (err) { return <div className="diui-node-error" role="alert">{err instanceof Error ? err.message : String(err)}</div> }
+}
+
+function ControlledButton({ label, action, env }: { label: string; action: { actionId: string; args: unknown }; env: RenderEnv }) {
+  const [status, setStatus] = useState(''), [busy, setBusy] = useState(false)
+  const flight = useRef(false), receipt = useRef<{ fingerprint: string; id: string } | undefined>(undefined)
+  const invoke = async (event: Event) => {
+    if (flight.current) return
+    flight.current = true; setBusy(true); setStatus('Loading…')
+    const fingerprint = JSON.stringify(action)
+    if (receipt.current?.fingerprint !== fingerprint) receipt.current = { fingerprint, id: crypto.randomUUID() }
+    try {
+      if (!env.controlled) throw new Error('Actions are unavailable in this host')
+      const value = await env.controlled.invokeAction(contextOf(env), { ...action, requestId: receipt.current.id }, event)
+      // A completed operation makes the next deliberate click a new request.
+      // Keep the key after errors: execution may have reached the backend.
+      receipt.current = undefined
+      setStatus('Success: ' + JSON.stringify(value))
+    } catch (err) { setStatus('Error: ' + (err instanceof Error ? err.message : String(err))) }
+    finally { flight.current = false; setBusy(false) }
+  }
+  return <span className="diui-action"><button type="button" className="diui-button" disabled={busy || env.streaming} aria-busy={busy} onClick={e => { void invoke(e.nativeEvent) }}>{label}</button><span role="status">{status}</span></span>
 }

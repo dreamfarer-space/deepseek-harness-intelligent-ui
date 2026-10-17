@@ -153,8 +153,21 @@ const BOOTSTRAP = `
     promise.then(done, done);
     return promise;
   }
+  // Convenience guard only; execution authority remains in the parent native UI.
+  var actionClick = null;
+  document.addEventListener('click', function(e){
+    actionClick = e.isTrusted ? e : null;
+  }, true);
   var remote = {
     sendPrompt: function(p){ return busy(call('sendPrompt', typeof p === 'string' ? { text: p } : p)); },
+    readData: function(dataRef){ return call('readData', { dataRef: dataRef }); },
+    invokeAction: function(p){
+      // Native dispatch can run microtasks between capture and target listeners.
+      // eventPhase remains nonzero during dispatch, and is zero in later timers.
+      if (!actionClick || !actionClick.eventPhase) return Promise.reject(new Error('Explicit user click required'));
+      actionClick = null;
+      return busy(call('invokeAction', p));
+    },
     openLink: function(p){ return call('openLink', typeof p === 'string' ? { url: p } : p); }
   };
   window.Bridge = remote;

@@ -27,6 +27,8 @@ interface SessionFace {
 }
 
 interface ClientCtx {
+  /** Trusted companion plugin; absence leaves bindings/actions unavailable. */
+  get?: (name: string) => unknown
   effect: (fn: () => (() => void) | void, label?: string) => void
   locale: { register: (ns: string, dicts: Record<string, Record<string, string>>) => () => void }
   slots: {
@@ -66,10 +68,16 @@ export function apply(ctx: ClientCtx): void {
     return () => style.remove()
   }, 'intelligent-ui: styles')
 
-  const injected = (sessionId: string): IntelligentUiInjected => ({
-    sendPrompt: text => promptSession(ctx.sessions, sessionId, text),
-    sessionId,
-  })
+  const injected = (sessionId: string): IntelligentUiInjected => {
+    // Cordis direct property reads require a declared dependency. get() is its
+    // supported optional-service lookup and preserves legacy hosts without one.
+    const provider = ctx.get?.('intelligentUiControlled') as { forSession: (id: string) => IntelligentUiInjected['controlled'] } | undefined
+    return {
+      controlled: provider?.forSession(sessionId),
+      sendPrompt: text => promptSession(ctx.sessions, sessionId, text),
+      sessionId,
+    }
+  }
 
   for (const [key, view] of [[RENDER_TOOL, RenderView], [PATCH_TOOL, PatchView], [WIDGET_TOOL, WidgetView]] as const) {
     ctx.slots.inject('tool.call.toolview', () => ctx.slots.register(
@@ -86,3 +94,5 @@ export function apply(ctx: ClientCtx): void {
     TurnTail,
   ))
 }
+
+export { createControlledRuntime } from '../src/controlled/runtime.js'
