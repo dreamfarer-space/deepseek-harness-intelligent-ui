@@ -166,7 +166,9 @@ npx deepseek-harness-intelligent-ui doctor             # diagnose only
 | `0.2.0-rc.1` | ✅ | ✅ |
 | `0.2.0-rc.2` (`latest`) | ✅ | ✅ |
 | `0.2.1-alpha.2` | ✅ | ✅ |
-| `0.2.1-alpha.4` (`alpha`) | ✅ | ✅ |
+| `0.2.1-alpha.4` | ✅ | ✅ |
+| `0.2.1-alpha.5` (`alpha`) | ✅ | ✅ |
+| `0.2.1-rc.2` (`next`) | ✅ | ✅ |
 
 CI runs the matrix on Windows, Linux and macOS, nightly too, so new DSH releases are caught early. Details: [docs/compatibility.md](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/compatibility.md).
 

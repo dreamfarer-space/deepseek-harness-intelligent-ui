@@ -53,13 +53,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     # Prerelease DSH lines are an early warning, not a merge gate.
-    continue-on-error: ${{ matrix.dsh == 'alpha' }}
+    continue-on-error: ${{ matrix.dsh == 'alpha' || matrix.dsh == 'next' }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         # Keep in sync with TESTED_DSH_VERSIONS in src/compat.js (dist-tags resolve at run time).
-        dsh: ['0.1.7-rc.2', '0.2.0-rc.1', 'latest', 'alpha']
+        dsh: ['0.1.7-rc.2', '0.2.0-rc.1', 'latest', 'next', 'alpha']
     env:
       CI: 'true'
     steps:
