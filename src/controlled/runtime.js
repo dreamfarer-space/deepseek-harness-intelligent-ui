@@ -3,6 +3,12 @@ export const CONTROL_LIMITS = Object.freeze({ dataBytes: 512_000, argsBytes: 16_
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const object = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 function fail(message) { throw new Error(message); }
+/** Random request id. crypto.randomUUID is missing outside secure contexts (plain-HTTP LAN hosts). */
+export function newRequestId() {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+}
 function copy(value, max) {
   const check = (v, depth = 0) => {
     if (depth > 20) fail('JSON nesting exceeds limit');
@@ -96,7 +102,7 @@ export function createControlledRuntime(sessionId) {
       if (!object(safe) || typeof safe.actionId !== 'string' || (safe.requestId !== undefined && (typeof safe.requestId !== 'string' || !safe.requestId || safe.requestId.length > 100))) fail('Invalid action request');
       const entry = actions.get(key(scope, safe.actionId)); if (!entry) fail('Unregistered action');
       validateSchema(entry.schema, safe.args);
-      return freeze({ actionId: safe.actionId, args: safe.args, requestId: typeof safe.requestId === 'string' ? safe.requestId : crypto.randomUUID() });
+      return freeze({ actionId: safe.actionId, args: safe.args, requestId: typeof safe.requestId === 'string' ? safe.requestId : newRequestId() });
     },
     async invokeAction(ctx, request, event) {
       const scope = scopeOf(ctx);

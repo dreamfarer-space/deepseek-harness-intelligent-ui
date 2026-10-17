@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { CONTROL_LIMITS, createControlledRuntime, projectData, validateSchema } from '../src/controlled/runtime.js'
+import { CONTROL_LIMITS, createControlledRuntime, newRequestId, projectData, validateSchema } from '../src/controlled/runtime.js'
 import { validateProps, validateTree } from '../src/catalog/catalog.js'
 const ctx = { sessionId: 'session-a', uiId: 'board' }
 const ref = { id: 'checks', scope: 'board' }
@@ -147,5 +147,19 @@ describe('declarative references and actions', () => {
     expect(validateProps('Table', { dataRef: ref, columns: ['x'], rows: [] })).not.toHaveLength(0)
     expect(validateProps('Button', { label: 'x' })).not.toHaveLength(0)
     expect(validateProps('Button', { label: 'x', prompt: 'hello', action: { actionId: 'a', args: {} } })).not.toHaveLength(0)
+  })
+})
+
+describe('request ids', () => {
+  it('fall back to getRandomValues outside secure contexts (no crypto.randomUUID)', () => {
+    const real = globalThis.crypto
+    vi.stubGlobal('crypto', { getRandomValues: a => real.getRandomValues(a) })
+    try {
+      const a = newRequestId(), b = newRequestId()
+      expect(a).toMatch(/^[0-9a-f]{32}$/)
+      expect(a).not.toBe(b)
+      const { runtime } = setup()
+      expect(runtime.prepareAction(ctx, { actionId: 'retry', args: { name: 'A' } }).requestId).toMatch(/^[0-9a-f]{32}$/)
+    } finally { vi.unstubAllGlobals() }
   })
 })
