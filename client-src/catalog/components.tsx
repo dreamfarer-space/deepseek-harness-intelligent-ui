@@ -1,5 +1,5 @@
 import { useId, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
-import { projectData } from '../../src/controlled/runtime.js'
+import { newRequestId, projectData } from '../../src/controlled/runtime.js'
 import { contextOf, type ControlledEnv, type DataRef } from '../controlled.ts'
 import { CATALOG, validateProps } from '../../src/catalog/catalog.js'
 import { formatFormSubmission } from '../bridge.ts'
@@ -415,7 +415,7 @@ function ControlledButton({ label, action, env }: { label: string; action: { act
     if (flight.current) return
     flight.current = true; setBusy(true); setStatus('Loading…')
     const fingerprint = JSON.stringify(action)
-    if (receipt.current?.fingerprint !== fingerprint) receipt.current = { fingerprint, id: crypto.randomUUID() }
+    if (receipt.current?.fingerprint !== fingerprint) receipt.current = { fingerprint, id: newRequestId() }
     try {
       if (!env.controlled) throw new Error('Actions are unavailable in this host')
       const value = await env.controlled.invokeAction(contextOf(env), { ...action, requestId: receipt.current.id }, event)

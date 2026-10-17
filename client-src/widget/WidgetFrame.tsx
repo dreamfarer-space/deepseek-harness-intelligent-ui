@@ -77,6 +77,7 @@ export function WidgetFrame(props: WidgetFrameProps) {
   const srcDoc = useMemo(() => {
     const p = live.current
     pendingAction.current = false
+    actionFlight.current = false
     actionEpoch.current++
     finalized.current = p.mode === 'final'
     ready.current = false
@@ -218,7 +219,10 @@ export function WidgetFrame(props: WidgetFrameProps) {
       if (actionEpoch.current !== epoch) return
       const reason = err instanceof Error ? err.message : String(err)
       post({ type: 'rpc-result', id: action.id, ok: false, error: reason }); setActionStatus('Error: ' + reason)
-    } finally { pendingAction.current = false; actionFlight.current = false; setAction(undefined) }
+    } finally {
+      // A rebuilt document may already have staged its own request; leave it.
+      if (actionEpoch.current === epoch) { pendingAction.current = false; actionFlight.current = false; setAction(undefined) }
+    }
   }
   return (<>
     {action && pendingAction.current && <div className="diui-card" role="group" aria-label="Requested action">

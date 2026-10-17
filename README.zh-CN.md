@@ -149,7 +149,7 @@ npx deepseek-harness-intelligent-ui doctor             # 只诊断，不做修�
 |---|---|
 | 升级 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@latest` |
 | 试用预发布版（仅在存在 `next` 标签时） | `dsh plugin --profile web add deepseek-harness-intelligent-ui@next` |
-| 固定版本 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.2.4` |
+| 固定版本 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.2.5` |
 | 卸载 | `dsh plugin --profile web remove deepseek-harness-intelligent-ui`（或 `npx deepseek-harness-intelligent-ui uninstall`） |
 | 从源码目录安装 | `dsh plugin --profile web add file:/path/to/deepseek-harness-intelligent-ui` |
 
@@ -172,7 +172,9 @@ npx deepseek-harness-intelligent-ui doctor             # 只诊断，不做修�
 | `0.2.0-rc.1` | ✅ | ✅ |
 | `0.2.0-rc.2`（`latest`） | ✅ | ✅ |
 | `0.2.1-alpha.2` | ✅ | ✅ |
-| `0.2.1-alpha.4`（`alpha`） | ✅ | ✅ |
+| `0.2.1-alpha.4` | ✅ | ✅ |
+| `0.2.1-alpha.5`（`alpha`） | ✅ | ✅ |
+| `0.2.1-rc.2`（`next`） | ✅ | ✅ |
 
 CI 每天定时在 Windows、Linux、macOS 上跑完整矩阵，DSH 一发新版就能发现问题。详见 [docs/compatibility.md](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/blob/main/docs/compatibility.md)。
 

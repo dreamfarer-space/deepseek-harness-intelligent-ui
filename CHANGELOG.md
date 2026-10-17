@@ -6,10 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.5]
+
 ### Added
 
+- Controlled data binding and action bridge for trusted hosts ([#15](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/15)): Table/Chart `dataRef` share one host-registered dataset with local search, filter, sort and paging; action Buttons and `Bridge.invokeAction` call allowlisted, schema-checked host actions only after a native click, with host authorization and write confirmation. Exported as `deepseek-harness-intelligent-ui/controlled`. See `docs/controlled-data-actions.md`.
 - Optional offline browser-resource tarball (`npm run build:offline`) for Math/KaTeX fonts, Mermaid, Three.js/OrbitControls, D3, Chart.js and canvas-confetti ([#18](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/18)). Exact locked versions, upstream licenses, checksums, size budgets, Host capability guidance and network-isolated Chromium regressions. Default online installation stays compatible.
 - Explicit static fallback status for unavailable Math/Mermaid libraries.
+
+### Fixed
+
+- Action Buttons no longer fail when DSH Web is served over plain HTTP (e.g. a LAN address), where `crypto.randomUUID` is unavailable.
+- A widget rebuilt while an action was running no longer loses its newly staged action request.
+- CI: the plain-answer E2E check waits for the answer itself; the release workflow waits up to 5 minutes for registry, tarball and attestation propagation.
+
+### Compatibility
+
+- Tested with DSH 0.2.1-rc.2 (`next`) and 0.2.1-alpha.5 (`alpha`) on cordis 4.0.5; CI adds a non-gating `next` column.
 
 ## [0.2.4]
 
@@ -102,7 +115,8 @@ All notable changes to this project are documented here. The format follows
   - The declarative component catalog (`ui_render`) and sandboxed streaming HTML widgets (`ui_render_widget`).
   - The `/ui` command and the guidance system-prompt section.
 
-[Unreleased]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.5...HEAD
+[0.2.5]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.1...v0.2.2
