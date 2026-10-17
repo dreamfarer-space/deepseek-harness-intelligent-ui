@@ -9,6 +9,7 @@
  * and packages/client/web/src/platform.ts (externals).
  */
 import { build } from 'esbuild'
+import { resourcePackPlugin } from './offline/build-plugin.mjs'
 import { readFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -37,17 +38,18 @@ const idiomorphSource = {
   },
 }
 
+const offline = process.argv.includes('--offline')
 const watch = process.argv.includes('--watch')
 const options = {
   entryPoints: [resolve(root, 'client-src/index.ts')],
-  outfile: resolve(root, 'client/client.js'),
+  outfile: resolve(root, offline ? 'dist/offline/package/client/client.js' : 'client/client.js'),
   bundle: true,
   format: 'cjs',
   platform: 'browser',
   target: ['es2020'],
   jsx: 'automatic',
   external: PLATFORM_MODULES,
-  plugins: [idiomorphSource],
+  plugins: [idiomorphSource, resourcePackPlugin(root, offline)],
   minify: !process.argv.includes('--no-minify'),
   legalComments: 'eof',
   charset: 'utf8',

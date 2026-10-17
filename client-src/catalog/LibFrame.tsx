@@ -1,3 +1,4 @@
+import { offlinePack } from '../resources.ts'
 import { useMemo } from 'react'
 import type { WidgetPolicy } from '../policy.ts'
 import { safeOrigins } from '../widget/frame.ts'
@@ -32,8 +33,11 @@ const SOURCES: Record<string, { katexJs: string; katexCss: string; mermaid: stri
   },
 }
 
+const OFFLINE_SOURCES = { katexJs: 'katex', katexCss: '', mermaid: 'mermaid' }
+
 /** The first allowed CDN that hosts the libraries, or undefined. */
 export function libSources(policy: WidgetPolicy): (typeof SOURCES)[string] | undefined {
+  if (offlinePack) return OFFLINE_SOURCES
   const allowed = safeOrigins(policy.cdn)
   const origin = Object.keys(SOURCES).find(o => allowed.includes(o))
   return origin ? SOURCES[origin] : undefined
@@ -41,18 +45,19 @@ export function libSources(policy: WidgetPolicy): (typeof SOURCES)[string] | und
 
 /** Frame payload for one library render. Exported for tests. */
 export function libPayload(kind: 'math' | 'mermaid', source: string, opts: { display?: boolean }, src: (typeof SOURCES)[string]) {
-  const fallback = 'function fallback(e){var r=document.getElementById("out");r.className="src";r.textContent=SRC;if(e)console.warn(e)}'
+  const fallback = 'function fallback(e){var r=document.getElementById("out");r.className="src";r.textContent=SRC;var status=document.getElementById("lib-status");status.textContent="Static fallback: library could not render. "+(e&&e.message||"");if(e)console.warn(e)}'
+  const status = '<div id="lib-status" role="status" style="font-size:12px;color:var(--ui-muted)"></div>'
   if (kind === 'math') {
     return {
-      css: `@import url(${JSON.stringify(src.katexCss)});#ui-root{padding:4px 2px;overflow-x:auto}#out{color:var(--ui-text);font-size:1.12em}#out.inline{display:inline-block}.src{font-family:var(--ui-mono);white-space:pre-wrap;color:var(--ui-muted)}.katex-display{margin:.4em 0}`,
-      html: `<div id="out" class="${opts.display === false ? 'inline' : ''}"></div>`,
+      css: `${offlinePack ? offlinePack.katexCss : `@import url(${JSON.stringify(src.katexCss)});`}#ui-root{padding:4px 2px;overflow-x:auto}#out{color:var(--ui-text);font-size:1.12em}#out.inline{display:inline-block}.src{font-family:var(--ui-mono);white-space:pre-wrap;color:var(--ui-muted)}.katex-display{margin:.4em 0}`,
+      html: `<div id="out" class="${opts.display === false ? 'inline' : ''}"></div>${status}`,
       js: `var SRC=${JSON.stringify(source)};${fallback}
 function render(){import(${JSON.stringify(src.katexJs)}).then(function(m){var k=m.default||m;k.render(SRC,document.getElementById("out"),{displayMode:${opts.display !== false},throwOnError:false,output:"htmlAndMathml"})}).catch(fallback)}`,
     }
   }
   return {
     css: '#ui-root{padding:8px;overflow-x:auto}#out{display:flex;justify-content:center}#out svg{max-width:100%;height:auto}.src{font-family:var(--ui-mono);white-space:pre-wrap;color:var(--ui-muted);display:block}',
-    html: '<div id="out" role="img"></div>',
+    html: '<div id="out" role="img"></div>' + status,
     js: `var SRC=${JSON.stringify(source)},n=0;${fallback}
 function render(){import(${JSON.stringify(src.mermaid)}).then(function(m){var mm=m.default||m;function draw(){mm.initialize({startOnLoad:false,securityLevel:"strict",theme:UI.scheme==="dark"?"dark":"default",fontFamily:UI.css("font")});return mm.render("m"+(++n),SRC).then(function(r){document.getElementById("out").innerHTML=r.svg})}
 UI.onTheme(function(){draw().catch(fallback)});return draw()}).catch(fallback)}`,
@@ -70,10 +75,11 @@ export function LibFrame(props: {
   const src = libSources(props.policy)
   const payload = useMemo(() => src && libPayload(props.kind, props.source, { display: props.display }, src),
     [src, props.kind, props.source, props.display])
-  if (!payload) return <pre className="diui-code">{props.source}</pre>
+  if (!payload) return <div data-resource-status="static-fallback"><span role="status">Static fallback: no rendering library allowed.</span><pre className="diui-code">{props.source}</pre></div>
   return (
     <div className="diui-lib" data-kind={props.kind}>
       <WidgetFrame
+        resourceLibraries={[props.kind === 'math' ? 'katex' : 'mermaid']}
         callId={props.surfaceId}
         mode="final"
         css={payload.css}

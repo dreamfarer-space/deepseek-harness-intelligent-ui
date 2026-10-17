@@ -5,6 +5,7 @@
  * matters: the browser renders css → html → js as each field completes.
  * @module deepseek-harness-intelligent-ui/tools/widget
  */
+import { RESOURCE_MODE } from '../resource-mode.js';
 import { clientPolicy } from '../config.js';
 
 export const WIDGET_TOOL = 'ui_render_widget';
@@ -17,7 +18,7 @@ export const WIDGET_FIELDS = ['title', 'initialHeight', 'placeholderMessages', '
  */
 export function createWidgetTool(config) {
   const policy = clientPolicy(config);
-  const cdn = config.cdnAllowlist.length ? config.cdnAllowlist.join(', ') : '(none)';
+  const cdn = policy.cdn.length ? policy.cdn.join(', ') : '(none)';
   return {
     name: WIDGET_TOOL,
     description: [
@@ -27,7 +28,8 @@ export function createWidgetTool(config) {
       '1. title (short) 2. initialHeight (px estimate) 3. placeholderMessages (2-4 short loading lines)',
       '4. css — ALL styles up front (no <style> in html) 5. html — body markup only (no <script>, <style>, <head>); give every control a unique id',
       '6. jsFunctions — named function declarations, runs once 7. jsExpressions — small statements calling those functions, run in order (e.g. ["init()"]).',
-      'Scripts are classic scripts: no top-level await; use `async function init(){ ... }`. Bare imports resolve through an importmap: `await import("three")`, `await import("three/addons/controls/OrbitControls.js")`, `await import("d3")`, `await import("chart.js/auto")`, `await import("gsap")`.',
+      'Scripts are classic scripts: no top-level await; use `async function init(){ ... }`. Bare imports resolve through an importmap: `await import("three")`, `await import("three/addons/controls/OrbitControls.js")`, `await import("d3")`, `await import("chart.js/auto")`, `await import("canvas-confetti")`.' + (RESOURCE_MODE === 'offline' ? '' : ' Online mode also supports `await import("gsap")`.'),
+      ...(RESOURCE_MODE === 'offline' ? ['Offline resource pack: only bare imports three, three/addons/controls/OrbitControls.js, d3, chart.js/auto, canvas-confetti, katex and mermaid are included. Other addons, gsap, external images/models/fonts, fetch and CDN URLs are unavailable. Use procedural geometry, local canvas or inline data assets.'] : []),
       'Runtime helpers (global, no import needed):',
       '- `UI.three(elOrSelector, { camera: [x,y,z], target: [x,y,z], autoRotate })` → Promise<{ THREE, scene, camera, renderer, controls, render(), onFrame(cb(dt)) }>: sized WebGL renderer with lights and orbit controls (drag = rotate, wheel/pinch = zoom, right-drag = pan); renders on demand, so call render() after changing the scene, or onFrame() for continuous animation. Put it in `<div class="ui-stage" id="stage"></div>` (360px tall; override the height in css).',
       '- `UI.canvas(elOrSelector, (ctx, w, h) => { ... })` → { redraw }: HiDPI 2D canvas in CSS pixels, redrawn on resize and theme change.',
@@ -36,7 +38,7 @@ export function createWidgetTool(config) {
       '- Helper classes: .ui-row (wrapping flex row), .ui-control (label + input + <output>), .ui-card, .ui-muted, .ui-stage.',
       'Theme CSS variables: --ui-bg, --ui-surface, --ui-text, --ui-muted, --ui-border, --ui-accent, --ui-accent-text, --ui-success, --ui-warning, --ui-error, --ui-radius, --ui-font, --ui-mono. Use them (never hard-coded page colors) so the widget follows light/dark mode. Layout must be responsive (fluid widths, wrap rows) — the chat may be phone-narrow.',
       'Interactivity: sliders, buttons, drag, rotate and zoom must update the widget immediately in JS (listen to "input" events; recompute and redraw). Never call sendPrompt for those.',
-      `Sandbox: no same-origin access (no localStorage/cookies/parent DOM). External resources only from: ${cdn}.${config.allowNetwork ? ' fetch() to those origins is allowed.' : ' Network requests (fetch/XHR/WebSocket) are blocked.'}`,
+      `Sandbox: no same-origin access (no localStorage/cookies/parent DOM). External resources only from: ${cdn}.${policy.allowNetwork ? ' fetch() to those origins is allowed.' : ' Network requests (fetch/XHR/WebSocket) are blocked.'}`,
       'To talk to the conversation call `Bridge.sendPrompt({ text })` (returns a Promise; the clicked button is disabled until it settles) ONLY in response to an explicit user action that needs you (e.g. an "Explain" or "Submit" button) — never on load, timers or ordinary input changes. Include the relevant current values in the text. `Bridge.openLink({ url })` opens an https link.',
       'After calling, add at most one short sentence; do not paste the code into the reply.',
     ].join('\n'),

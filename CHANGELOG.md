@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Optional offline browser-resource tarball (`npm run build:offline`) for Math/KaTeX fonts, Mermaid, Three.js/OrbitControls, D3, Chart.js and canvas-confetti ([#18](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/18)). Exact locked versions, upstream licenses, checksums, size budgets, Host capability guidance and network-isolated Chromium regressions. Default online installation stays compatible.
+- Explicit static fallback status for unavailable Math/Mermaid libraries.
+
 ## [0.2.4]
 
 ### Added

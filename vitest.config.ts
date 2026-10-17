@@ -4,6 +4,7 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   resolve: {
     alias: {
+      'offline-resource-pack': fileURLToPath(new URL('./tests/fixtures/offline-resource-pack.ts', import.meta.url)),
       'idiomorph-source': fileURLToPath(new URL('./tests/fixtures/idiomorph-source.ts', import.meta.url)),
     },
   },

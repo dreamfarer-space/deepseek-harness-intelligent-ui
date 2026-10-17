@@ -1,18 +1,20 @@
 #!/usr/bin/env node
 /** Standalone browser/WebView bundle; no DSH globals and no runtime CDN needed for React. */
 import { build } from 'esbuild'
+import { resourcePackPlugin } from './offline/build-plugin.mjs'
 import { readFile, mkdir } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const offline = process.argv.includes('--offline')
 await mkdir(resolve(root, 'renderer'), { recursive: true })
 await build({
   entryPoints: [resolve(root, 'renderer-src/index.tsx')],
-  outfile: resolve(root, 'renderer/renderer.js'),
+  outfile: resolve(root, offline ? 'dist/offline/package/renderer/renderer.js' : 'renderer/renderer.js'),
   bundle: true, minify: true, platform: 'browser', format: 'iife',
   globalName: 'DshIntelligentUiRenderer', jsx: 'automatic', target: ['es2020'],
   charset: 'utf8', legalComments: 'eof',
-  plugins: [{
+  plugins: [resourcePackPlugin(root, offline), {
     name: 'idiomorph-source',
     setup(b) {
       b.onResolve({ filter: /^idiomorph-source$/ }, () => ({

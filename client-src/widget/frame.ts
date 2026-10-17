@@ -13,6 +13,7 @@
  * markup and runs the code. The iframe is never rebuilt between streaming and
  * the finished widget, so there is no blank flash or height jump.
  */
+import { offlinePack, resourceMode } from '../resources.ts'
 import IDIOMORPH_SOURCE from 'idiomorph-source'
 import type { WidgetPolicy } from '../policy.ts'
 
@@ -27,6 +28,8 @@ export interface FrameInput {
   policy: WidgetPolicy
   /** Persisted widget state (`UI.state` + auto-captured control values), final mode only. */
   state?: unknown
+  /** Internal catalog frames embed only the library they use. */
+  resourceLibraries?: readonly string[]
 }
 
 /** Bare-specifier aliases for popular libraries, served from esm.sh when allowed. */
@@ -52,7 +55,7 @@ export function safeOrigins(list: readonly string[]): string[] {
 }
 
 export function contentSecurityPolicy(policy: WidgetPolicy): string {
-  const cdn = safeOrigins(policy.cdn).join(' ')
+  const cdn = offlinePack ? '' : safeOrigins(policy.cdn).join(' ')
   const connect = policy.allowNetwork && cdn ? cdn : "'none'"
   return [
     "default-src 'none'",
@@ -188,6 +191,7 @@ const BOOTSTRAP = `
     return m ? [+m[1], +m[2], +m[3], m[4] === undefined ? 1 : +m[4]] : null;
   }
   var UI = window.UI = {
+    resourceMode: __RESOURCE_MODE__,
     state: {},
     controls: {},
     reducedMotion: !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches),
@@ -369,11 +373,22 @@ export function codePayload(input: Pick<FrameInput, 'jsFunctions' | 'jsExpressio
   return { functions: input.jsFunctions ?? '', expressions: input.jsExpressions ?? [], state: input.state ?? null }
 }
 
+/** Blob modules are created by the opaque-origin frame itself. No host URL enters CSP. */
+function offlineImportMap(libraries?: readonly string[]): string {
+  const modules = Object.fromEntries(Object.entries(offlinePack!.modules)
+    .filter(([name]) => !libraries || libraries.includes(name)))
+  return `<script>(function(){var modules=${jsonForScript(modules)},imports={};
+Object.keys(modules).forEach(function(name){var m=modules[name],url=URL.createObjectURL(new Blob([m.source],{type:'text/javascript'}));m.imports.forEach(function(key){imports[key]=url})});
+var map=document.createElement('script');map.type='importmap';map.textContent=JSON.stringify({imports:imports});document.currentScript.after(map);
+})();</script>`
+}
+
 /** @returns the complete srcdoc for one frame. */
 export function buildFrameDocument(input: FrameInput): string {
   const cdn = safeOrigins(input.policy.cdn)
-  const imports = cdn.includes('https://esm.sh') ? IMPORTS : {}
+  const imports = !offlinePack && cdn.includes('https://esm.sh') ? IMPORTS : {}
   const bootstrap = BOOTSTRAP
+    .replace('__RESOURCE_MODE__', JSON.stringify(resourceMode))
     .replace('__TOKEN__', JSON.stringify(input.token))
     .replace('__MAX__', String(Math.max(50, Math.floor(input.policy.maxHeight))))
     .replace('__SCHEME__', JSON.stringify(schemeOf(input.theme)))
@@ -384,6 +399,7 @@ export function buildFrameDocument(input: FrameInput): string {
     '<!doctype html><html><head><meta charset="utf-8">',
     `<meta http-equiv="Content-Security-Policy" content="${contentSecurityPolicy(input.policy).replace(/"/g, '&quot;')}">`,
     '<meta name="viewport" content="width=device-width,initial-scale=1">',
+    offlinePack ? offlineImportMap(input.resourceLibraries) : '',
     Object.keys(imports).length ? `<script type="importmap">${jsonForScript({ imports })}</script>` : '',
     `<style id="ui-theme">${escapeForRawText(themeCss(input.theme), 'style')}</style>`,
     `<style>${BASE_CSS}</style>`,

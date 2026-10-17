@@ -23,6 +23,7 @@ export interface PortableUiArtifact {
   definition: Record<string, unknown>
   policy?: WidgetPolicy
 }
+export { resourceMode } from '../client-src/resources.ts'
 export { createControlledRuntime } from '../src/controlled/runtime.js'
 export interface RendererHost {
   controlled?: import('../client-src/controlled.ts').ControlledRuntime
