@@ -78,7 +78,10 @@
     "release:check": "node scripts/ci/release-check.mjs",
     "smoke": "node scripts/ci/smoke.mjs",
     "docs:art": "node scripts/docs/readme-art.mjs",
-    "build:renderer": "node scripts/build-renderer.mjs"
+    "build:renderer": "node scripts/build-renderer.mjs",
+    "build:offline": "npm run build && node scripts/offline/build.mjs",
+    "e2e:offline": "node scripts/e2e/offline.mjs",
+    "verify:offline": "node scripts/offline/verify.mjs"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.0.4 || >=4.0.5-alpha.0 <4.1.0-0",
@@ -106,13 +109,19 @@
     "@deepseek-ai/dsh-llm": "0.2.0-rc.1",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "canvas-confetti": "1.9.3",
+    "chart.js": "4.4.4",
+    "d3": "7.9.0",
     "esbuild": "0.28.2",
     "idiomorph": "0.8.0",
     "jsdom": "26.1.0",
+    "katex": "0.16.11",
+    "mermaid": "11.4.1",
     "puppeteer-core": "25.12.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "tar": "7.5.22",
+    "three": "0.169.0",
     "typescript": "7.0.2",
     "vitest": "5.0.3"
   },

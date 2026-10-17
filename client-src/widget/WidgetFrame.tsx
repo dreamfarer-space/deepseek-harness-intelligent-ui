@@ -24,6 +24,7 @@ export interface WidgetFrameProps extends ControlledEnv {
   html: string
   jsFunctions?: string
   jsExpressions?: readonly string[]
+  resourceLibraries?: readonly string[]
   initialHeight?: number
   policy: WidgetPolicy
   title: string
@@ -63,6 +64,7 @@ export function WidgetFrame(props: WidgetFrameProps) {
   const errors = useRef<string[]>([])
   // Policies arrive as fresh objects (defaults while running, result meta once
   // settled); key by value so an equal policy never rebuilds the document.
+  const resourceKey = JSON.stringify(props.resourceLibraries)
   const policyKey = JSON.stringify(props.policy)
   const policy = useMemo(() => props.policy, [policyKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const guard = useMemo(() => new BridgeGuard({ policy }), [policy])
@@ -80,6 +82,7 @@ export function WidgetFrame(props: WidgetFrameProps) {
     ready.current = false
     errors.current = []
     return buildFrameDocument({
+      resourceLibraries: p.resourceLibraries,
       token: tok,
       mode: p.mode,
       css: p.css,
@@ -91,7 +94,7 @@ export function WidgetFrame(props: WidgetFrameProps) {
       state: p.mode === 'final' && persist ? getUiState(p.callId, 'widget') : undefined,
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tok, props.css, policy, props.generation])
+  }, [tok, props.css, policy, props.generation, resourceKey])
 
   const post = (msg: Record<string, unknown>) => {
     ref.current?.contentWindow?.postMessage({ ...msg, __diui: tok }, '*')

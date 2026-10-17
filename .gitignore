@@ -12,3 +12,5 @@ CLAUDE.md
 
 *.tgz
 release-notes.md
+
+dist/

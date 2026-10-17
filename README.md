@@ -202,7 +202,7 @@ The plugin injects a system-prompt section (`src/guidance.js`) that makes the mo
 
 A UI travels as a **flat node list with id references**, because DSH's tool-schema subset has no recursion. The Host validates it before acknowledging: unknown types or props, dangling or duplicate ids, cycles, two parents, chart length mismatches, `Plot` expressions that do not compile, slider defaults out of range, and so on. Problems come back as `ok:false` with paths, so the model can fix them and retry.
 
-`Math` and `Mermaid` render inside the same sandbox as widgets, loading KaTeX or Mermaid from the CDN allowlist. No third-party code runs in the DSH page and the host bundle stays small (~127 KB). If the CDN is unreachable, the source text is shown instead.
+`Math` and `Mermaid` render inside the same sandbox as widgets, loading KaTeX or Mermaid from the CDN allowlist. No third-party code runs in the DSH page. If the CDN is unreachable, the source text and a static fallback status are shown. An [optional offline resource package](docs/offline-resources.md) embeds locked KaTeX/fonts, Mermaid, Three.js/OrbitControls, D3, Chart.js and canvas-confetti without opening the sandbox network.
 
 ## 🔁 Updating a UI in place (`ui_patch`)
 
@@ -442,7 +442,7 @@ Automated checks cannot judge visual quality, so the report also carries a **sam
 
 ## Limitations
 
-- Widgets, Math and Mermaid need the CDN allowlist to be reachable. Offline, Math/Mermaid fall back to source text and `UI.three` reports a script error.
+- The default online package needs reachable CDN resources for Math/Mermaid and imported widget libraries. An [optional offline package](docs/offline-resources.md) supports Math, Mermaid and standard Three.js scenes; other addons, GSAP and external media remain unsupported offline. Library failures show an explicit static fallback or widget script error.
 - Persisted interaction state is per browser (`localStorage`), not synced across devices.
 - Matching a dropped (stopped-while-streaming) call to its turn uses the turn's start/end times. A large clock offset between a remote DSH host and the browser could hide that card. Calls that reached the session log are unaffected.
 

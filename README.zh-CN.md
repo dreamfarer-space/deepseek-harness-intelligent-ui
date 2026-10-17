@@ -212,7 +212,7 @@ CI 每天定时在 Windows、Linux、macOS 上跑完整矩阵，DSH 一发新版
 
 **传输与校验：** DSH 的工具 schema 不支持递归，所以界面以**扁平节点列表加 id 引用**的形式传输。Host 先校验再确认，检查项包括未知类型或属性；id 悬空、重复或成环；一个节点有多个父节点；图表数据长度不一致；`Plot` 表达式无法编译、参数默认值越界等。发现问题时返回 `ok:false` 并附带出错路径，模型据此修正后重试。
 
-**`Math` 与 `Mermaid` 的渲染：** 两者在与组件相同的沙箱中，从 CDN 白名单加载 KaTeX 或 Mermaid。第三方代码不在 DSH 页面中运行，宿主包体积保持在约 127 KB。CDN 不可用时，显示源码文本。
+**`Math` 与 `Mermaid` 的渲染：** 两者在与组件相同的沙箱中，从 CDN 白名单加载 KaTeX 或 Mermaid。第三方代码不在 DSH 页面中运行。CDN 不可用时，显示源码与明确的静态降级提示。[可选离线资源包](docs/offline-resources.md) 内置锁定版本的 KaTeX/字体、Mermaid、Three.js/OrbitControls、D3、Chart.js 和 canvas-confetti，无需开放沙箱网络。
 
 ## 🔁 原位增量更新（`ui_patch`）
 
@@ -432,7 +432,7 @@ GitHub 上的 **Real-model eval** 工作流可按需手动触发，使用仓库�
 
 ## 已知限制
 
-- 沙箱组件、`Math` 和 `Mermaid` 需要能访问 CDN 白名单。离线时，`Math` 和 `Mermaid` 退回显示源码，`UI.three` 会报告脚本错误。
+- 默认在线包的公式、Mermaid 与组件导入库依赖可达 CDN。[可选离线资源包](docs/offline-resources.md) 支持公式、Mermaid 和标准 Three.js 场景；其他 Three.js 插件、GSAP、外部媒体不包含在内。资源失败会显示明确的静态降级或脚本错误。
 - 交互状态保存在当前浏览器的 `localStorage` 中，不跨设备同步。
 - 对“流式中途被丢弃的调用”，插件按回合的起止时间归属。如果远程 DSH 主机与浏览器的时钟偏差较大，这张卡片可能不显示。已进入会话日志的调用不受影响。
 

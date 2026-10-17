@@ -4,6 +4,7 @@
  * client through each tool result's `presentationMeta` (see {@link clientPolicy}).
  * @module deepseek-harness-intelligent-ui/config
  */
+import { RESOURCE_MODE } from './resource-mode.js';
 import Schema from '@deepseek-ai/schemastery';
 
 export const DEFAULTS = Object.freeze({
@@ -59,8 +60,8 @@ export function resolveConfig(raw) {
  */
 export function clientPolicy(config) {
   return {
-    cdn: [...config.cdnAllowlist],
-    allowNetwork: config.allowNetwork,
+    cdn: RESOURCE_MODE === 'offline' ? [] : [...config.cdnAllowlist],
+    allowNetwork: RESOURCE_MODE === 'offline' ? false : config.allowNetwork,
     maxHeight: config.maxWidgetHeight,
     sendPromptMaxChars: config.sendPromptMaxChars,
     openLinkOrigins: [...config.openLinkAllowedOrigins],
