@@ -5,7 +5,7 @@
  * user messages, so the agent never blocks on the UI.
  * @module deepseek-harness-intelligent-ui/tools/render
  */
-import { catalogReference, COMPONENT_TYPES, validateTree } from '../catalog/catalog.js';
+import { catalogReference, componentTypes, validateTree } from '../catalog/catalog.js';
 import { clientPolicy } from '../config.js';
 
 export const RENDER_TOOL = 'ui_render';
@@ -17,7 +17,7 @@ export function createRenderTool(config) {
   const policy = clientPolicy(config);
   return {
     name: RENDER_TOOL,
-    description: [
+    get description() { return [
       'Show the user an interactive UI (cards, tables, charts, KPI stats, tabs, timelines, function plots with live sliders, math formulas, Mermaid diagrams, buttons, forms) rendered natively in the chat.',
       'Use it when structured or visual presentation answers better than prose: comparisons, data, dashboards, processes, formulas, functions to explore, choices, input collection.',
       'Sorting, tabs, chart hover and Plot sliders work locally. Host-registered dataRef shares data and local queries between Table/Chart. Only prompt Buttons and Form submissions send model messages; action Buttons call the host allowlist.',
@@ -26,8 +26,8 @@ export function createRenderTool(config) {
       'After calling, add at most one short sentence; do not repeat the UI content in text.',
       'Components:',
       catalogReference(),
-    ].join('\n'),
-    parameters: {
+    ].join('\n'); },
+    get parameters() { return {
       type: 'object',
       properties: {
         title: { type: 'string', description: 'Optional card title shown above the UI.' },
@@ -39,7 +39,8 @@ export function createRenderTool(config) {
             type: 'object',
             properties: {
               id: { type: 'string', description: 'Unique id.' },
-              type: { type: 'string', enum: [...COMPONENT_TYPES] },
+              type: { type: 'string', enum: componentTypes() },
+              componentVersion: { type: 'string', description: 'Required for extension types: exact version from the catalog. Omit for built-ins.' },
               props: { type: 'object', description: 'Props for this component type (see the component list).' },
               children: { type: 'array', items: { type: 'string' }, description: 'Child component ids (containers only).' },
             },
@@ -48,7 +49,7 @@ export function createRenderTool(config) {
         },
       },
       required: ['root', 'components'],
-    },
+    }; },
     output: {
       schema: {
         type: 'object',

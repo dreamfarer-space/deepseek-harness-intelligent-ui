@@ -25,6 +25,10 @@
 
 本插件把 CopilotKit [OpenIntelligentUI](https://github.com/CopilotKit/OpenIntelligentUI) 的思路（Open Generative UI + A2UI 风格声明式组件）移植到 DSH 自带的扩展点上，不依赖 CopilotKit、LangGraph 或外部路由服务。
 
+### 第三方声明式组件
+
+可信伴随插件可注册带版本和命名空间的组件，Host 与浏览器共用 props Schema，并支持本地 React 渲染、禁用和卸载。详见[扩展接口与可运行的 GitDiffViewer 模板](docs/component-extensions.md)。构建后运行 `node examples/component-extension/serve.mjs` 即可体验。模型输出不能注册或加载代码。
+
 ## ✨ 亮点
 
 <table>

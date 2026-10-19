@@ -22,13 +22,20 @@
   "type": "module",
   "exports": {
     ".": "./src/plugin.js",
-    "./client": "./client/client.js",
+    "./client": {
+      "types": "./client/client.d.ts",
+      "default": "./client/client.js"
+    },
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./locale/*.json": "./locale/*.json",
     "./package.json": "./package.json",
     "./renderer/renderer.js": "./renderer/renderer.js",
     "./controlled": "./src/controlled/runtime.js",
-    "./portable": "./src/portable/artifacts.js"
+    "./portable": "./src/portable/artifacts.js",
+    "./catalog": {
+      "types": "./src/catalog/extensions.d.ts",
+      "default": "./src/catalog/extensions.js"
+    }
   },
   "bin": {
     "deepseek-harness-intelligent-ui": "bin/cli.mjs"
@@ -44,7 +51,9 @@
     "THIRD_PARTY_NOTICES.md",
     "README.md",
     "README.zh-CN.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "examples/component-extension",
+    "docs/component-extensions.md"
   ],
   "dsh": {
     "bundle": {
@@ -81,7 +90,9 @@
     "build:renderer": "node scripts/build-renderer.mjs",
     "build:offline": "npm run build && node scripts/offline/build.mjs",
     "e2e:offline": "node scripts/e2e/offline.mjs",
-    "verify:offline": "node scripts/offline/verify.mjs"
+    "verify:offline": "node scripts/offline/verify.mjs",
+    "e2e:extensions": "node scripts/e2e/extensions.mjs",
+    "e2e:extensions:dsh": "node scripts/e2e/extensions-dsh.mjs"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.0.4 || >=4.0.5-alpha.0 <4.1.0-0",

@@ -3,8 +3,9 @@
  * Contract: mount(element, {sendPrompt, onHeight}), render(snapshot), setTheme(), dispose().
  * No DSH session, Remote credentials or RPC APIs enter the renderer.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
+import { catalogRevision, subscribeCatalog } from '../src/catalog/extensions.js'
 import { validateTree } from '../src/catalog/catalog.js'
 import { BridgeGuard } from '../client-src/bridge.ts'
 import { DEFAULT_POLICY, policyFromMeta } from '../client-src/policy.ts'
@@ -49,6 +50,7 @@ const readDefinition = (value: unknown): Record<string, unknown> | undefined =>
   value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined
 
 function Surface({ artifact, host, theme }: { artifact: PortableUiArtifact; host: RendererHost; theme: 'light' | 'dark' }) {
+  useSyncExternalStore(subscribeCatalog, catalogRevision, catalogRevision)
   const definition = readDefinition(artifact.definition)
   const policy = useMemo(() => policyFromMeta({ policy: artifact.policy ?? DEFAULT_POLICY }), [artifact.policy])
   const [widgetErrors, setWidgetErrors] = useState<readonly string[]>([])
@@ -133,3 +135,6 @@ export function mount(element: HTMLElement, host: RendererHost): MountedRenderer
     dispose() { if (disposed) return; disposed = true; observer.disconnect(); root.unmount(); css.remove() },
   }
 }
+
+export { registerComponentExtension, CATALOG_API_VERSION } from '../client-src/catalog/extensions.tsx'
+export type { CatalogExtension, ComponentDefinition, ExtensionHandle, InferProps, ExtensionRenderContext, ExtensionRenderers } from '../client-src/catalog/extensions.tsx'
