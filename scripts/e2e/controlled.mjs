@@ -8,7 +8,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { once } from 'node:events'
 import puppeteer from 'puppeteer-core'
-import { findChrome } from './dsh-web.mjs'
+import { gotoWithRetry, launchBrowser } from './dsh-web.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const files = new Set([
@@ -30,12 +30,11 @@ try {
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
   const url = `http://127.0.0.1:${server.address().port}`
-  browser = await puppeteer.launch({
-    executablePath: findChrome(), headless: true,
+  browser = await launchBrowser(puppeteer, {
     args: process.platform === 'linux' ? ['--no-sandbox'] : [],
   })
   const page = await browser.newPage()
-  page.setDefaultTimeout(10_000)
+  page.setDefaultTimeout(30_000)
   const click = async label => {
     for (const button of await page.$$('button')) {
       if (await button.evaluate((el, text) => el.textContent === text, label)) { await button.click(); return }
@@ -47,7 +46,7 @@ try {
   await cdp.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: downloads, eventsEnabled: true })
   let downloadCount = 0
   cdp.on('Browser.downloadWillBegin', () => downloadCount++)
-  await page.goto(url + '/examples/controlled-dashboard.html')
+  await gotoWithRetry(page, url + '/examples/controlled-dashboard.html')
   await page.waitForSelector('button')
   await click('Export view')
   await page.waitForFunction(() => document.body.textContent.includes('"exportedRows":3'))
@@ -70,7 +69,7 @@ try {
   assert.equal(confirmations, 2, 'cancelling must allow a later confirmation')
 
   // Mount a controlled widget and an uncertain native write in a fresh page.
-  await page.goto(url + '/examples/controlled-dashboard.html')
+  await gotoWithRetry(page, url + '/examples/controlled-dashboard.html')
   await page.evaluate(() => {
     document.body.innerHTML = '<div id="widget"></div><div id="native"></div>'
     const { mount, createControlledRuntime } = DshIntelligentUiRenderer

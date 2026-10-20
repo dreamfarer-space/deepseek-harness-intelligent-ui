@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer-core';
-import { installPlugin, start, startDshWeb, kill, findChrome } from './dsh-web.mjs';
+import { installPlugin, start, startDshWeb, kill, gotoWithRetry, launchBrowser } from './dsh-web.mjs';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const arg = process.argv.indexOf('--spec');
 const spec = arg < 0 ? root : path.resolve(process.argv[arg + 1]);
@@ -22,12 +22,12 @@ try {
   installPlugin(template, dshHome);
   mock = start(process.execPath, [path.join(root, 'scripts/e2e/mock-deepseek.mjs'), String(mockPort), log], { stdio: 'ignore' });
   web = await startDshWeb({ dshHome, port: webPort, mockPort });
-  browser = await puppeteer.launch({ executablePath: findChrome(), headless: true, args: process.platform === 'linux' ? ['--no-sandbox'] : [] });
+  browser = await launchBrowser(puppeteer, { args: process.platform === 'linux' ? ['--no-sandbox'] : [] });
   page = await browser.newPage();
   page.setDefaultTimeout(30000);
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error' && !message.text().includes('Failed to load resource')) errors.push(message.text()); });
-  await page.goto(web.url, { waitUntil: 'networkidle2' });
+  await gotoWithRetry(page, web.url, { waitUntil: 'networkidle2' });
   // Fresh DSH profiles show a consent notice in front of the composer.
   for (let i = 0; i < 40; i++) {
     const state = await page.evaluate(() => {

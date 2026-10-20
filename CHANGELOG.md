@@ -18,6 +18,10 @@ All notable changes to this project are documented here. The format follows
 - Browser E2E checks 13a–13g for the new components (filters, CSV contents and formula neutralisation, scatter hover, heatmap keyboard, CodeDiff as text, no model calls); `E2E_DATA_ONLY=1` runs only them.
 - `docs/component-roadmap.md`: what #17 shipped, and design proposals for `Map` and `Calendar`.
 
+### Fixed
+
+- CI: Windows browser jobs no longer fail intermittently. Every real-browser script launches Chrome through one helper that uses a fresh profile directory per attempt and retries ("The browser is already running for …"), and first navigations get 60 s with one retry instead of 10 s.
+
 ## [0.2.6]
 
 ### Added

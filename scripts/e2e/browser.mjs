@@ -9,7 +9,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import puppeteer from 'puppeteer-core'
-import { findChrome } from './dsh-web.mjs'
+import { gotoWithRetry, launchBrowser } from './dsh-web.mjs'
 
 const [url, outDir, mockLog] = process.argv.slice(2)
 const RECORD = process.argv.includes('--record')
@@ -29,9 +29,7 @@ function check(name, ok, detail = '') {
 }
 const mock = () => readFileSync(mockLog, 'utf8').trim().split('\n').map(l => JSON.parse(l)).filter(e => e.decision)
 
-const browser = await puppeteer.launch({
-  executablePath: findChrome(),
-  headless: true,
+const browser = await launchBrowser(puppeteer, {
   defaultViewport: { width: 1280, height: 860 },
   // Software WebGL so three.js renders in headless Chrome.
   args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader', '--hide-scrollbars',
@@ -270,7 +268,7 @@ async function checkNewSession() {
 
 // ================================================================================
 try {
-await page.goto(url, { waitUntil: 'networkidle2' })
+await gotoWithRetry(page, url, { waitUntil: 'networkidle2' })
 await sleep(2000)
 // First-run notice (DSH 0.1.x enables its Continue button only after a delay): wait for it to be clickable.
 for (let i = 0; i < 40; i++) {

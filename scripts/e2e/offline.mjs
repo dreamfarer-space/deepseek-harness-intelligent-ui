@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
 import * as tar from 'tar'
 import puppeteer from 'puppeteer-core'
-import { findChrome } from './dsh-web.mjs'
+import { gotoWithRetry, launchBrowser } from './dsh-web.mjs'
 import { verifyOfflinePackage } from '../offline/verify.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
@@ -45,8 +45,7 @@ try {
   })
   server.listen(0, '127.0.0.1'); await once(server, 'listening')
   const origin = `http://127.0.0.1:${server.address().port}`
-  browser = await puppeteer.launch({
-    executablePath: findChrome(), headless: true,
+  browser = await launchBrowser(puppeteer, {
     args: ['--no-sandbox', '--enable-unsafe-swiftshader', '--use-angle=swiftshader'],
   })
   const page = await browser.newPage()
@@ -60,7 +59,7 @@ try {
     if (/^https?:/.test(url) && new URL(url).origin !== origin) { external.push(url); request.abort() }
     else request.continue()
   })
-  await page.goto(origin)
+  await gotoWithRetry(page, origin)
   assert.equal(await page.evaluate(() => DshIntelligentUiRenderer.resourceMode), 'offline')
   // Fully disconnect after the local host bundle is in memory, not just block CDN names.
   await page.setOfflineMode(true)
