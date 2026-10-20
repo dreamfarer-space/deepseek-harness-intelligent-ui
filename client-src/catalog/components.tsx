@@ -12,6 +12,11 @@ import { Chart, formatNumber, type ChartProps } from './Chart.tsx'
 import { Inline } from './inline.tsx'
 import { LibFrame } from './LibFrame.tsx'
 import { Plot, type PlotProps } from './Plot.tsx'
+import { CodeDiff, FileTree, JsonView } from './CodeView.tsx'
+import { Heatmap, Scatter, type HeatmapProps, type ScatterProps } from './Scatter.tsx'
+import { ExportButtons, Table, type Cell } from './Table.tsx'
+
+export { compareCells } from './Table.tsx'
 
 export interface UiNode { id: string; type: string; componentVersion?: string; props?: Record<string, unknown>; children?: string[] }
 
@@ -134,10 +139,27 @@ function Component({ node, env, children }: { node: UiNode; env: RenderEnv; chil
     }
     case 'Table':
       if (p.dataRef) return <BoundData kind="Table" props={p} env={env} nodeId={node.id} />
-      return <Table columns={p.columns} rows={p.rows} caption={p.caption} sortable={p.sortable} env={env} nodeId={node.id} />
+      return <Table columns={p.columns} rows={p.rows} caption={p.caption} sortable={p.sortable} columnTypes={p.columnTypes}
+        searchable={p.searchable} filterable={p.filterable} pageSize={p.pageSize} exportable={p.exportable} t={env.t} callId={env.callId} nodeId={node.id} />
     case 'Chart':
       if (p.dataRef) return <BoundData kind="Chart" props={p} env={env} nodeId={node.id} />
-      return <Chart {...(p as ChartProps)} emptyText={env.t('chart.empty')} />
+      return (
+        <div className="diui-chart-block">
+          <Chart {...(p as ChartProps)} emptyText={env.t('chart.empty')} />
+          {p.exportable && <ExportButtons columns={['', ...(p.series as ChartProps['series']).map(x => x.name)]} name={p.title}
+            rows={(p.labels as Cell[]).map((l, i) => [l, ...(p.series as ChartProps['series']).map(x => x.values[i] ?? null)])} t={env.t} />}
+        </div>
+      )
+    case 'Scatter':
+      return <Scatter {...(p as ScatterProps)} emptyText={env.t('chart.empty')} missingText={count => env.t('chart.missingPoints', { count })} />
+    case 'Heatmap':
+      return <Heatmap {...(p as HeatmapProps)} emptyText={env.t('chart.empty')} noDataText={env.t('chart.noData')} />
+    case 'CodeDiff':
+      return <CodeDiff files={p.files} title={p.title} context={p.context} t={env.t} callId={env.callId} nodeId={node.id} />
+    case 'FileTree':
+      return <FileTree entries={p.entries} title={p.title} expandDepth={p.expandDepth} t={env.t} callId={env.callId} nodeId={node.id} />
+    case 'JsonView':
+      return <JsonView data={p.data} title={p.title} expandDepth={p.expandDepth} t={env.t} callId={env.callId} nodeId={node.id} />
     case 'Button':
       if (p.action) return <ControlledButton label={p.label} action={p.action} env={env} />
       return <ActionButton label={p.label} prompt={p.prompt} variant={p.variant} sessionTarget={p.sessionTarget} env={env} nodeId={node.id} />
@@ -216,58 +238,6 @@ function Tabs(props: { labels: string[]; children: ReactNode[]; env: RenderEnv; 
       <div className="diui-tabpanel" role="tabpanel" id={`${uid}-panel`} aria-labelledby={`${uid}-tab-${index}`}>{props.children[index]}</div>
     </div>
   )
-}
-
-type Cell = string | number | boolean | null
-
-function Table(props: { columns: string[]; rows: Cell[][]; caption?: string; sortable?: boolean; env: RenderEnv; nodeId: string }) {
-  const [stored, setSort] = useUiState<{ col: number; dir: 1 | -1 } | null>(props.env.callId, `${props.nodeId}:sort`, null)
-  // A patch may drop columns; a sort on a column that no longer exists is void.
-  const sort = stored && stored.col < props.columns.length ? stored : null
-  const rows = useMemo(() => {
-    if (!sort) return props.rows
-    const { col, dir } = sort
-    return [...props.rows].sort((a, b) => compareCells(a[col] ?? null, b[col] ?? null) * dir)
-  }, [props.rows, sort])
-  const numeric = props.columns.map((_, c) => props.rows.length > 0 && props.rows.every(r => typeof r[c] === 'number' || r[c] === null || r[c] === undefined))
-  return (
-    <div className="diui-table-wrap">
-      <table className="diui-table">
-        {props.caption && <caption>{props.caption}</caption>}
-        <thead>
-          <tr>
-            {props.columns.map((c, i) => (
-              <th key={i} data-numeric={numeric[i] || undefined} aria-sort={sort?.col === i ? (sort.dir === 1 ? 'ascending' : 'descending') : undefined}>
-                {props.sortable
-                  ? <button type="button" className="diui-th-button" onClick={() => setSort(s => s?.col === i ? (s.dir === 1 ? { col: i, dir: -1 } : null) : { col: i, dir: 1 })}>{c}<span className="diui-sort" aria-hidden="true">{sort?.col === i ? (sort.dir === 1 ? '↑' : '↓') : '↕'}</span></button>
-                  : c}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 && <tr><td colSpan={props.columns.length} className="diui-empty">{props.env.t('table.empty')}</td></tr>}
-          {rows.map((r, i) => (
-            <tr key={i}>{props.columns.map((_, c) => <td key={c} data-numeric={numeric[c] || undefined}>{cellText(r[c])}</td>)}</tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-function cellText(v: Cell | undefined): ReactNode {
-  if (v === null || v === undefined) return '—'
-  if (typeof v === 'boolean') return v ? '✓' : '✗'
-  return typeof v === 'string' ? <Inline text={v} /> : String(v)
-}
-
-export function compareCells(a: Cell, b: Cell): number {
-  if (a === b) return 0
-  if (a === null) return 1
-  if (b === null) return -1
-  if (typeof a === 'number' && typeof b === 'number') return a - b
-  return String(a).localeCompare(String(b), undefined, { numeric: true })
 }
 
 function useSend(env: RenderEnv, newSession = false): [(text: string) => Promise<boolean>, boolean, string | undefined] {
@@ -518,7 +488,11 @@ function BoundData({ kind, props: p, env, nodeId }: { kind: 'Table' | 'Chart'; p
     if (kind === 'Chart') {
       const cols = p.valueColumns as number[]
       if (p.labelColumn >= columns.length || cols.some(c => c >= columns.length) || rows.some(r => cols.some(c => typeof r[c] !== 'number'))) throw new Error('Chart columns must reference numeric data')
-      return <Chart {...p as ChartProps} labels={rows.map(r => r[p.labelColumn] ?? null)} series={cols.map(c => ({ name: columns[c]!, values: rows.map(r => r[c] as number) }))} emptyText={env.t('chart.empty')} />
+      const series = cols.map(c => ({ name: columns[c]!, values: rows.map(r => r[c] as number) }))
+      return <div className="diui-chart-block">
+        <Chart {...p as ChartProps} labels={rows.map(r => r[p.labelColumn] ?? null)} series={series} emptyText={env.t('chart.empty')} />
+        {p.exportable && <ExportButtons columns={[columns[p.labelColumn]!, ...series.map(x => x.name)]} rows={rows.map(r => [r[p.labelColumn] ?? null, ...cols.map(c => r[c] ?? null)])} name={p.title} t={env.t} />}
+      </div>
     }
     const size = p.pageSize ?? 20, pages = Math.max(1, Math.ceil(rows.length / size)), page = Math.min(entry.view.page, pages - 1)
     return <div>
@@ -527,7 +501,8 @@ function BoundData({ kind, props: p, env, nodeId }: { kind: 'Table' | 'Chart'; p
       {entry.view.filterColumn >= 0 && <input aria-label="Filter value" value={entry.view.filterValue} onChange={e => set({ filterValue: e.target.value, page: 0 })} />}
       <label>Sort <select aria-label="Sort dataset" value={entry.view.sortColumn} onChange={e => set({ sortColumn: Number(e.target.value), page: 0 })}><option value={-1}>Original order</option>{columns.map((c, i) => <option key={i} value={i}>{c}</option>)}</select></label>
       <button type="button" onClick={() => set({ descending: !entry.view.descending })}>{entry.view.descending ? 'Descending' : 'Ascending'}</button>
-      <Table columns={columns} rows={rows.slice(page * size, (page + 1) * size)} caption={p.caption} env={env} nodeId={nodeId} />
+      {p.exportable && <ExportButtons columns={columns} rows={rows} name={p.caption} t={env.t} />}
+      <Table columns={columns} rows={rows.slice(page * size, (page + 1) * size)} caption={p.caption} columnTypes={p.columnTypes} t={env.t} callId={env.callId} nodeId={nodeId} />
       <button type="button" disabled={page === 0} onClick={() => set({ page: page - 1 })}>Previous</button><span role="status">{page + 1} / {pages} ({rows.length})</span><button type="button" disabled={page + 1 >= pages} onClick={() => set({ page: page + 1 })}>Next</button>
     </div>
   } catch (err) { return <div className="diui-node-error" role="alert">{err instanceof Error ? err.message : String(err)}</div> }

@@ -6,7 +6,7 @@
 import { createServer } from 'node:http'
 import { appendFileSync, existsSync } from 'node:fs'
 import { definition as EXTENSION } from '../../examples/component-extension/manifest.js'
-import { chartPatch, DASHBOARD, explainSphere, forecast, MATH, SLOW, SPHERE, SESSION_LAUNCH } from './scenarios.mjs'
+import { chartPatch, DASHBOARD, explainSphere, forecast, MATH, SLOW, SPHERE, SESSION_LAUNCH, DATA_TOOLS } from './scenarios.mjs'
 
 const PORT = Number(process.argv[2] || 3199)
 const LOG = process.argv[3]
@@ -65,6 +65,7 @@ const textOf = content => typeof content === 'string' ? content : (content || []
 /** Pick the scripted answer for the latest user text. */
 function decide(lastText, tools) {
   if (!tools.includes('ui_render')) return 'no-ui-tools'
+  if (lastText.startsWith('E2E data tools')) return 'data-tools'
   if (lastText.startsWith('E2E show session launcher')) return 'session-launch'
   if (lastText.startsWith('E2E independent Agent task')) return 'session-task'
   if (/GitDiffViewer/.test(lastText)) return 'extension'
@@ -110,6 +111,7 @@ createServer((req, res) => {
     })
     const model = b.model
     switch (decision) {
+      case 'data-tools': return sse(res, toolEvents(model, 'ui_render', DATA_TOOLS, 36), 20)
       case 'session-launch': return sse(res, toolEvents(model, 'ui_render', SESSION_LAUNCH, 36), 20)
       case 'session-task': return sse(res, textEvents(model, 'Independent Agent started automatically.'), 20)
       case 'extension': return sse(res, toolEvents(model, 'ui_render', EXTENSION, 36), 30)

@@ -1,4 +1,4 @@
-import { useState, type PointerEvent, type ReactElement } from 'react'
+import { useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactElement, type RefObject } from 'react'
 
 /** Categorical palette readable on light and dark surfaces. */
 export const PALETTE = ['#4d6bfe', '#22a06b', '#f2a33a', '#e5484d', '#8e6cef', '#12a5c4', '#e0569b', '#7fae2e', '#f07a2e', '#6b7a90', '#1aa89a', '#b25fe0']
@@ -15,7 +15,26 @@ export interface ChartProps {
   emptyText: string
 }
 
-const W = 640
+/** Widest layout; narrower cards lay the chart out at their real width. */
+const MAX_W = 640
+
+/**
+ * Lay a drawing out at its container's real width (clamped) so 11px axis text
+ * stays 11px on a phone instead of shrinking with a fixed viewBox.
+ */
+export function useLayoutWidth(ref: RefObject<HTMLElement | null>, max = MAX_W, min = 280): number {
+  const [w, setW] = useState(max)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const measure = () => { const cw = el.clientWidth; if (cw > 0) setW(Math.max(min, Math.min(max, Math.round(cw)))) }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [ref, max, min])
+  return w
+}
 const PAD = { top: 12, right: 16, bottom: 36, left: 52 }
 
 /** "Nice" axis ticks covering [min, max]. */
@@ -44,6 +63,8 @@ export function Chart(props: ChartProps) {
   const [hidden, setHidden] = useState<ReadonlySet<number>>(new Set())
   const [hover, setHover] = useState<number | undefined>(undefined)
   const series = props.series.filter((_, i) => !hidden.has(i))
+  const stage = useRef<HTMLElement>(null)
+  const W = useLayoutWidth(stage)
   const n = props.labels.length
   if (n === 0 || props.series.length === 0) return <div className="diui-empty">{props.emptyText}</div>
   const H = props.height ?? 260
@@ -69,13 +90,13 @@ export function Chart(props: ChartProps) {
     </div>
   )
   return (
-    <figure className="diui-chart">
+    <figure className="diui-chart" ref={stage}>
       {props.title && <figcaption className="diui-chart-title">{props.title}</figcaption>}
       {props.kind === 'pie'
-        ? <Pie {...props} height={H} />
+        ? <Pie {...props} height={H} width={W} />
         : (
             <div className="diui-plot-stage">
-              <Cartesian {...props} series={series} height={H} colorOf={s => PALETTE[props.series.indexOf(s) % PALETTE.length]!} n={n} hover={hover} onHover={setHover} />
+              <Cartesian {...props} series={series} height={H} width={W} colorOf={s => PALETTE[props.series.indexOf(s) % PALETTE.length]!} n={n} hover={hover} onHover={setHover} />
               {hover !== undefined && series.length > 0 && (
                 <div className="diui-tooltip" style={{ left: `${((PAD.left + ((W - PAD.left - PAD.right) / n) * (hover + 0.5)) / W) * 100}%` }}>
                   <div className="diui-tooltip-head">{String(props.labels[hover] ?? '')}</div>
@@ -92,8 +113,8 @@ export function Chart(props: ChartProps) {
   )
 }
 
-function Cartesian(props: ChartProps & { height: number; n: number; colorOf: (s: ChartSeries) => string; hover?: number; onHover: (i: number | undefined) => void }) {
-  const { series, n, height: H } = props
+function Cartesian(props: ChartProps & { height: number; width: number; n: number; colorOf: (s: ChartSeries) => string; hover?: number; onHover: (i: number | undefined) => void }) {
+  const { series, n, height: H, width: W } = props
   const stacked = !!props.stacked && (props.kind === 'bar' || props.kind === 'area')
   let lo = 0
   let hi = 0
@@ -106,7 +127,7 @@ function Cartesian(props: ChartProps & { height: number; n: number; colorOf: (s:
     }
     if (stacked) { hi = Math.max(hi, pos); lo = Math.min(lo, neg) }
   }
-  const ticks = niceTicks(lo, hi)
+  const ticks = niceTicks(lo, hi, H < 220 ? 3 : 5)
   const yMin = ticks[0]!
   const yMax = ticks[ticks.length - 1]!
   const iw = W - PAD.left - PAD.right
@@ -114,7 +135,7 @@ function Cartesian(props: ChartProps & { height: number; n: number; colorOf: (s:
   const y = (v: number) => PAD.top + ih - ((v - yMin) / (yMax - yMin)) * ih
   const band = iw / n
   const xc = (i: number) => PAD.left + band * i + band / 2
-  const labelEvery = Math.max(1, Math.ceil(n / 12))
+  const labelEvery = Math.max(1, Math.ceil(n / Math.max(3, Math.floor(iw / 52))))
   const unit = props.unit ? ` ${props.unit}` : ''
   const marks: ReactElement[] = []
 
@@ -174,8 +195,22 @@ function Cartesian(props: ChartProps & { height: number; n: number; colorOf: (s:
     const i = Math.floor((vx - PAD.left) / band)
     props.onHover(i >= 0 && i < n ? i : undefined)
   }
+  // Keyboard: arrows step through categories, Home/End jump, Escape clears; the tooltip follows.
+  const onKey = (e: KeyboardEvent<SVGSVGElement>) => {
+    const h = props.hover
+    let next: number | undefined
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = h === undefined ? 0 : Math.min(n - 1, h + 1)
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = h === undefined ? n - 1 : Math.max(0, h - 1)
+    else if (e.key === 'Home') next = 0
+    else if (e.key === 'End') next = n - 1
+    else if (e.key !== 'Escape') return
+    e.preventDefault()
+    props.onHover(next)
+  }
   return (
-    <svg className="diui-chart-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={props.title ?? 'chart'} onPointerMove={onMove} onPointerLeave={() => props.onHover(undefined)}>
+    <svg className="diui-chart-svg" viewBox={`0 0 ${W} ${H}`} role="img" tabIndex={0} aria-label={props.title ?? 'chart'}
+      onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={e => { if (e.pointerType === 'mouse') props.onHover(undefined) }}
+      onKeyDown={onKey} onBlur={() => props.onHover(undefined)}>
       {props.hover !== undefined && <rect x={PAD.left + band * props.hover} y={PAD.top} width={band} height={ih} className="diui-hover-band" />}
       {ticks.map(t => (
         <g key={t}>
@@ -191,7 +226,8 @@ function Cartesian(props: ChartProps & { height: number; n: number; colorOf: (s:
   )
 }
 
-function Pie(props: ChartProps & { height: number }) {
+function Pie(props: ChartProps & { height: number; width: number }) {
+  const W = props.width
   const values = (props.series[0]?.values ?? []).map(v => Math.max(0, v))
   const total = values.reduce((a, b) => a + b, 0)
   if (total <= 0) return <div className="diui-empty">{props.emptyText}</div>

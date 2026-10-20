@@ -112,11 +112,73 @@ export const STYLES = `
 .diui-table tbody tr:last-child td{border-bottom:0}
 .diui-table tbody tr:hover{background:var(--ui-surface)}
 .diui-th-button{border:0;background:none;font:inherit;color:inherit;cursor:pointer;padding:0}
+.diui-diff{display:flex;flex-direction:column;gap:8px;min-width:0}
+.diui-diff-summary{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:12px;color:var(--ui-muted)}
+.diui-diff-summary strong{color:var(--ui-text);font-size:13px}
+.diui-diff-add{color:var(--ui-success);font-variant-numeric:tabular-nums}
+.diui-diff-del{color:var(--ui-error);font-variant-numeric:tabular-nums}
+.diui-diff-file{border:1px solid var(--ui-border);border-radius:var(--ui-radius);overflow:hidden}
+.diui-diff-head{display:flex;align-items:center;gap:8px;width:100%;border:0;background:var(--ui-surface);color:var(--ui-text);font:inherit;font-size:12px;padding:6px 10px;cursor:pointer;text-align:left}
+.diui-diff-head:focus-visible,.diui-tree-toggle:focus-visible,.diui-diff-skip:focus-visible,.diui-json-copy:focus-visible{outline:2px solid var(--ui-accent);outline-offset:-2px}
+.diui-diff-path{font-family:var(--dsh-font-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);overflow-wrap:anywhere;flex:1 1 auto;min-width:0}
+.diui-diff-body{overflow:auto;max-height:520px;font-family:var(--dsh-font-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);font-size:12px;line-height:1.5}
+.diui-diff-line{display:grid;grid-template-columns:auto auto 1.4em 1fr;min-width:max-content}
+.diui-diff-line[data-op="+"]{background:color-mix(in srgb,var(--ui-success) 14%,transparent)}
+.diui-diff-line[data-op="-"]{background:color-mix(in srgb,var(--ui-error) 14%,transparent)}
+.diui-diff-no{color:var(--ui-muted);text-align:right;padding:0 6px;min-width:3.2em;user-select:none;border-right:1px solid var(--ui-border)}
+.diui-diff-sign{text-align:center;user-select:none;color:var(--ui-muted)}
+.diui-diff-text{white-space:pre;padding-right:12px;font:inherit;background:none}
+.diui-diff-gap,.diui-diff-skip{display:block;width:100%;text-align:left;border:0;padding:2px 10px;font:inherit;font-size:11px;color:var(--ui-muted);background:color-mix(in srgb,var(--ui-accent) 6%,var(--ui-bg))}
+.diui-diff-skip{cursor:pointer}
+.diui-diff-skip:hover{color:var(--ui-accent)}
+.diui-tree,.diui-json{font-size:13px;min-width:0}
+.diui-tree-title{margin:0 0 6px;font-size:14px}
+.diui-tree ul,.diui-json ul{list-style:none;margin:0;padding-left:16px}
+.diui-tree>ul,.diui-json>ul{padding-left:0}
+.diui-tree-row,.diui-json-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:1px 0}
+.diui-tree-toggle{border:0;background:none;color:inherit;font:inherit;padding:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;text-align:left}
+.diui-caret{display:inline-block;width:1em;color:var(--ui-muted)}
+.diui-tree-file{padding-left:1.25em;overflow-wrap:anywhere}
+.diui-tree-count,.diui-tree-note{font-size:11px;color:var(--ui-muted)}
+.diui-tree-row[data-status=deleted] .diui-tree-file{text-decoration:line-through;color:var(--ui-muted)}
+.diui-json{font-family:var(--dsh-font-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);font-size:12px}
+.diui-json-key{color:var(--ui-accent)}
+.diui-json-value{overflow-wrap:anywhere}
+.diui-json-value[data-type=string]{color:var(--ui-success)}
+.diui-json-value[data-type=number]{color:var(--ui-warning)}
+.diui-json-value[data-type=boolean],.diui-json-value[data-type=null]{color:var(--ui-error)}
+.diui-json-summary{color:var(--ui-muted)}
+.diui-json-close{padding-left:1.25em}
+.diui-json-row{position:relative}
+.diui-json-tools{display:inline-flex;gap:4px;position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.diui-json-row:hover .diui-json-tools,.diui-json-row:focus-within .diui-json-tools{position:static;width:auto;height:auto;overflow:visible;clip-path:none}
+@media (hover:none){.diui-json-tools{position:static;width:auto;height:auto;overflow:visible;clip-path:none}}
+.diui-json-copy{border:1px solid var(--ui-border);background:var(--ui-bg);color:var(--ui-muted);border-radius:4px;font:inherit;font-size:10px;padding:0 4px;cursor:pointer;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.diui-datagrid{display:flex;flex-direction:column;gap:8px;min-width:0}
+.diui-table-tools{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+.diui-table-export{display:inline-flex;flex-wrap:wrap;gap:6px;margin-left:auto}
+.diui-chart-block{display:flex;flex-direction:column;gap:6px;min-width:0}
+.diui-chart-block>.diui-table-export{margin-left:0}
+.diui-input{font:inherit;font-size:13px;color:var(--ui-text);background:var(--ui-bg);border:1px solid var(--ui-border);border-radius:var(--ui-radius);padding:5px 8px;min-width:0}
+.diui-table-tools input[type=search]{flex:1 1 160px;max-width:280px}
+.diui-input:focus-visible,.diui-th-button:focus-visible,.diui-chart-svg:focus-visible{outline:2px solid var(--ui-accent);outline-offset:1px}
+.diui-filter-row th{font-weight:400;padding:4px 6px;top:auto;position:static}
+.diui-filter-row .diui-input{width:100%;min-width:72px;font-size:12px;padding:3px 6px}
+.diui-range-filter{display:flex;gap:4px}
+.diui-pager{display:flex;align-items:center;justify-content:flex-end;gap:8px;font-size:12px;color:var(--ui-muted)}
+@media (pointer:coarse){.diui-button,.diui-input,.diui-th-button{min-height:36px}}
 .diui-empty{color:var(--ui-muted);text-align:center;padding:12px}
 .diui-chart{margin:0;min-width:0}
 .diui-chart-title{font-weight:600;font-size:13px;margin-bottom:4px}
 .diui-chart-svg{width:100%;height:auto;display:block}
 .diui-chart-svg text{fill:var(--ui-muted);font-size:11px}
+.diui-chart-svg .diui-axis-label{fill:var(--ui-text);font-size:11px}
+.diui-chart-svg .diui-cell-value{fill:var(--ui-text);font-size:10px;pointer-events:none}
+.diui-chart-svg .diui-cell-value[data-strong]{fill:#fff}
+.diui-colorbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;font-size:11px;color:var(--ui-muted);margin-top:4px}
+.diui-colorbar>i{display:inline-block;width:120px;height:8px;border-radius:4px;border:1px solid var(--ui-border)}
+.diui-colorbar-missing{display:inline-flex;align-items:center;gap:4px;margin-left:8px}
+.diui-colorbar-missing b{display:inline-block;width:10px;height:10px;border:1px solid var(--ui-border);background:repeating-linear-gradient(45deg,var(--ui-muted) 0 1.5px,transparent 1.5px 4px);opacity:.7}
 .diui-grid line,.diui-chart-svg .diui-grid{stroke:var(--ui-border);stroke-width:1}
 .diui-chart-svg .diui-axis-zero{stroke:var(--ui-muted);stroke-width:1}
 .diui-slice{stroke:var(--ui-bg);stroke-width:2}

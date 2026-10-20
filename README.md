@@ -50,7 +50,7 @@ Sliders, rotate, zoom, sort, tabs and hover tooltips run in the browser and neve
 <tr>
 <td valign="top">
 
-### 🧩 21-component catalog
+### 🧩 26-component catalog
 Cards, grids, tabs, tables, charts, timelines, `Plot`, KaTeX `Math`, `Mermaid`, forms. Validated before it renders.
 
 </td>
@@ -202,9 +202,10 @@ The plugin injects a system-prompt section (`src/guidance.js`) that makes the mo
 |---|---|
 | Layout | `Card`, `Stack`, `Grid`, `Tabs` (keyboard navigable) |
 | Text & callouts | `Text` (markdown subset), `Code`, `Alert`, `Badge`, `Divider` |
-| Data | `Stat`, `Progress`, `List`, `Table` (sortable), `Timeline` |
-| Charts | `Chart`: bar / line / area / pie, stacked, hover tooltip, toggleable legend |
+| Data | `Stat`, `Progress`, `List`, `Table` (data grid: typed sort incl. ISO dates, search, per-column filters, paging, CSV/Markdown export), `Timeline` |
+| Charts | `Chart`: bar / line / area / pie, stacked, hover/tap/keyboard tooltip, toggleable legend, optional data export; `Scatter` (continuous x/y); `Heatmap` (matrix, sequential or diverging, explicit missing cells) |
 | Math & diagrams | **`Plot`** (y = f(x) with parameter sliders that redraw instantly; expressions run in a safe compiler, never `eval`), **`Math`** (KaTeX), **`Mermaid`** (flowchart, sequence, class, state, ER, gantt, mindmap…) |
+| Code & structure | `CodeDiff` (multi-file diff or unified patch), `FileTree`, `JsonView` (paths, copy) |
 | Interaction | `Button` (sends a prompt, here or in a new session), `Choice` (single-choice card: continue in this session or start a new one), `Form` (text, number, **range slider**, select, checkbox, date, textarea; submits the values as a message) |
 
 `Choice` accepts 2–8 options. Give each option a stable `id` so selection survives reordered patches; `recommended` marks an option without selecting it. Selection stays local until confirmation. By default, the user chooses the current or a new session with separate actions; set `sessionTarget` only when the user explicitly requested a fixed destination. Existing options without IDs remain supported.

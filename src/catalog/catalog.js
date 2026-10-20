@@ -22,6 +22,10 @@ const TONES = ['default', 'muted', 'info', 'success', 'warning', 'error'];
 /** Field kinds a Form may contain. */
 export const FORM_FIELD_TYPES = ['text', 'number', 'range', 'select', 'checkbox', 'date', 'textarea'];
 
+/** Value kinds a Table column can be sorted and filtered as. */
+/** `string` is accepted as an alias of `text`: models often write it. */
+export const COLUMN_TYPES = ['text', 'number', 'date', 'boolean', 'string'];
+
 /** Chart kinds the SVG renderer draws. */
 export const CHART_KINDS = ['bar', 'line', 'area', 'pie'];
 
@@ -39,6 +43,13 @@ export const LIMITS = Object.freeze({
   plotParams: 8,
   timelineItems: 100,
   choiceOptions: 8,
+  scatterPoints: 2000,
+  heatmapAxis: 60,
+  diffFiles: 20,
+  diffChars: 200_000,
+  treeEntries: 2000,
+  jsonChars: 100_000,
+  jsonDepth: 32,
 });
 
 /**
@@ -138,11 +149,15 @@ export const CATALOG = Object.freeze({
     },
   },
   Table: {
-    description: 'Data table. rows[i][j] belongs to columns[j]. Or use a host-registered dataRef for shared local search/filter/sort/paging.',
+    description: 'Data table / data grid. rows[i][j] belongs to columns[j]. Optional local, model-free interactions: sortable (typed: numbers, ISO 8601 dates `YYYY-MM-DD[THH:mm]`, booleans; empty values last), searchable, filterable (per-column contains / min-max range), pageSize, exportable (CSV/Markdown of the filtered rows). columnTypes overrides inferred types. Or use a host-registered dataRef for shared local search/filter/sort/paging.',
     children: false,
     props: {
       dataRef: DATA_REF,
       pageSize: { type: 'number', min: 1, max: 100 },
+      columnTypes: { type: 'array', max: LIMITS.tableColumns, items: { type: 'enum', values: COLUMN_TYPES } },
+      searchable: { type: 'boolean' },
+      filterable: { type: 'boolean' },
+      exportable: { type: 'boolean' },
       columns: { type: 'array', items: { type: 'string' }, max: LIMITS.tableColumns },
       rows: {
         type: 'array', max: LIMITS.tableRows,
@@ -175,6 +190,96 @@ export const CATALOG = Object.freeze({
       unit: { type: 'string' },
       stacked: { type: 'boolean' },
       height: { type: 'number', min: 120, max: 600 },
+      exportable: { type: 'boolean' },
+    },
+  },
+  Scatter: {
+    description: 'Scatter plot of real numeric observations: each point has continuous x and y (not category indexes). Use for correlation/distribution between two measures. Points with a null coordinate are hidden and counted. Hover, tap or arrow keys show a point; legend toggles series.',
+    children: false,
+    props: {
+      series: {
+        type: 'array', required: true, max: LIMITS.chartSeries,
+        items: {
+          type: 'object',
+          props: {
+            name: { type: 'string', required: true },
+            points: {
+              type: 'array', required: true, max: LIMITS.scatterPoints,
+              items: { type: 'object', props: { x: { type: 'scalar', required: true }, y: { type: 'scalar', required: true }, label: { type: 'string', max: 200 } } },
+            },
+          },
+        },
+      },
+      title: { type: 'string' },
+      xLabel: { type: 'string' },
+      yLabel: { type: 'string' },
+      xUnit: { type: 'string' },
+      yUnit: { type: 'string' },
+      height: { type: 'number', min: 160, max: 600 },
+    },
+  },
+  Heatmap: {
+    description: 'Matrix heatmap: values[r][c] belongs to yLabels[r] × xLabels[c]. Use null for missing data (drawn hatched, never as 0). scale "diverging" centres on 0 (negative red, positive blue); default "sequential". Optional fixed min/max.',
+    children: false,
+    props: {
+      xLabels: { type: 'array', required: true, items: { type: 'scalar' }, max: LIMITS.heatmapAxis },
+      yLabels: { type: 'array', required: true, items: { type: 'scalar' }, max: LIMITS.heatmapAxis },
+      values: { type: 'array', required: true, max: LIMITS.heatmapAxis, items: { type: 'array', items: { type: 'scalar' }, max: LIMITS.heatmapAxis } },
+      title: { type: 'string' },
+      unit: { type: 'string' },
+      scale: { type: 'enum', values: ['sequential', 'diverging'] },
+      min: { type: 'number' },
+      max: { type: 'number' },
+      showValues: { type: 'boolean' },
+    },
+  },
+  CodeDiff: {
+    description: 'Read-only code diff viewer for one or more files: give each file before/after full text (the diff is computed, unchanged runs collapse to expandable context) or a unified diff `patch`. Shows line numbers and +/- counts; large files start collapsed. Content is shown as text, never executed. For displaying changes, not applying them.',
+    children: false,
+    props: {
+      title: { type: 'string' },
+      context: { type: 'number', min: 0, max: 20 },
+      files: {
+        type: 'array', required: true, max: LIMITS.diffFiles,
+        items: {
+          type: 'object',
+          props: {
+            path: { type: 'string', required: true, max: 500 },
+            before: { type: 'string', max: LIMITS.diffChars },
+            after: { type: 'string', max: LIMITS.diffChars },
+            patch: { type: 'string', max: LIMITS.diffChars },
+            language: { type: 'string', max: 40 },
+          },
+        },
+      },
+    },
+  },
+  FileTree: {
+    description: 'Collapsible file/directory tree built from slash-separated paths (a trailing / marks an empty directory), with optional per-entry status (added/modified/deleted/renamed) and short note. Labels only: nothing is read from disk.',
+    children: false,
+    props: {
+      title: { type: 'string' },
+      expandDepth: { type: 'number', min: 0, max: 32 },
+      entries: {
+        type: 'array', required: true, max: LIMITS.treeEntries,
+        items: {
+          type: 'object',
+          props: {
+            path: { type: 'string', required: true, max: 500 },
+            status: { type: 'enum', values: ['added', 'modified', 'deleted', 'renamed'] },
+            note: { type: 'string', max: 200 },
+          },
+        },
+      },
+    },
+  },
+  JsonView: {
+    description: 'Collapsible JSON tree for any JSON value (`data`), with per-node path ($.a[0].b) and copy path / copy value. Use to inspect API responses, configs or tool output.',
+    children: false,
+    props: {
+      data: { type: 'any', required: true },
+      title: { type: 'string' },
+      expandDepth: { type: 'number', min: 0, max: 32 },
     },
   },
   Button: {
@@ -401,6 +506,8 @@ function checkSemantics(type, props, path, errors) {
       if (type === 'Chart' && props.kind === 'pie' && Array.isArray(props.valueColumns) && props.valueColumns.length !== 1) errors.push(`${path}: bound pie chart needs exactly one value column`);
     } else if (inline.some(k => props[k] === undefined)) errors.push(`${path}: needs ${inline.join(' and ')} or dataRef`);
     if (props.pageSize !== undefined && !Number.isInteger(props.pageSize)) errors.push(`${path}.pageSize: expected integer`);
+    if (Array.isArray(props.columnTypes) && Array.isArray(props.columns) && props.columnTypes.length > props.columns.length) errors.push(`${path}.columnTypes: has ${props.columnTypes.length} entries but columns has ${props.columns.length}`);
+    if (type === 'Table' && props.dataRef !== undefined && (props.searchable || props.filterable)) errors.push(`${path}: searchable/filterable apply to inline rows; a dataRef table already has shared search and filter`);
   }
   if (type === 'Button' && ((props.prompt === undefined) === (props.action === undefined))) errors.push(`${path}: needs exactly one of prompt or action`);
   if (type === 'Button' && props.sessionTarget !== undefined && props.action !== undefined) errors.push(`${path}.sessionTarget: only supported with prompt`);
@@ -447,6 +554,56 @@ function checkSemantics(type, props, path, errors) {
     });
   }
   if (type === 'Plot') checkPlot(props, path, errors);
+  if (type === 'Scatter' && Array.isArray(props.series)) {
+    let total = 0;
+    props.series.forEach((ser, si) => {
+      if (!isPlainObject(ser) || !Array.isArray(ser.points)) return;
+      total += ser.points.length;
+      ser.points.forEach((pt, pi) => {
+        if (!isPlainObject(pt)) return;
+        for (const k of ['x', 'y']) {
+          const v = pt[k];
+          if (v !== null && !(typeof v === 'number' && Number.isFinite(v))) errors.push(`${path}.series[${si}].points[${pi}].${k}: expected a finite number or null`);
+        }
+      });
+    });
+    if (total > LIMITS.scatterPoints) errors.push(`${path}.series: ${total} points in total; at most ${LIMITS.scatterPoints}`);
+  }
+  if (type === 'CodeDiff' && Array.isArray(props.files)) {
+    let total = 0;
+    props.files.forEach((f, i) => {
+      if (!isPlainObject(f)) return;
+      const hasPatch = f.patch !== undefined;
+      if (hasPatch && (f.before !== undefined || f.after !== undefined)) errors.push(`${path}.files[${i}]: use either patch or before/after, not both`);
+      if (!hasPatch && f.before === undefined && f.after === undefined) errors.push(`${path}.files[${i}]: needs before/after text or a patch`);
+      for (const k of ['before', 'after', 'patch']) if (typeof f[k] === 'string') total += f[k].length;
+    });
+    if (total > LIMITS.diffChars) errors.push(`${path}.files: ${total} characters in total; at most ${LIMITS.diffChars}`);
+  }
+  if (type === 'JsonView' && props.data !== undefined) {
+    let json;
+    try { json = JSON.stringify(props.data); } catch { json = undefined; }
+    if (json === undefined) errors.push(`${path}.data: must be a JSON value`);
+    else if (json.length > LIMITS.jsonChars) errors.push(`${path}.data: ${json.length} characters; at most ${LIMITS.jsonChars}`);
+    else if (jsonDepth(props.data) > LIMITS.jsonDepth) errors.push(`${path}.data: nested deeper than ${LIMITS.jsonDepth} levels`);
+  }
+  if (type === 'Heatmap' && Array.isArray(props.values) && Array.isArray(props.xLabels) && Array.isArray(props.yLabels)) {
+    if (props.values.length !== props.yLabels.length) errors.push(`${path}.values: has ${props.values.length} rows but yLabels has ${props.yLabels.length}`);
+    props.values.forEach((row, r) => {
+      if (!Array.isArray(row)) return;
+      if (row.length !== props.xLabels.length) errors.push(`${path}.values[${r}]: has ${row.length} values but xLabels has ${props.xLabels.length}`);
+      row.forEach((v, c) => { if (v !== null && !(typeof v === 'number' && Number.isFinite(v))) errors.push(`${path}.values[${r}][${c}]: expected a finite number or null`); });
+    });
+    if (typeof props.min === 'number' && typeof props.max === 'number' && !(props.min < props.max)) errors.push(`${path}: min must be less than max`);
+  }
+}
+
+function jsonDepth(v, d = 0) {
+  if (d > LIMITS.jsonDepth) return d;
+  if (v === null || typeof v !== 'object') return d;
+  let max = d + 1;
+  for (const c of Array.isArray(v) ? v : Object.values(v)) max = Math.max(max, jsonDepth(c, d + 1));
+  return max;
 }
 
 const IDENT = /^[A-Za-z_][A-Za-z_0-9]*$/;

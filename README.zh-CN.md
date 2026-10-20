@@ -56,7 +56,7 @@ JSON 还在生成，组件就已出现。实时组件在**同一个** iframe 中
 <tr>
 <td valign="top">
 
-### 🧩 21 种组件
+### 🧩 26 种组件
 卡片、栅格、标签页、表格、图表、时间线、`Plot`、KaTeX `Math`、`Mermaid`、表单，渲染前先校验。
 
 </td>
@@ -208,9 +208,10 @@ CI 每天定时在 Windows、Linux、macOS 上跑完整矩阵，DSH 一发新版
 |---|---|
 | 布局 | `Card`、`Stack`、`Grid`、`Tabs`（支持键盘操作） |
 | 文本与提示 | `Text`（markdown 子集）、`Code`、`Alert`、`Badge`、`Divider` |
-| 数据 | `Stat`、`Progress`、`List`、`Table`（可排序）、`Timeline` |
-| 图表 | `Chart`（柱状、折线、面积、饼图；可堆叠，悬停提示，可点图例显隐系列） |
+| 数据 | `Stat`、`Progress`、`List`、`Table`（数据表格：按类型排序含 ISO 日期、搜索、按列筛选、分页、CSV/Markdown 导出）、`Timeline` |
+| 图表 | `Chart`（柱状、折线、面积、饼图；可堆叠，悬停/点按/键盘提示，可点图例显隐系列，可选数据导出）；`Scatter`（连续坐标散点图）；`Heatmap`（矩阵热力图，顺序/发散色标，缺失值单独标识） |
 | 数学与图示 | **`Plot`**、**`Math`**（KaTeX）、**`Mermaid`** |
+| 代码与结构 | `CodeDiff`（多文件差异或 unified patch）、`FileTree`、`JsonView`（路径、复制） |
 | 交互 | `Button`、`Choice`、`Form` |
 
 - **`Plot`**：绘制 y = f(x)，参数滑块拖动后曲线即时重绘。表达式由安全编译器解析，不使用 `eval`。

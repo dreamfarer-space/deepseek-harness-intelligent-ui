@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `Choice` single-choice card with "Continue in this session" / "Start new session", and Button `sessionTarget: "new"` to start an independent Agent session in the same workspace ([#39](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/pull/39)).
+- `Table` data-grid options ([#17](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/17)): typed sorting (numbers, ISO 8601 dates, booleans; empty values last), `columnTypes`, `searchable`, `filterable` (per-column contains / min-max ranges, AND-combined), `pageSize` for inline rows, and `exportable` CSV/Markdown of the filtered, sorted rows. All local; nothing is sent to the model. Interaction state survives remounts and reloads.
+- CSV export is RFC 4180 with a UTF-8 BOM and neutralises spreadsheet formula injection (`=`, `+`, `-`, `@`, TAB, CR); Markdown export escapes table syntax.
+- `Scatter`: continuous x/y observations with axis labels and units, per-series legend toggles, nearest-point hover, tap and arrow-key inspection; points missing a coordinate are hidden and counted. Laid out at the card's real width so axis text stays readable on phones. Up to 2,000 points.
+- `Heatmap`: category × category matrix with sequential or zero-centred diverging scale, optional fixed `min`/`max`, a colour bar, cell values when they fit, and keyboard/hover/tap cell inspection. `null` cells are drawn hatched as "no data", never as 0. Up to 60 × 60 cells.
+- Code and structure viewers: `CodeDiff` (multi-file, before/after text diffed in the browser or a unified `patch`; line numbers, +/- counts, expandable unchanged context, large files collapsed), `FileTree` (slash paths with status badges and notes, keyboard expand/collapse) and `JsonView` (collapsible tree with `$.a[0].b` paths and copy path/value). All content is rendered as text; nothing is read from disk or executed. Size and depth limits are validated by the Host.
+- `Chart`: keyboard focus with arrow/Home/End/Escape stepping through categories, tap-to-inspect on touch screens, and `exportable` data export. Bound `dataRef` tables and charts can export too. Charts are laid out at the card's real width, so axis labels stay legible on phones and fewer x labels are shown when space is short.
+- Browser E2E checks 13a–13g for the new components (filters, CSV contents and formula neutralisation, scatter hover, heatmap keyboard, CodeDiff as text, no model calls); `E2E_DATA_ONLY=1` runs only them.
+- `docs/component-roadmap.md`: what #17 shipped, and design proposals for `Map` and `Calendar`.
+
+### Fixed
+
+- CI: Windows browser jobs no longer fail intermittently. Every real-browser script launches Chrome through one helper that uses a fresh profile directory per attempt and retries ("The browser is already running for …"), and first navigations get 60 s with one retry instead of 10 s.
+
 ## [0.2.6]
 
 ### Added

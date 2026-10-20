@@ -11,6 +11,33 @@ export const SESSION_LAUNCH = {
   } }],
 }
 
+/** Issue #17 components: data grid, scatter, heatmap and code diff in one card. */
+export const DATA_TOOLS = {
+  title: 'Data tools',
+  root: 'stack',
+  components: [
+    { id: 'stack', type: 'Stack', children: ['grid', 'scatter', 'heat', 'diff'] },
+    { id: 'grid', type: 'Table', props: {
+      caption: 'Orders', sortable: true, searchable: true, filterable: true, exportable: true, pageSize: 5,
+      columns: ['Order', 'Date', 'Amount', 'Note'],
+      rows: [
+        ['A-1', '2026-03-02', 120, 'ok'], ['B-2', '2026-01-15', -40, '=1+1'], ['C-3', '2026-02-20', 300, 'big'],
+        ['D-4', '2025-12-31', 75.5, 'year end'], ['E-5', '2026-02-10', 18, 'small'], ['F-6', '2026-04-01', 260, 'spring'],
+      ],
+    } },
+    { id: 'scatter', type: 'Scatter', props: {
+      title: 'Price vs rating', xLabel: 'Price', xUnit: 'USD', yLabel: 'Rating',
+      series: [{ name: 'Products', points: [{ x: 10, y: 3.2, label: 'Basic' }, { x: 25, y: 4.1, label: 'Plus' }, { x: 60, y: 4.7, label: 'Pro' }, { x: null, y: 4 }] }],
+    } },
+    { id: 'heat', type: 'Heatmap', props: {
+      title: 'Load', unit: '%', xLabels: ['Mon', 'Tue', 'Wed'], yLabels: ['AM', 'PM'], values: [[10, 0, null], [70, 95, 40]],
+    } },
+    { id: 'diff', type: 'CodeDiff', props: {
+      title: 'Change', files: [{ path: 'app.js', before: Array.from({ length: 12 }, (_, i) => `line ${i}`).join('\n'), after: Array.from({ length: 12 }, (_, i) => i === 6 ? '<img src=x onerror="window.__xss=1">' : `line ${i}`).join('\n') }],
+    } },
+  ],
+}
+
 export const DASHBOARD = {
   title: 'Quarterly sales (sample data)',
   root: 'card',
