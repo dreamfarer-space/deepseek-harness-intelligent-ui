@@ -145,7 +145,7 @@ ${JSON.stringify(n,null,2)}`}function iy(e,t){if(!e||typeof e!="object")return;l
 .diui-choice-options{display:flex;flex-direction:column;gap:4px}
 .diui-choice{display:flex;align-items:flex-start;gap:12px;padding:12px 10px;border-radius:var(--ui-radius);cursor:pointer;transition:background .15s}
 .diui-choice:hover{background:var(--ui-surface)}
-.diui-choice:focus-within{outline:2px solid var(--ui-accent);outline-offset:1px}
+.diui-choice input:focus-visible{outline:2px solid var(--ui-accent);outline-offset:2px}
 .diui-choice[data-selected]{background:var(--ui-surface)}
 .diui-choice input{appearance:none;flex:0 0 20px;width:20px;height:20px;margin:2px 0 0;border:1.5px solid var(--ui-muted);border-radius:50%;background:var(--ui-bg);display:grid;place-items:center;cursor:inherit}
 .diui-choice input:checked{border-color:var(--ui-text);background:var(--ui-text)}
