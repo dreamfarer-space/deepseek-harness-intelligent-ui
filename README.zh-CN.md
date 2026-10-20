@@ -73,27 +73,7 @@ JSON 还在生成，组件就已出现。实时组件在**同一个** iframe 中
 
 ## 🎬 演示
 
-### 功能一览
-
-以下视频都是在 **DeepSeek Harness 桌面版**中通过 magpie 调用真实 DeepSeek 模型现场录制的，没有脚本化回答。镜头跟随鼠标，放大到正在操作的区域；等待模型回答的部分做了快进（右上角显示倍速）。
-
-**`Choice`：选一个方案，在当前会话中继续或新开会话** · DeepSeek-V4.1-Flash
-
-https://github.com/user-attachments/assets/1317993c-17b1-4fca-9356-c365afcc6101
-
-**`Table` 数据表格：按类型排序、搜索、按列筛选、分页、导出 CSV** · DeepSeek-V4.1-Flash
-
-https://github.com/user-attachments/assets/be9c74e4-2ed3-402c-bd08-d57ea8516eec
-
-**`Scatter` 与 `Heatmap`：悬停、点按、键盘查看；缺失值用斜线标出，不显示为 0** · DeepSeek-Flash
-
-https://github.com/user-attachments/assets/cb575946-bab5-4551-9621-489dee55df07
-
-**`CodeDiff`、`FileTree` 与 `JsonView`：代码按文本显示、上下文可折叠、复制 JSONPath** · DeepSeek-Flash
-
-https://github.com/user-attachments/assets/75900041-3880-4e21-97f8-21bfd41872ad
-
-### 真实模型端到端，失败也原样保留
+### 真实 DeepSeek 模型，端到端
 
 https://github.com/user-attachments/assets/e4eb0adc-659e-4c80-b473-449aa42ca00f
 
@@ -121,6 +101,26 @@ https://github.com/user-attachments/assets/e4eb0adc-659e-4c80-b473-449aa42ca00f
 无法播放视频的页面（如 npm）可以看 GIF 版：[demo.gif](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/demo.gif)。
 
 </details>
+
+### 功能一览
+
+以下视频都是在 **DeepSeek Harness 桌面版**中通过 magpie 调用真实 DeepSeek 模型现场录制的，没有脚本化回答。镜头跟随鼠标，放大到正在操作的区域；等待模型回答的部分做了快进（右上角显示倍速）。
+
+**`Choice`：选一个方案，在当前会话中继续或新开会话** · DeepSeek-V4.1-Flash
+
+https://github.com/user-attachments/assets/1317993c-17b1-4fca-9356-c365afcc6101
+
+**`Table` 数据表格：按类型排序、搜索、按列筛选、分页、导出 CSV** · DeepSeek-V4.1-Flash
+
+https://github.com/user-attachments/assets/be9c74e4-2ed3-402c-bd08-d57ea8516eec
+
+**`Scatter` 与 `Heatmap`：悬停、点按、键盘查看；缺失值用斜线标出，不显示为 0** · DeepSeek-Flash
+
+https://github.com/user-attachments/assets/cb575946-bab5-4551-9621-489dee55df07
+
+**`CodeDiff`、`FileTree` 与 `JsonView`：代码按文本显示、上下文可折叠、复制 JSONPath** · DeepSeek-Flash
+
+https://github.com/user-attachments/assets/75900041-3880-4e21-97f8-21bfd41872ad
 
 ## 🚀 快速开始
 

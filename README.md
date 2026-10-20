@@ -73,27 +73,7 @@ Tabs, sort, filters, form values, sliders and `UI.state` survive turn folding, i
 
 ## 🎬 Demo
 
-### Feature tour
-
-Recorded live in the **DeepSeek Harness desktop app** with real DeepSeek models through the magpie gateway; nothing is scripted. The camera follows the cursor and zooms into each interaction; waits for the model are fast-forwarded (the badge shows the speed).
-
-**`Choice`: pick one option, continue here or start it in a new session** · DeepSeek-V4.1-Flash
-
-https://github.com/user-attachments/assets/1317993c-17b1-4fca-9356-c365afcc6101
-
-**`Table` as a data grid: typed sorting, search, per-column filters, paging, CSV export** · DeepSeek-V4.1-Flash
-
-https://github.com/user-attachments/assets/be9c74e4-2ed3-402c-bd08-d57ea8516eec
-
-**`Scatter` and `Heatmap`: hover, tap and keyboard inspection; missing data hatched, never 0** · DeepSeek-Flash
-
-https://github.com/user-attachments/assets/cb575946-bab5-4551-9621-489dee55df07
-
-**`CodeDiff`, `FileTree` and `JsonView`: code as text, collapsible context, JSONPath copy** · DeepSeek-Flash
-
-https://github.com/user-attachments/assets/75900041-3880-4e21-97f8-21bfd41872ad
-
-### End to end with the real model, failures included
+### The real DeepSeek model, end to end
 
 https://github.com/user-attachments/assets/e4eb0adc-659e-4c80-b473-449aa42ca00f
 
@@ -121,6 +101,26 @@ All 11 browser cases of the [quality baseline](#-real-model-quality-baseline), g
 GIF version for viewers that cannot play video (e.g. npm): [demo.gif](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/demo.gif).
 
 </details>
+
+### Feature tour
+
+Recorded live in the **DeepSeek Harness desktop app** with real DeepSeek models through the magpie gateway; nothing is scripted. The camera follows the cursor and zooms into each interaction; waits for the model are fast-forwarded (the badge shows the speed).
+
+**`Choice`: pick one option, continue here or start it in a new session** · DeepSeek-V4.1-Flash
+
+https://github.com/user-attachments/assets/1317993c-17b1-4fca-9356-c365afcc6101
+
+**`Table` as a data grid: typed sorting, search, per-column filters, paging, CSV export** · DeepSeek-V4.1-Flash
+
+https://github.com/user-attachments/assets/be9c74e4-2ed3-402c-bd08-d57ea8516eec
+
+**`Scatter` and `Heatmap`: hover, tap and keyboard inspection; missing data hatched, never 0** · DeepSeek-Flash
+
+https://github.com/user-attachments/assets/cb575946-bab5-4551-9621-489dee55df07
+
+**`CodeDiff`, `FileTree` and `JsonView`: code as text, collapsible context, JSONPath copy** · DeepSeek-Flash
+
+https://github.com/user-attachments/assets/75900041-3880-4e21-97f8-21bfd41872ad
 
 ## 🚀 Quick start
 
