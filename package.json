@@ -92,7 +92,8 @@
     "e2e:offline": "node scripts/e2e/offline.mjs",
     "verify:offline": "node scripts/offline/verify.mjs",
     "e2e:extensions": "node scripts/e2e/extensions.mjs",
-    "e2e:extensions:dsh": "node scripts/e2e/extensions-dsh.mjs"
+    "e2e:extensions:dsh": "node scripts/e2e/extensions-dsh.mjs",
+    "demo:features": "node scripts/demo/record-features.mjs"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.0.4 || >=4.0.5-alpha.0 <4.1.0-0",

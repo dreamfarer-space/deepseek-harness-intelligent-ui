@@ -17,6 +17,7 @@ All notable changes to this project are documented here. The format follows
 - `Chart`: keyboard focus with arrow/Home/End/Escape stepping through categories, tap-to-inspect on touch screens, and `exportable` data export. Bound `dataRef` tables and charts can export too. Charts are laid out at the card's real width, so axis labels stay legible on phones and fewer x labels are shown when space is short.
 - Browser E2E checks 13a–13g for the new components (filters, CSV contents and formula neutralisation, scatter hover, heatmap keyboard, CodeDiff as text, no model calls); `E2E_DATA_ONLY=1` runs only them.
 - `docs/component-roadmap.md`: what #17 shipped, and design proposals for `Map` and `Calendar`.
+- Per-feature demo videos in the README (Choice, data grid, Scatter/Heatmap, CodeDiff/FileTree/JsonView), recorded live in the DSH desktop app with DeepSeek models through magpie. `npm run demo:features` re-records them: `scripts/demo/record-features.mjs` drives the desktop app over the DevTools protocol and `scripts/demo/camera.mjs` renders a camera that follows the cursor, holds between actions and fast-forwards model waits.
 
 ### Fixed
 
