@@ -1,5 +1,5 @@
-import { useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type RefObject } from 'react'
-import { formatNumber, niceTicks, PALETTE } from './Chart.tsx'
+import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { formatNumber, niceTicks, PALETTE, useLayoutWidth } from './Chart.tsx'
 
 const W = 640
 const PAD = { top: 12, right: 16, bottom: 44, left: 56 }
@@ -20,24 +20,6 @@ export interface ScatterProps {
 }
 
 interface Placed { s: number; p: number; x: number; y: number; label?: string }
-
-/**
- * Lay the drawing out at the container's real width (clamped) so 11px axis text
- * stays 11px on a phone instead of shrinking with a fixed viewBox.
- */
-export function useLayoutWidth(ref: RefObject<HTMLElement | null>, max = W, min = 280): number {
-  const [w, setW] = useState(max)
-  useLayoutEffect(() => {
-    const el = ref.current
-    if (!el || typeof ResizeObserver === 'undefined') return
-    const measure = () => { const cw = el.clientWidth; if (cw > 0) setW(Math.max(min, Math.min(max, Math.round(cw)))) }
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [ref, max, min])
-  return w
-}
 
 const finite = (v: Num): v is number => typeof v === 'number' && Number.isFinite(v)
 const withUnit = (v: number, unit?: string) => `${formatNumber(v)}${unit ? ` ${unit}` : ''}`
@@ -124,7 +106,7 @@ export function Scatter(props: ScatterProps) {
           ))}
         </svg>
         {cur && (
-          <div className="diui-tooltip" role="status" style={{ left: `${(sx(cur.x) / W) * 100}%`, top: `${(sy(cur.y) / H) * 100}%` }}>
+          <div className="diui-tooltip" role="status" style={{ left: `${(sx(cur.x) / W) * 100}%`, top: `${(sy(cur.y) / H) * 100}%`, transform: 'translate(-50%, calc(-100% - 10px))' }}>
             {cur.label && <div className="diui-tooltip-head">{cur.label}</div>}
             <div><i style={{ background: PALETTE[cur.s % PALETTE.length] }} />{name(cur)}</div>
             <div>{props.xLabel ?? 'x'}: {withUnit(cur.x, props.xUnit)}</div>
@@ -199,8 +181,8 @@ export function Heatmap(props: HeatmapProps) {
   return (
     <figure className="diui-chart">
       {props.title && <figcaption className="diui-chart-title">{props.title}</figcaption>}
-      <div className="diui-plot-stage">
-        <svg className="diui-chart-svg" viewBox={`0 0 ${VW} ${H}`} style={{ maxWidth: VW }} role="img" tabIndex={0}
+      <div className="diui-plot-stage" style={{ maxWidth: VW }}>
+        <svg className="diui-chart-svg" viewBox={`0 0 ${VW} ${H}`} role="img" tabIndex={0}
           aria-label={`${props.title ?? 'heatmap'}: ${ny} × ${nx}`} onKeyDown={key} onBlur={() => setActive(undefined)}
           onPointerLeave={e => { if (e.pointerType === 'mouse') setActive(undefined) }}>
           <defs>
@@ -229,7 +211,7 @@ export function Heatmap(props: HeatmapProps) {
           }))}
         </svg>
         {cur && (
-          <div className="diui-tooltip" role="status" style={{ left: `${((labelW + cell * cur.c + cell / 2) / VW) * 100}%`, top: `${((top + cell * cur.r) / H) * 100}%` }}>
+          <div className="diui-tooltip" role="status" style={{ left: `${((labelW + cell * cur.c + cell / 2) / VW) * 100}%`, top: `${((top + cell * cur.r) / H) * 100}%`, transform: 'translate(-50%, calc(-100% - 4px))' }}>
             <div className="diui-tooltip-head">{label(props.yLabels[cur.r])} · {label(props.xLabels[cur.c])}</div>
             <div>{value(cur.v)}</div>
           </div>

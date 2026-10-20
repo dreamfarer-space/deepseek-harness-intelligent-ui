@@ -14,6 +14,7 @@ import { findChrome } from './dsh-web.mjs'
 const [url, outDir, mockLog] = process.argv.slice(2)
 const RECORD = process.argv.includes('--record')
 const SESSION_ONLY = process.env.E2E_SESSION_ONLY === '1'
+const DATA_ONLY = process.env.E2E_DATA_ONLY === '1'
 if (!url || !outDir || !mockLog) {
   console.error('usage: node scripts/e2e/browser.mjs <url> <out-dir> <mock-log> [--record]')
   process.exit(2)
@@ -155,6 +156,98 @@ async function scrollIntoView(selectorOrHandle) {
   await sleep(300)
 }
 
+async function checkDataTools() {
+  await caption('13 · Data grid, scatter, heatmap and code diff work locally')
+  await page.evaluate(() => {
+    window.__blobs = []
+    const create = URL.createObjectURL.bind(URL)
+    URL.createObjectURL = (b) => { window.__blobs.push(b); return create(b) }
+    window.__downloads = []
+    const click = HTMLAnchorElement.prototype.click
+    HTMLAnchorElement.prototype.click = function () { if (this.download) { window.__downloads.push(this.download); return } return click.call(this) }
+  })
+  await send('E2E data tools')
+  await waitIdle()
+  const ready = await waitFor(() => page.evaluate(() => !!document.querySelector('.diui-tail .diui-datagrid')), 20000)
+  const callsBefore = mock().length
+  const grid = () => page.evaluateHandle(() => [...document.querySelectorAll('.diui-tail .diui-datagrid')].at(-1))
+  const rows = async () => page.evaluate(g => [...g.querySelectorAll('tbody tr')].map(r => r.children[0]?.textContent), await grid())
+  const typeInto = async (sel, text) => {
+    const el = await (await grid()).$(sel)
+    await el.click({ clickCount: 3 })
+    await page.keyboard.type(text)
+    await sleep(250)
+  }
+  let filtered = [], ranged = [], dated = []
+  if (ready) {
+    await scrollIntoView(await grid())
+    await typeInto('input[type=search]', 'e')
+    filtered = await rows()
+    await typeInto('input[type=search]', '')
+    await page.keyboard.press('Backspace')
+    const filterButton = await page.evaluateHandle(g => [...g.querySelectorAll('.diui-table-tools button')].find(b => /Filter|筛选/.test(b.textContent)), await grid())
+    await filterButton.asElement().click()
+    await typeInto('.diui-filter-row th:nth-child(3) input:first-child', '100')
+    ranged = await rows()
+    // A native date input takes its value from the picker, not typed text.
+    await (await grid()).$eval('.diui-filter-row th:nth-child(2) input:last-child', el => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '2026-03-31')
+      el.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    await sleep(250)
+    dated = await rows()
+  }
+  check('13a. data grid searches and combines range/date filters locally', ready && filtered.join() === 'D-4,E-5' && ranged.join() === 'A-1,C-3,F-6' && dated.join() === 'A-1,C-3',
+    `search=${filtered.join()} amount>=100=${ranged.join()} +date<=2026-03-31=${dated.join()}`)
+  let csv = ''
+  if (ready) {
+    const exportButton = await page.evaluateHandle(g => [...g.querySelectorAll('button')].find(b => /CSV/.test(b.textContent)), await grid())
+    await exportButton.asElement().click()
+    await sleep(300)
+    csv = await page.evaluate(async () => window.__blobs.length ? (await window.__blobs.at(-1).text()) : '')
+  }
+  const downloads = await page.evaluate(() => window.__downloads)
+  check('13b. CSV export saves the filtered rows', downloads.includes('Orders.csv') && /^\uFEFF?Order,Date,Amount,Note\r\nA-1,2026-03-02,120,ok\r\nC-3,2026-02-20,300,big\r\n$/.test(csv), JSON.stringify({ downloads, csv }))
+  // Formula injection: clear filters and export the row whose note starts with "=".
+  if (ready) {
+    const clear = await page.evaluateHandle(g => [...g.querySelectorAll('button')].find(b => /Clear filters|清除筛选/.test(b.textContent)), await grid())
+    await clear.asElement()?.click()
+    const exportButton = await page.evaluateHandle(g => [...g.querySelectorAll('button')].find(b => /CSV/.test(b.textContent)), await grid())
+    await exportButton.asElement().click()
+    await sleep(300)
+    csv = await page.evaluate(async () => (await window.__blobs.at(-1).text()))
+  }
+  check('13c. CSV export neutralises formula injection', /B-2,2026-01-15,-40,'=1\+1/.test(csv), csv.split('\r\n')[2])
+  const scatter = await page.$$('.diui-tail svg[aria-label^="Price vs rating"]').then(h => h.at(-1))
+  let scatterTip = ''
+  if (scatter) {
+    await scrollIntoView(scatter)
+    const box = await scatter.boundingBox()
+    const point = await scatter.evaluate(s => { const c = [...s.querySelectorAll('circle')].at(-1); const b = c.getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 } })
+    await moveMouse(point.x, point.y, 6)
+    await sleep(250)
+    scatterTip = await scatter.evaluate(s => s.parentElement.querySelector('.diui-tooltip')?.textContent ?? '')
+    await moveMouse(box.x - 20, box.y - 20)
+  }
+  check('13d. scatter hover shows the nearest point; missing coordinates are reported', /Pro/.test(scatterTip) && /60 USD/.test(scatterTip) && await page.evaluate(() => /1 points? without coordinates|1 个点缺少坐标/.test(document.body.innerText)), scatterTip)
+  const heat = await page.$$('.diui-tail svg[aria-label^="Load"]').then(h => h.at(-1))
+  let heatTips = []
+  if (heat) {
+    await scrollIntoView(heat)
+    await heat.evaluate(s => s.focus())
+    for (const k of ['ArrowRight', 'ArrowRight', 'ArrowRight']) {
+      await page.keyboard.press(k)
+      heatTips.push(await heat.evaluate(s => s.parentElement.querySelector('.diui-tooltip')?.textContent ?? ''))
+    }
+  }
+  check('13e. heatmap keyboard focus distinguishes 0 from missing data', /0 %/.test(heatTips[1] ?? '') && /No data|无数据/.test(heatTips[2] ?? ''), JSON.stringify(heatTips))
+  const diff = await page.$$('.diui-tail .diui-diff').then(h => h.at(-1))
+  const diffState = diff ? await diff.evaluate(d => ({ added: d.querySelectorAll('.diui-diff-line[data-op="+"]').length, removed: d.querySelectorAll('.diui-diff-line[data-op="-"]').length, img: !!d.querySelector('img'), text: d.textContent.includes('onerror'), xss: !!window.__xss })) : null
+  check('13f. CodeDiff renders the change as text (no HTML execution)', diffState && diffState.added === 1 && diffState.removed === 1 && !diffState.img && diffState.text && !diffState.xss, JSON.stringify(diffState))
+  check('13g. data-tool interactions made no model calls', mock().length === callsBefore, `calls ${callsBefore} → ${mock().length}`)
+  if (ready) await shellShot('16-data-tools.png', 'Data tools')
+}
+
 async function checkNewSession() {
   await send('E2E show session launcher')
   await waitIdle()
@@ -194,7 +287,7 @@ for (let i = 0; i < 40; i++) {
 if (RECORD) await startRecording()
 await shot('0-home.png')
 
-if (!SESSION_ONLY) {
+if (!SESSION_ONLY && !DATA_ONLY) {
 // 1) Plain question → plain text, no UI.
 await caption('1 · A plain question gets a plain answer — no UI')
 const before = (await shells()).length
@@ -535,8 +628,9 @@ check('11f. reload rebuilds the latest patched version only', dashAfterReload.li
 await scrollIntoView(sphere.handle)
 await shot('14-reload.png')
 }
+if (!SESSION_ONLY) await checkDataTools()
 // A native Button creates a fresh conversation and starts it without using the composer again.
-await checkNewSession()
+if (!DATA_ONLY) await checkNewSession()
 await caption('All checks done')
 await sleep(1200)
 
