@@ -7,23 +7,24 @@
  * a reload reproduces it from the durable `tool/result`.
  * @module deepseek-harness-intelligent-ui/tools/patch
  */
-import { COMPONENT_TYPES } from '../catalog/catalog.js';
+import { componentTypes } from '../catalog/catalog.js';
 import { applyPatch, collectUis, outline, PATCH_LIMITS, PATCH_OPS } from '../catalog/patch.js';
 import { clientPolicy } from '../config.js';
 import { RENDER_TOOL } from './render.js';
 
 export const PATCH_TOOL = 'ui_patch';
 
-const NODE = {
+const nodeSchema = () => ({
   type: 'object',
   properties: {
     id: { type: 'string', description: 'Unique new component id.' },
-    type: { type: 'string', enum: [...COMPONENT_TYPES] },
+    type: { type: 'string', enum: componentTypes() },
+    componentVersion: { type: 'string', description: 'Required exact extension version; omit for built-ins.' },
     props: { type: 'object' },
     children: { type: 'array', items: { type: 'string' } },
   },
   required: ['id', 'type'],
-};
+});
 
 /**
  * The UIs of the calling conversation, or an explanation why there are none.
@@ -53,7 +54,7 @@ export function createPatchTool(config) {
       '- removeNode {id}: remove a component and everything under it (not the root). Keep Tabs labels in step with their children in the same patch.',
       `On ok=false nothing changed; fix the listed problems and retry. A stale baseVersion means the UI changed: patch the current version. Use ${RENDER_TOOL} instead for a new UI, a different root, or when most of the UI changes. Widgets (ui_render_widget) cannot be patched; render them again.`,
     ].join('\n'),
-    parameters: {
+    get parameters() { return {
       type: 'object',
       properties: {
         uiId: { type: 'string', description: 'uiId of the UI to change, from the tool result that showed it.' },
@@ -73,7 +74,8 @@ export function createPatchTool(config) {
                 type: 'object',
                 description: 'replaceNode: the replacement (same id).',
                 properties: {
-                  type: { type: 'string', enum: [...COMPONENT_TYPES] },
+                  type: { type: 'string', enum: componentTypes() },
+                  componentVersion: { type: 'string', description: 'Required exact extension version; omit for built-ins.' },
                   props: { type: 'object' },
                   children: { type: 'array', items: { type: 'string' } },
                 },
@@ -81,14 +83,14 @@ export function createPatchTool(config) {
               },
               parent: { type: 'string', description: 'insertChild: the container to insert into.' },
               index: { type: 'integer', description: 'insertChild: position among the parent\'s children.' },
-              nodes: { type: 'array', items: NODE, description: 'insertChild/replaceNode: new components (flat list, children by id).' },
+              nodes: { type: 'array', items: nodeSchema(), description: 'insertChild/replaceNode: new components (flat list, children by id).' },
             },
             required: ['op'],
           },
         },
       },
       required: ['uiId', 'baseVersion', 'ops'],
-    },
+    }; },
     output: {
       schema: {
         type: 'object',

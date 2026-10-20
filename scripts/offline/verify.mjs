@@ -4,6 +4,15 @@ import { createHash } from 'node:crypto'
 import { resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+// Public extension SDK and the deliberately shipped example, in both package modes.
+const extensionAssets = new Set([
+  'client/client.d.ts', 'docs/component-extensions.md',
+  ...[
+    'build-dsh-client.mjs', 'cordis.patch.yml', 'dsh-client.bundle.js', 'dsh-client.js',
+    'host.mjs', 'index.html', 'manifest.js', 'package.template.json', 'renderers.js', 'serve.mjs',
+  ].map(name => `examples/component-extension/${name}`),
+])
+
 export async function verifyOfflinePackage(directory) {
   const root = resolve(directory)
   const manifest = JSON.parse(await readFile(resolve(root, 'offline-resources/manifest.json'), 'utf8'))
@@ -11,7 +20,7 @@ export async function verifyOfflinePackage(directory) {
   const required = new Set(['client/client.js', 'renderer/renderer.js', 'package.json', 'src/resource-mode.js'])
   const seen = new Set()
   for (const asset of manifest.assets) {
-    if (typeof asset.path !== 'string' || !/^(client\/client\.js|renderer\/renderer\.js|package\.json|src\/.+|bin\/.+|locale\/.+|cordis\.patch\.yml|LICENSE|THIRD_PARTY_NOTICES\.md|README(?:\.zh-CN)?\.md|CHANGELOG\.md|offline-resources\/licenses\/.+)$/.test(asset.path)) throw new Error('Unexpected manifest path')
+    if (typeof asset.path !== 'string' || (!extensionAssets.has(asset.path) && !/^(client\/client\.js|renderer\/renderer\.js|package\.json|src\/.+|bin\/.+|locale\/.+|cordis\.patch\.yml|LICENSE|THIRD_PARTY_NOTICES\.md|README(?:\.zh-CN)?\.md|CHANGELOG\.md|offline-resources\/licenses\/.+)$/.test(asset.path))) throw new Error('Unexpected manifest path')
     const target = resolve(root, asset.path)
     if (!target.startsWith(root + sep) || asset.path.split(/[\\/]/).includes('..') || seen.has(asset.path)) throw new Error('Unsafe or duplicate manifest path')
     const data = await readFile(target)

@@ -1,7 +1,9 @@
 import { useId, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { newRequestId, projectData } from '../../src/controlled/runtime.js'
 import { contextOf, type ControlledEnv, type DataRef } from '../controlled.ts'
-import { CATALOG, validateProps } from '../../src/catalog/catalog.js'
+import { componentEntry, validateProps, validateComponentVersion } from '../../src/catalog/catalog.js'
+import { subscribeCatalog } from '../../src/catalog/extensions.js'
+import { ExtensionBoundary, ExtensionSurface, extensionRenderer } from './extensions.tsx'
 import { formatFormSubmission } from '../bridge.ts'
 import type { WidgetPolicy } from '../policy.ts'
 import { useUiState } from '../state.ts'
@@ -11,7 +13,7 @@ import { Inline } from './inline.tsx'
 import { LibFrame } from './LibFrame.tsx'
 import { Plot, type PlotProps } from './Plot.tsx'
 
-export interface UiNode { id: string; type: string; props?: Record<string, unknown>; children?: string[] }
+export interface UiNode { id: string; type: string; componentVersion?: string; props?: Record<string, unknown>; children?: string[] }
 
 export interface RenderEnv extends ControlledEnv {
   nodes: ReadonlyMap<string, UiNode>
@@ -30,21 +32,30 @@ export interface RenderEnv extends ControlledEnv {
 
 /** Render one node by id (recursively). */
 export function renderNode(id: string, env: RenderEnv, depth = 0, trail: ReadonlySet<string> = new Set()): ReactNode {
+  return <CatalogNode key={id} id={id} env={env} depth={depth} trail={trail} />
+}
+
+function CatalogNode({ id, env, depth, trail }: { id: string; env: RenderEnv; depth: number; trail: ReadonlySet<string> }): ReactNode {
   const node = env.nodes.get(id)
+  const entry = useSyncExternalStore(subscribeCatalog, () => componentEntry(node?.type), () => componentEntry(node?.type))
   if (!node) {
     if (env.stopped) return null
     return env.streaming ? <div key={id} className="diui-shimmer" /> : <div key={id} className="diui-node-error">{env.t('node.missing', { id })}</div>
   }
   if (trail.has(id) || depth > 24) return null
-  const errors = validateProps(node.type, node.props)
+  const errors = [...validateProps(node.type, node.props), ...validateComponentVersion(node.type, node.componentVersion)]
+  const renderer = extensionRenderer(node.type)
+  if (entry?.propsSchema && !renderer) errors.push('Extension renderer unavailable')
   if (errors.length) {
-    if (env.streaming) return env.stopped ? null : <div key={id} className="diui-shimmer" />
+    // Invalid installed extensions fail visibly, including interrupted previews.
+    if (env.streaming && !node.type.includes('/')) return env.stopped ? null : <div key={id} className="diui-shimmer" />
     return <div key={id} className="diui-node-error" title={errors.join('\n')}>{env.t('node.invalid', { id, type: node.type })}</div>
   }
   const nextTrail = new Set(trail).add(id)
-  const kids = (CATALOG as Record<string, { children: boolean }>)[node.type]?.children
+  const kids = entry?.children
     ? (node.children ?? []).map(c => renderNode(c, env, depth + 1, nextTrail))
     : []
+  if (renderer) return <ExtensionBoundary key={`${node.type}:${node.componentVersion}:${entry.generation}`}><ExtensionSurface renderer={renderer} node={node} env={env}>{kids}</ExtensionSurface></ExtensionBoundary>
   return <Component key={id} node={node} env={env}>{kids}</Component>
 }
 

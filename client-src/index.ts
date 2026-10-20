@@ -96,3 +96,6 @@ export function apply(ctx: ClientCtx): void {
 }
 
 export { createControlledRuntime } from '../src/controlled/runtime.js'
+
+export { registerComponentExtension, CATALOG_API_VERSION } from './catalog/extensions.tsx'
+export type { CatalogExtension, ComponentDefinition, ExtensionHandle, InferProps, ExtensionRenderContext, ExtensionRenderers } from './catalog/extensions.tsx'

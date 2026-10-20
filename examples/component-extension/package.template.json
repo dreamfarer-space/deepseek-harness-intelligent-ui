@@ -1,0 +1,35 @@
+{
+  "name": "@example/intelligent-ui-git",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./host.mjs",
+    "./client": "./dsh-client.bundle.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "deepseek-harness-intelligent-ui"
+      ],
+      "external": [
+        "deepseek-harness-intelligent-ui/client"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node build-dsh-client.mjs"
+  },
+  "peerDependencies": {
+    "deepseek-harness-intelligent-ui": "*"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

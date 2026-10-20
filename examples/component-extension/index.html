@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Catalog extension: GitDiffViewer</title>
+<style>body{max-width:800px;margin:40px auto;padding:0 20px;font:16px system-ui}button{margin:4px;padding:6px 12px}#status{min-height:1.5em}</style>
+<h1>GitDiffViewer extension</h1>
+<p>A trusted module using the same manifest on the Host and browser.</p>
+<button id="toggle">Disable extension</button><button id="uninstall">Uninstall extension</button><button id="reinstall">Reinstall</button>
+<p id="status" role="status"></p><div id="app"></div>
+<script src="/renderer.js"></script>
+<script type="module">
+import { manifest, definition } from '/manifest.js';
+import { renderers } from '/renderers.js';
+const api = window.DshIntelligentUiRenderer;
+let extension = api.registerComponentExtension(manifest, renderers), enabled = true;
+const status = document.getElementById('status');
+const surface = api.mount(document.getElementById('app'), { sendPrompt: async text => { status.textContent = text; } });
+surface.render({ kind: 'declarative', uiId: 'example-diff', version: 1, definition });
+document.getElementById('toggle').onclick = () => {
+  if (!extension) return;
+  enabled = !enabled; extension.setEnabled(enabled);
+  document.getElementById('toggle').textContent = enabled ? 'Disable extension' : 'Enable extension';
+};
+document.getElementById('uninstall').onclick = () => { extension?.dispose(); extension = null; status.textContent = 'Uninstalled'; };
+document.getElementById('reinstall').onclick = () => {
+  if (extension) return;
+  extension = api.registerComponentExtension(manifest, renderers); enabled = true;
+  document.getElementById('toggle').textContent = 'Disable extension'; status.textContent = 'Reinstalled';
+};
+window.addEventListener('pagehide', () => { surface.dispose(); extension?.dispose(); }, { once: true });
+</script>
+</html>
