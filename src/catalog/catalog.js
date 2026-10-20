@@ -23,7 +23,8 @@ const TONES = ['default', 'muted', 'info', 'success', 'warning', 'error'];
 export const FORM_FIELD_TYPES = ['text', 'number', 'range', 'select', 'checkbox', 'date', 'textarea'];
 
 /** Value kinds a Table column can be sorted and filtered as. */
-export const COLUMN_TYPES = ['text', 'number', 'date', 'boolean'];
+/** `string` is accepted as an alias of `text`: models often write it. */
+export const COLUMN_TYPES = ['text', 'number', 'date', 'boolean', 'string'];
 
 /** Chart kinds the SVG renderer draws. */
 export const CHART_KINDS = ['bar', 'line', 'area', 'pie'];

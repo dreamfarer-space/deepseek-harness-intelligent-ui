@@ -6,6 +6,8 @@ import { Inline } from './inline.tsx'
 
 export type Cell = string | number | boolean | null
 export type ColumnType = 'text' | 'number' | 'date' | 'boolean'
+/** Declared types as the catalog accepts them (`string` is an alias of `text`). */
+export type DeclaredColumnType = ColumnType | 'string'
 
 /** Column filter: text contains, boolean equals, number/date inclusive range. */
 type Filter = { text?: string; min?: string; max?: string; bool?: 'true' | 'false' }
@@ -23,9 +25,10 @@ export function parseDate(v: Cell | undefined): number | undefined {
 }
 
 /** Explicit `columnTypes` win; otherwise a column whose present cells are all numbers (or all ISO dates) is typed so. */
-export function inferTypes(columns: readonly string[], rows: readonly (readonly Cell[])[], declared?: readonly (ColumnType | undefined)[]): ColumnType[] {
+export function inferTypes(columns: readonly string[], rows: readonly (readonly Cell[])[], declared?: readonly (DeclaredColumnType | undefined)[]): ColumnType[] {
   return columns.map((_, c) => {
-    if (declared?.[c]) return declared[c]!
+    const d = declared?.[c]
+    if (d) return d === 'string' ? 'text' : d
     const present = rows.map(r => r[c]).filter(v => v !== null && v !== undefined && v !== '')
     if (present.length === 0) return 'text'
     if (present.every(v => typeof v === 'number')) return 'number'
@@ -83,7 +86,7 @@ export interface TableProps {
   rows: Cell[][]
   caption?: string
   sortable?: boolean
-  columnTypes?: (ColumnType | undefined)[]
+  columnTypes?: (DeclaredColumnType | undefined)[]
   searchable?: boolean
   filterable?: boolean
   pageSize?: number

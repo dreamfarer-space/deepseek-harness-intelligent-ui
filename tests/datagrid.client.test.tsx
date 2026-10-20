@@ -93,6 +93,7 @@ describe('typed sorting', () => {
   it('infers column types and keeps empty values last in both directions', () => {
     expect(inferTypes(COLUMNS, ROWS)).toEqual(['text', 'date', 'number', 'boolean'])
     expect(inferTypes(COLUMNS, ROWS, ['text', 'text'])).toEqual(['text', 'text', 'number', 'boolean'])
+    expect(inferTypes(COLUMNS, ROWS, ['string'])).toEqual(['text', 'date', 'number', 'boolean'])
     const dates = ['2026-01-02', null, '2025-12-31', 'soon']
     expect([...dates].sort((a, b) => compareTyped(a, b, 'date', 1))).toEqual(['2025-12-31', '2026-01-02', null, 'soon'])
     expect([...dates].sort((a, b) => compareTyped(a, b, 'date', -1)).slice(0, 2)).toEqual(['2026-01-02', '2025-12-31'])
