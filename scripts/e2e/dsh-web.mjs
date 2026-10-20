@@ -2,7 +2,8 @@
 // run dsh, install the plugin into a throwaway DSH home, boot DSH Web against
 // the scripted mock model, find Chrome, and tear the processes down again.
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 
 export const WIN = process.platform === 'win32'
@@ -96,6 +97,45 @@ export function startDshWeb({ dshHome, port, mockPort, patches = [], timeoutMs =
     child.on('error', err => { clearTimeout(timer); reject(err) })
     child.on('exit', code => { clearTimeout(timer); reject(new Error(`DSH exited with ${code}\n${log.slice(-4000)}`)) })
   })
+}
+
+/**
+ * puppeteer.launch with a fresh profile directory per attempt. Windows CI
+ * runners intermittently fail a launch with "The browser is already running
+ * for <profile>" (a Chrome from an earlier step still holding a lock) or a
+ * slow first start; a new profile and a retry get past both.
+ * @param {import('puppeteer-core')} puppeteer
+ * @param {import('puppeteer-core').LaunchOptions} options
+ */
+export async function launchBrowser(puppeteer, options = {}, attempts = 3) {
+  for (let i = 1; ; i++) {
+    const userDataDir = mkdtempSync(path.join(tmpdir(), 'diui-chrome-'))
+    try {
+      const browser = await puppeteer.launch({ executablePath: findChrome(), headless: true, protocolTimeout: 120_000, ...options, userDataDir })
+      browser.once('disconnected', () => { try { rmSync(userDataDir, { recursive: true, force: true }) } catch { /* still locked */ } })
+      return browser
+    } catch (error) {
+      try { rmSync(userDataDir, { recursive: true, force: true }) } catch { /* locked */ }
+      if (i >= attempts) throw error
+      console.warn(`Chrome launch attempt ${i} failed (${error.message.split('\n')[0]}); retrying`)
+      await new Promise(r => setTimeout(r, 2000 * i))
+    }
+  }
+}
+
+/**
+ * page.goto with a generous timeout and one retry: the first navigation of a
+ * cold Chrome on a busy Windows runner has exceeded 10s.
+ * @param {import('puppeteer-core').Page} page
+ */
+export async function gotoWithRetry(page, url, options = {}, attempts = 2) {
+  for (let i = 1; ; i++) {
+    try { return await page.goto(url, { timeout: 60_000, ...options }) }
+    catch (error) {
+      if (i >= attempts || !/timeout|ERR_/i.test(error.message)) throw error
+      console.warn(`Navigation to ${url.replace(/token=[^&]+/, 'token=…')} failed (${error.message.split('\n')[0]}); retrying`)
+    }
+  }
 }
 
 /** Chrome for puppeteer: $CHROME_PATH, else the usual install location per platform. */

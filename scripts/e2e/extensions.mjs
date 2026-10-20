@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { once } from 'node:events';
 import puppeteer from 'puppeteer-core';
-import { findChrome } from './dsh-web.mjs';
+import { gotoWithRetry, launchBrowser } from './dsh-web.mjs';
 const routes = {
   '/': ['../../examples/component-extension/index.html', 'text/html'],
   '/manifest.js': ['../../examples/component-extension/manifest.js', 'text/javascript'],
@@ -20,13 +20,13 @@ const server = createServer(async (req, res) => {
 let browser;
 try {
   server.listen(0, '127.0.0.1'); await once(server, 'listening');
-  browser = await puppeteer.launch({ executablePath: findChrome(), headless: true, args: process.platform === 'linux' ? ['--no-sandbox'] : [] });
+  browser = await launchBrowser(puppeteer, { args: process.platform === 'linux' ? ['--no-sandbox'] : [] });
   const page = await browser.newPage(), errors = [];
-  page.setDefaultTimeout(10000);
+  page.setDefaultTimeout(30000);
   page.on('pageerror', error => errors.push(error.message));
   const external = [];
   page.on('request', req => { if (!req.url().startsWith('http://127.0.0.1:')) external.push(req.url()); });
-  await page.goto(`http://127.0.0.1:${server.address().port}`);
+  await gotoWithRetry(page, `http://127.0.0.1:${server.address().port}`);
   await page.waitForSelector('details pre');
   assert.match(await page.$eval('pre', el => el.textContent), /\+const gain = 2/);
   // The portable prompt bridge arms after 200ms, just like widget interactions.
