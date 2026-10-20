@@ -6,8 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-- Add Catalog API v1 for trusted third-party components: namespaced manifests, strict shared props schemas, version checks, React renderers, disable/uninstall lifecycle, and safe fallback in streamed, patched and portable UIs.
-- Ship public schema-inferred TypeScript declarations and a runnable GitDiffViewer extension template.
+## [0.2.6]
+
+### Added
+
+- Catalog API v1 for trusted third-party components: namespaced manifests, strict shared props schemas, version checks, React renderers, disable/uninstall lifecycle, and safe fallback in streamed, patched and portable UIs. See `docs/component-extensions.md`.
+- Public schema-inferred TypeScript declarations and a runnable GitDiffViewer extension template.
+- README npm download badges.
+
+### Fixed
+
+- Extension validation and offline package verification now agree on what an extension package must contain.
+
+### Changed
+
+- Bundled React and React DOM 19.3.1; dev tooling bumps (puppeteer-core 25.14.0, vitest, pnpm/action-setup 6.1.0). CDN-pinned widget libraries (KaTeX, Mermaid, Three.js, D3, Chart.js, canvas-confetti) are excluded from Dependabot so online and offline versions stay in lockstep.
 
 ## [0.2.5]
 
@@ -118,7 +131,8 @@ All notable changes to this project are documented here. The format follows
   - The declarative component catalog (`ui_render`) and sandboxed streaming HTML widgets (`ui_render_widget`).
   - The `/ui` command and the guidance system-prompt section.
 
-[Unreleased]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.5...HEAD
+[Unreleased]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.6...HEAD
+[0.2.6]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.2...v0.2.3
