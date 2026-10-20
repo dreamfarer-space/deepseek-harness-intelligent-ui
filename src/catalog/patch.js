@@ -12,7 +12,7 @@
  * across restarts and confines patches to UIs of the same conversation.
  * @module deepseek-harness-intelligent-ui/catalog/patch
  */
-import { LIMITS, validateTree } from './catalog.js';
+import { CATALOG, LIMITS, validateTree } from './catalog.js';
 
 export const PATCH_OPS = Object.freeze(['setProps', 'replaceNode', 'insertChild', 'removeNode']);
 
@@ -38,9 +38,9 @@ function isPlainObject(v) {
 
 const clone = v => JSON.parse(JSON.stringify(v));
 
-/** Same leniency as validateTree: `props.children` becomes the node's children. */
+/** Legacy built-ins alone accept props.children; extensions use their exact schema. */
 function normalize(node) {
-  if (isPlainObject(node.props) && 'children' in node.props) {
+  if (Object.hasOwn(CATALOG, node.type) && isPlainObject(node.props) && 'children' in node.props) {
     if (node.children === undefined && Array.isArray(node.props.children)) node.children = node.props.children;
     delete node.props.children;
   }

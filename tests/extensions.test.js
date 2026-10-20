@@ -54,6 +54,26 @@ describe('trusted catalog extensions', () => {
     expect(validateProps('constructor', {}).join()).toContain('unknown component');
   });
 
+  it('rejects extension props.children consistently in render, insert, replace and native projection', async () => {
+    install();
+    const invalid = copy(definition);
+    invalid.components[0].props.children = [];
+    expect(validateProps(invalid.components[0].type, invalid.components[0].props).length).toBeGreaterThan(0);
+    expect(validateTree(copy(invalid)).ok).toBe(false);
+    expect((await createRenderTool(resolveConfig({})).execute(copy(invalid))).ok).toBe(false);
+    const node = invalid.components[0];
+    const ui = snapshotOf('u', { root: 'r', components: [{ id: 'r', type: 'Stack' }] });
+    for (const op of [
+      { op: 'insertChild', parent: 'r', id: node.id, nodes: [node] },
+      { op: 'replaceNode', id: 'r', node: { ...node, id: 'r' } },
+    ]) expect(applyPatch(ui, { uiId: 'u', baseVersion: 1, ops: [op] }).ok).toBe(false);
+    const events = [
+      { seq: 1, type: 'tool/call', data: { name: 'ui_render', callId: 'u', arguments: JSON.stringify(invalid) } },
+      { seq: 2, type: 'tool/result', data: { callId: 'u', meta: { ok: true } } },
+    ];
+    expect(projectNativeUiEvents(events, { hostId: 'h', sessionId: 's' })).toEqual([]);
+  });
+
   it('keeps host tool enums and execution current after disabling/uninstalling and supports reinstall', async () => {
     const h = install(), tool = createRenderTool(resolveConfig({}));
     h.setEnabled(false);

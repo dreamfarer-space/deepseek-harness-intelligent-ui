@@ -490,7 +490,7 @@ export function validateTree(args) {
     if (typeof node.id !== 'string' || node.id === '') { errors.push(`${at}.id: expected non-empty string`); return; }
     if (byId.has(node.id)) { errors.push(`${at}.id: duplicate id ${JSON.stringify(node.id)}`); return; }
     byId.set(node.id, node);
-    if (isPlainObject(node.props) && 'children' in node.props) {
+    if (Object.hasOwn(CATALOG, node.type) && isPlainObject(node.props) && 'children' in node.props) {
       if (node.children === undefined && Array.isArray(node.props.children)) {
         node.children = node.props.children;
       }
