@@ -11,6 +11,8 @@ All notable changes to this project are documented here. The format follows
 - `Choice` single-choice card with "Continue in this session" / "Start new session", and Button `sessionTarget: "new"` to start an independent Agent session in the same workspace ([#39](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/pull/39)).
 - `Table` data-grid options ([#17](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/17)): typed sorting (numbers, ISO 8601 dates, booleans; empty values last), `columnTypes`, `searchable`, `filterable` (per-column contains / min-max ranges, AND-combined), `pageSize` for inline rows, and `exportable` CSV/Markdown of the filtered, sorted rows. All local; nothing is sent to the model. Interaction state survives remounts and reloads.
 - CSV export is RFC 4180 with a UTF-8 BOM and neutralises spreadsheet formula injection (`=`, `+`, `-`, `@`, TAB, CR); Markdown export escapes table syntax.
+- `Scatter`: continuous x/y observations with axis labels and units, per-series legend toggles, nearest-point hover, tap and arrow-key inspection; points missing a coordinate are hidden and counted. Laid out at the card's real width so axis text stays readable on phones. Up to 2,000 points.
+- `Heatmap`: category × category matrix with sequential or zero-centred diverging scale, optional fixed `min`/`max`, a colour bar, cell values when they fit, and keyboard/hover/tap cell inspection. `null` cells are drawn hatched as "no data", never as 0. Up to 60 × 60 cells.
 - `Chart`: keyboard focus with arrow/Home/End/Escape stepping through categories, tap-to-inspect on touch screens, and `exportable` data export. Bound `dataRef` tables and charts can export too.
 
 ## [0.2.6]

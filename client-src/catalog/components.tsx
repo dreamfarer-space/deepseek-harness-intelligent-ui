@@ -12,6 +12,7 @@ import { Chart, formatNumber, type ChartProps } from './Chart.tsx'
 import { Inline } from './inline.tsx'
 import { LibFrame } from './LibFrame.tsx'
 import { Plot, type PlotProps } from './Plot.tsx'
+import { Heatmap, Scatter, type HeatmapProps, type ScatterProps } from './Scatter.tsx'
 import { ExportButtons, Table, type Cell } from './Table.tsx'
 
 export { compareCells } from './Table.tsx'
@@ -148,6 +149,10 @@ function Component({ node, env, children }: { node: UiNode; env: RenderEnv; chil
             rows={(p.labels as Cell[]).map((l, i) => [l, ...(p.series as ChartProps['series']).map(x => x.values[i] ?? null)])} t={env.t} />}
         </div>
       )
+    case 'Scatter':
+      return <Scatter {...(p as ScatterProps)} emptyText={env.t('chart.empty')} missingText={count => env.t('chart.missingPoints', { count })} />
+    case 'Heatmap':
+      return <Heatmap {...(p as HeatmapProps)} emptyText={env.t('chart.empty')} noDataText={env.t('chart.noData')} />
     case 'Button':
       if (p.action) return <ControlledButton label={p.label} action={p.action} env={env} />
       return <ActionButton label={p.label} prompt={p.prompt} variant={p.variant} sessionTarget={p.sessionTarget} env={env} nodeId={node.id} />
