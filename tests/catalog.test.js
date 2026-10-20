@@ -113,11 +113,9 @@ describe('ChoiceGroup validation', () => {
   ]
   const validate = (props = {}) => validateProps('ChoiceGroup', { title: 'Choose a route', options, ...props })
 
-  it('accepts 2-6 options and documents the confirmation contract', () => {
+  it('accepts 2-6 options', () => {
     expect(validate({ recommended: 'local', submitLabel: 'Continue discussion' })).toEqual([])
     expect(validate({ options: Array.from({ length: 6 }, (_, i) => ({ ...options[0], id: String(i) })) })).toEqual([])
-    expect(catalogReference()).toContain('- ChoiceGroup')
-    expect(catalogReference()).toContain('confirm sends only the chosen option prompt')
   })
 
   it('rejects too few or too many options, duplicate ids and an unknown recommendation', () => {

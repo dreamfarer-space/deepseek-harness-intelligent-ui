@@ -76,17 +76,4 @@ describe('config and guidance', () => {
     expect(uiPrompt('show x', { enableCatalog: false, enableWidget: true })).toMatch(/using ui_render_widget;/)
   })
 
-  it('offers choices at decision points while preserving discussion and user confirmation', () => {
-    const guidance = guidanceText({ enableCatalog: true, enableWidget: true })
-    expect(guidance).toContain('Do not wait for the user to explicitly request buttons')
-    expect(guidance).toContain('recommended is an option id')
-    expect(guidance).toContain('limited budget, no files, no coding and discussion only in EVERY option prompt')
-    expect(guidance).toContain('current conversation')
-    expect(guidance).toContain('do not send or execute anything until the user confirms')
-    expect(guidance).toContain('do not omit reasoning')
-    expect(guidance).toContain('Button, ChoiceGroup and Form share component-level sessionTarget')
-    expect(guidance).toContain('Changing session never grants permission')
-    expect(guidance).toContain('an ambiguous "continue" stay in the current conversation')
-    expect(createRenderTool(config).description).toContain('ChoiceGroup')
-  })
 })

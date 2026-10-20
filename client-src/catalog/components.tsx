@@ -6,7 +6,7 @@ import { subscribeCatalog } from '../../src/catalog/extensions.js'
 import { ExtensionBoundary, ExtensionSurface, extensionRenderer } from './extensions.tsx'
 import { BridgeGuard, formatFormSubmission } from '../bridge.ts'
 import type { WidgetPolicy } from '../policy.ts'
-import { getUiState, setUiState, useUiState } from '../state.ts'
+import { getUiState, setPersistentUiState, useUiState } from '../state.ts'
 import type { Translate } from '../types/dsh.ts'
 import { Chart, formatNumber, type ChartProps } from './Chart.tsx'
 import { Inline } from './inline.tsx'
@@ -310,7 +310,7 @@ function useSessionSend(env: RenderEnv, nodeId: string, target?: SessionTarget, 
       if (!env.sendNewSession) throw new Error(env.t('session.unavailable'))
       // Validate before freezing; the surface still applies its own admission/rate guard.
       const payload = new BridgeGuard({ policy: env.policy, armDelayMs: 0, minIntervalMs: 0 }).admitPrompt(frozen ?? text)
-      if (freeze && frozen === undefined && !setUiState(env.callId ?? '', key, payload)) {
+      if (freeze && !setPersistentUiState(env.callId ?? '', key, payload)) {
         throw new Error(env.t('session.recoveryUnavailable'))
       }
       await env.sendNewSession(payload, nodeId)

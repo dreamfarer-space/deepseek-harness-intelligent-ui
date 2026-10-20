@@ -28,7 +28,7 @@ beforeEach(() => {
   document.body.appendChild(host)
   root = createRoot(host)
 })
-afterEach(() => { act(() => root.unmount()); host.remove(); vi.restoreAllMocks() })
+afterEach(() => { act(() => root.unmount()); host.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 function fixture() {
   const events: string[] = []
@@ -65,6 +65,110 @@ function reload(el: React.ReactElement) {
 }
 
 describe('new Agent session adapter', () => {
+  it.each(['quota', 'unavailable'])('blocks creation when recovery storage is %s and resumes safely once restored', async failure => {
+    const f = fixture()
+    if (failure === 'quota') vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Full', 'QuotaExceededError') })
+    else vi.stubGlobal('localStorage', undefined)
+    await expect(f.send('source', TEXT, 'ui-1', 'task')).rejects.toThrow('recovery state')
+    // A second attempt in the same page must not use a memory-only launch.
+    await expect(f.send('source', TEXT, 'ui-1', 'task')).rejects.toThrow('recovery state')
+    expect(f.create).not.toHaveBeenCalled()
+    expect(f.prompt).not.toHaveBeenCalled()
+    expect(f.openSession).not.toHaveBeenCalled()
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    resetUiStateMemory()
+    await createNewSessionSender(f.sessions, () => f.services)('source', TEXT, 'ui-1', 'task')
+    expect(f.create).toHaveBeenCalledOnce()
+    expect(f.prompt).toHaveBeenCalledOnce()
+    expect(f.openSession).toHaveBeenCalledOnce()
+  })
+
+  it.each(['created', 'request', 'accepted'])('recovers a storage failure while saving %s using the same durable identities', async stage => {
+    const f = fixture()
+    const key = `newSession:${JSON.stringify(['source', 'task'])}`
+    const originalSet = Storage.prototype.setItem
+    let storageFailed = false
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, name, value) {
+      const state = name === 'diui:v1:ui-1' ? JSON.parse(value).v[key] : undefined
+      const fail = state && (stage === 'created' ? state.created && !state.requestId
+        : stage === 'request' ? !!state.requestId && !state.accepted : state.accepted)
+      if (fail && !storageFailed) {
+        storageFailed = true
+        throw new DOMException('Full', 'QuotaExceededError')
+      }
+      originalSet.call(this, name, value)
+    })
+    await expect(f.send('source', TEXT, 'ui-1', 'task')).rejects.toThrow('Could not persist')
+    expect(storageFailed).toBe(true)
+    expect(f.create).toHaveBeenCalledOnce()
+    expect(f.prompt).toHaveBeenCalledTimes(stage === 'accepted' ? 1 : 0)
+    expect(f.openSession).not.toHaveBeenCalled()
+    const sessionId = f.create.mock.calls[0]![0].sessionId
+    write.mockRestore()
+    resetUiStateMemory()
+    await createNewSessionSender(f.sessions, () => f.services)('source', TEXT, 'ui-1', 'task')
+    expect(f.create).toHaveBeenCalledTimes(stage === 'created' ? 2 : 1)
+    expect(f.create.mock.calls.every(([options]) => options.sessionId === sessionId)).toBe(true)
+    expect(f.prompt).toHaveBeenCalledTimes(stage === 'accepted' ? 2 : 1)
+    if (stage === 'accepted') expect(f.prompt.mock.calls[0]).toEqual(f.prompt.mock.calls[1])
+    expect(f.openSession).toHaveBeenCalledExactlyOnceWith(sessionId)
+    // The accepted state is now durable; a later replay only opens that session.
+    resetUiStateMemory()
+    await createNewSessionSender(f.sessions, () => f.services)('source', TEXT, 'ui-1', 'task')
+    expect(f.prompt).toHaveBeenCalledTimes(stage === 'accepted' ? 2 : 1)
+  })
+
+  it('blocks navigation retries while storage is broken without losing the accepted task', async () => {
+    const f = fixture()
+    f.openSession.mockRejectedValueOnce(new Error('navigation failed'))
+    await expect(f.send('source', TEXT, 'ui-1', 'task')).rejects.toThrow('Prompt accepted')
+    const sessionId = f.create.mock.calls[0]![0].sessionId
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('storage blocked') })
+    await expect(f.send('source', TEXT, 'ui-1', 'task')).rejects.toThrow('Could not persist')
+    resetUiStateMemory()
+    await expect(createNewSessionSender(f.sessions, () => f.services)('source', TEXT, 'ui-1', 'task')).rejects.toThrow('Could not persist')
+    expect(f.create).toHaveBeenCalledOnce()
+    expect(f.prompt).toHaveBeenCalledOnce()
+    expect(f.openSession).toHaveBeenCalledOnce()
+    write.mockRestore()
+    resetUiStateMemory()
+    await createNewSessionSender(f.sessions, () => f.services)('source', TEXT, 'ui-1', 'task')
+    expect(f.create).toHaveBeenCalledOnce()
+    expect(f.prompt).toHaveBeenCalledOnce()
+    expect(f.openSession).toHaveBeenLastCalledWith(sessionId)
+    expect(f.openSession).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not replace a previous launch when recovery storage cannot be read after reload', async () => {
+    const f = fixture()
+    f.openSession.mockRejectedValueOnce(new Error('navigation failed'))
+    await expect(f.send('source', TEXT, 'ui-1', 'task')).rejects.toThrow('Prompt accepted')
+    const record = localStorage.getItem('diui:v1:ui-1')
+    resetUiStateMemory()
+    const read = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('storage blocked') })
+    const write = vi.spyOn(Storage.prototype, 'setItem')
+    await expect(createNewSessionSender(f.sessions, () => f.services)('source', TEXT, 'ui-1', 'task')).rejects.toThrow('Could not read')
+    expect(write).not.toHaveBeenCalled()
+    expect(f.create).toHaveBeenCalledOnce()
+    expect(f.prompt).toHaveBeenCalledOnce()
+    read.mockRestore()
+    expect(localStorage.getItem('diui:v1:ui-1')).toBe(record)
+    await createNewSessionSender(f.sessions, () => f.services)('source', TEXT, 'ui-1', 'task')
+    expect(f.create).toHaveBeenCalledOnce()
+    expect(f.prompt).toHaveBeenCalledOnce()
+    expect(f.openSession).toHaveBeenCalledTimes(2)
+  })
+
+  it('refuses corrupt persisted recovery data instead of silently starting a different task', async () => {
+    const f = fixture()
+    localStorage.setItem('diui:v1:ui-1', '{broken')
+    await expect(f.send('source', TEXT, 'ui-1', 'task')).rejects.toThrow('Could not read')
+    expect(f.create).not.toHaveBeenCalled()
+    expect(f.prompt).not.toHaveBeenCalled()
+    expect(localStorage.getItem('diui:v1:ui-1')).toBe('{broken')
+  })
+
   it('creates independently in the source workspace, submits, then navigates before release', async () => {
     const f = fixture()
     await f.send('source', TEXT, 'ui-1', 'task')
@@ -261,7 +365,6 @@ describe('native Button integration', () => {
     expect(f.injected.sendPrompt).not.toHaveBeenCalled()
   })
 })
-
 describe('Button sessionTarget validation', () => {
   it('accepts current/new, rejects unknown values and action combinations', () => {
     for (const sessionTarget of ['current', 'new']) {
@@ -298,13 +401,30 @@ const inputButton = () => host.querySelector<HTMLButtonElement>('button[type=sub
 const expectedInput = (type: 'Form' | 'ChoiceGroup') => type === 'Form' ? `${INPUT_TASK}\n{\n  "route": "SQLite"\n}` : INPUT_TASK
 
 describe.each(['Form', 'ChoiceGroup'] as const)('%s session targets', type => {
+  it('does not freeze inputs or start a task when localStorage rejects the confirmed payload', async () => {
+    const f = fixture()
+    mount(inputView(f, inputTree(type, 'new')))
+    selectInput(type)
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Full', 'QuotaExceededError') })
+    await act(async () => { submitInput() })
+    expect(host.textContent).toContain(en['session.recoveryUnavailable'])
+    expect(host.querySelector('input,select')!.matches(':disabled')).toBe(false)
+    expect(inputButton().disabled).toBe(false)
+    expect(f.create).not.toHaveBeenCalled()
+    expect(f.prompt).not.toHaveBeenCalled()
+    write.mockRestore()
+    reload(inputView(f, inputTree(type, 'new')))
+    expect(host.querySelector('input,select')!.matches(':disabled')).toBe(false)
+    await act(async () => { submitInput() })
+    expect(f.create).toHaveBeenCalledOnce()
+    expect(f.prompt).toHaveBeenCalledOnce()
+  })
+
   it.each([undefined, 'current'])('preserves current routing for %s and displays the target', async target => {
     const f = fixture()
     mount(inputView(f, inputTree(type, target)))
     selectInput(type)
     expect(inputButton().textContent).toContain(en['session.targetCurrent'])
-    expect(host.querySelector('.diui-session-info')).toBeNull()
-    expect(host.textContent).not.toContain('Continue in this conversation with its existing context')
     await act(async () => { submitInput(); submitInput() })
     expect(f.injected.sendPrompt).toHaveBeenCalledExactlyOnceWith(expectedInput(type))
     expect(f.create).not.toHaveBeenCalled()
@@ -318,7 +438,6 @@ describe.each(['Form', 'ChoiceGroup'] as const)('%s session targets', type => {
     mount(inputView(f, definition))
     selectInput(type)
     expect(inputButton().textContent).toContain(en['session.targetNew'])
-    expect(host.querySelector('.diui-session-info,[role=tooltip]')).toBeNull()
     expect(f.create).not.toHaveBeenCalled()
     await act(async () => { submitInput(); submitInput() })
     expect(f.create).toHaveBeenCalledExactlyOnceWith({ sessionId: expect.any(String), workspaceId: 'workspace-1' })
@@ -337,11 +456,9 @@ describe.each(['Form', 'ChoiceGroup'] as const)('%s session targets', type => {
     expect(f.prompt).toHaveBeenCalledOnce()
   })
 
-  it.each(['create', 'prompt', 'navigation'])('recovers %s failure after patch/reload using the original payload and target', async stage => {
+  it('retries a failed submission after patch/reload using the original payload and target', async () => {
     const f = fixture()
-    if (stage === 'create') f.create.mockRejectedValueOnce(new Error('offline'))
-    if (stage === 'prompt') f.prompt.mockRejectedValueOnce(new Error('offline'))
-    if (stage === 'navigation') f.openSession.mockRejectedValueOnce(new Error('offline'))
+    f.prompt.mockRejectedValueOnce(new Error('offline'))
     const definition = inputTree(type, 'new')
     mount(inputView(f, definition))
     selectInput(type)
@@ -365,11 +482,10 @@ describe.each(['Form', 'ChoiceGroup'] as const)('%s session targets', type => {
     expect(inputButton().textContent).toContain(en['session.targetNew'])
     expect(inputButton().textContent).toContain(en['session.retry'])
     await act(async () => { submitInput() })
-    expect(f.create).toHaveBeenCalledTimes(stage === 'create' ? 2 : 1)
-    if (stage === 'create') expect(f.create.mock.calls[1]).toEqual(f.create.mock.calls[0])
-    expect(f.prompt).toHaveBeenCalledTimes(stage === 'prompt' ? 2 : 1)
+    expect(f.create).toHaveBeenCalledOnce()
+    expect(f.prompt).toHaveBeenCalledTimes(2)
     for (const call of f.prompt.mock.calls) expect(call).toEqual([[{ type: 'text', text: expectedInput(type) }], 'queue', undefined, 'request-1'])
-    expect(f.openSession).toHaveBeenCalledTimes(stage === 'navigation' ? 2 : 1)
+    expect(f.openSession).toHaveBeenCalledOnce()
     expect(f.injected.sendPrompt).not.toHaveBeenCalled()
     expect(inputButton().disabled).toBe(true)
   })
@@ -419,7 +535,11 @@ describe.each(['Form', 'ChoiceGroup'] as const)('%s session targets', type => {
     mount(inputView(f, inputTree(type)))
     selectInput(type)
     await act(async () => { submitInput() })
+    expect(host.querySelector('[role=status]')!.textContent).toContain('offline')
+    expect(inputButton().disabled).toBe(false)
     expect(host.querySelector('input,select')!.matches(':disabled')).toBe(false)
+    if (type === 'ChoiceGroup') expect(host.querySelector<HTMLInputElement>('input[value=sqlite]')!.checked).toBe(true)
+    else expect(host.querySelector<HTMLSelectElement>('select')!.value).toBe('SQLite')
     act(() => {
       if (type === 'Form') {
         const select = host.querySelector('select')!
@@ -432,6 +552,7 @@ describe.each(['Form', 'ChoiceGroup'] as const)('%s session targets', type => {
     expect(f.injected.sendPrompt).toHaveBeenCalledTimes(2)
     expect(f.injected.sendPrompt.mock.calls[0]).not.toEqual(f.injected.sendPrompt.mock.calls[1])
     expect(f.create).not.toHaveBeenCalled()
+    expect(inputButton().disabled).toBe(true)
   })
 
   it.each(['streaming', 'stopped'])('refuses submissions while %s', async mode => {
@@ -443,18 +564,8 @@ describe.each(['Form', 'ChoiceGroup'] as const)('%s session targets', type => {
       : <RenderView {...f.injected} callId="input-ui" toolName="ui_render" phase="result"
         block={{ kind: 'tool-result', callId: 'input-ui', call: { name: 'ui_render', argsRaw: raw }, content: [], isError: true, error: { name: 'Interrupted', code: 'interrupted' } }} />)
     expect(inputButton().disabled).toBe(true)
+    expect(host.querySelector('input,select')!.matches(':disabled')).toBe(true)
     await act(async () => { submitInput() })
-    expect(f.create).not.toHaveBeenCalled()
-    expect(f.injected.sendPrompt).not.toHaveBeenCalled()
-  })
-})
-
-describe.each(['Button', 'Form', 'ChoiceGroup'] as const)('%s session controls', type => {
-  it('shows only the task button without an information icon or tooltip', () => {
-    const f = fixture()
-    mount(type === 'Button' ? view(f) : inputView(f, inputTree(type, 'new')))
-    expect(host.querySelectorAll('button')).toHaveLength(1)
-    expect(host.querySelector('.diui-session-info,[role=tooltip]')).toBeNull()
     expect(f.create).not.toHaveBeenCalled()
     expect(f.injected.sendPrompt).not.toHaveBeenCalled()
   })

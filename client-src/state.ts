@@ -39,13 +39,18 @@ function load(callId: string): Bag {
   return bag
 }
 
-function persist(callId: string, bag: Bag): void {
+function persist(callId: string, bag: Bag): boolean {
   const s = storage()
-  if (!s) return
+  if (!s) return false
   try {
-    s.setItem(PREFIX + callId, JSON.stringify({ t: Date.now(), v: bag }))
-    evict(s)
-  } catch { /* quota or unavailable: memory still holds it */ }
+    const key = PREFIX + callId
+    const json = JSON.stringify({ t: Date.now(), v: bag })
+    s.setItem(key, json)
+    if (s.getItem(key) !== json) return false
+  } catch { return false }
+  // Cleanup failure must not invalidate an otherwise successful recovery write.
+  try { evict(s) } catch { /* retry cleanup on a later write */ }
+  return true
 }
 
 function evict(s: Storage): void {
@@ -67,19 +72,48 @@ export function getUiState<T>(callId: string, key: string): T | undefined {
   return load(callId)[key] as T | undefined
 }
 
+/** Never interpret unavailable or corrupt recovery storage as a missing launch. */
+export function getPersistentUiState<T>(callId: string, key: string): T | undefined {
+  return readPersistentBag(callId)[key] as T | undefined
+}
+
+function readPersistentBag(callId: string): Bag {
+  const s = storage()
+  if (!s) throw new Error('Browser storage is unavailable')
+  const raw = s.getItem(PREFIX + callId)
+  if (raw === null) return {}
+  const bag = (JSON.parse(raw) as { v?: Bag } | null)?.v
+  if (!bag || typeof bag !== 'object' || Array.isArray(bag)) throw new Error('Invalid recovery state')
+  return bag
+}
+
 /**
  * Write one value. Values must be JSON-serializable; a write that would push
  * the call's state past {@link MAX_STATE_CHARS} is refused.
- * @returns whether the value was stored.
+ * @returns whether the value was stored in memory; persistence is best-effort.
  */
 export function setUiState(callId: string, key: string, value: unknown): boolean {
-  const prev = load(callId)
+  return writeUiState(callId, key, value, false)
+}
+
+/** Recovery state must reach localStorage before it can authorize an external action. */
+export function setPersistentUiState(callId: string, key: string, value: unknown): boolean {
+  return writeUiState(callId, key, value, true)
+}
+
+function writeUiState(callId: string, key: string, value: unknown, requirePersistence: boolean): boolean {
+  let persisted: Bag = {}
+  if (requirePersistence) {
+    try { persisted = readPersistentBag(callId) } catch { return false }
+  }
+  const prev = { ...persisted, ...load(callId) }
   const next = { ...prev, [key]: value }
   let json: string
   try { json = JSON.stringify(next) } catch { return false }
   if (json.length > MAX_STATE_CHARS) return false
+  if (requirePersistence && !persist(callId, next)) return false
   memory.set(callId, next)
-  persist(callId, next)
+  if (!requirePersistence) persist(callId, next)
   for (const l of [...(listeners.get(callId) ?? [])]) l()
   return true
 }

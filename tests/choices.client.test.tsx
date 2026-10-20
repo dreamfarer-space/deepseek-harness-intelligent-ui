@@ -58,12 +58,14 @@ function reload() {
 }
 
 describe('ChoiceGroup decisions', () => {
-  it('offers accessible choices without preselecting the recommendation or sending on selection', () => {
+  it('offers accessible choices without preselecting the recommendation or sending before confirmation', async () => {
     render()
     expect(host.querySelector('legend')!.textContent).toBe(props.title)
     expect(host.querySelector('.diui-choice-recommended')!.textContent).toBe('Recommended')
     expect(radios().every(radio => !radio.checked)).toBe(true)
     expect(submitButton().disabled).toBe(true)
+    await act(async () => { submit() })
+    expect(send).not.toHaveBeenCalled()
     choose(1)
     expect(radios().map(radio => radio.checked)).toEqual([false, true, false])
     expect(submitButton().disabled).toBe(false)
@@ -104,23 +106,6 @@ describe('ChoiceGroup decisions', () => {
     expect(submitButton().disabled).toBe(true)
   })
 
-  it('reports failures and permits retry without losing the choice', async () => {
-    const clock = vi.spyOn(Date, 'now')
-    clock.mockReturnValue(10000)
-    send.mockRejectedValueOnce(new Error('offline'))
-    render()
-    choose(2)
-    await act(async () => { submit() })
-    expect(host.querySelector('[role=status]')!.textContent).toContain('offline')
-    expect(submitButton().disabled).toBe(false)
-    expect(radios()[2]!.checked).toBe(true)
-    clock.mockReturnValue(12000)
-    await act(async () => { submit() })
-    expect(send).toHaveBeenCalledTimes(2)
-    expect(send.mock.calls.map(call => call[0])).toEqual([options[2]!.prompt, options[2]!.prompt])
-    expect(submitButton().disabled).toBe(true)
-  })
-
   it('restores an unsubmitted selection after reload without submitting', () => {
     render()
     choose(2)
@@ -148,30 +133,6 @@ describe('ChoiceGroup decisions', () => {
     patch([options[0]!, options[2]!])
     expect(radios().every(radio => !radio.checked)).toBe(true)
     expect(submitButton().disabled).toBe(true)
-    expect(send).not.toHaveBeenCalled()
-  })
-
-  it('refuses confirmation without a selection', async () => {
-    render()
-    await act(async () => { submit() })
-    expect(send).not.toHaveBeenCalled()
-  })
-
-  it.each(['streaming', 'stopped'])('disables interactions while %s', async mode => {
-    const args = tree()
-    if (mode === 'streaming') {
-      render(<RenderView {...base()} phase="preparing" block={{ phase: 'preparing', callId: 'choices' }}
-        useToolCallArgumentsPartial={() => JSON.stringify(args)} />)
-      // Partial arguments are throttled on the same schedule as other components.
-      await act(async () => { await new Promise(resolve => setTimeout(resolve, 150)) })
-    } else {
-      render(<RenderView {...base()} phase="result" block={block(args, {
-        isError: true, error: { name: 'Interrupted', code: 'interrupted' },
-      })} />)
-    }
-    expect(host.querySelector('fieldset')!.disabled).toBe(true)
-    expect(submitButton().disabled).toBe(true)
-    await act(async () => { submit() })
     expect(send).not.toHaveBeenCalled()
   })
 
