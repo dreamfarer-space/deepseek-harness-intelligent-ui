@@ -3,6 +3,9 @@
 export const NS = 'intelligentUi'
 
 export const zh = {
+  'choice.recommended': '推荐',
+  'choice.continue': '继续讨论所选方案',
+  'choice.current': '在当前会话继续；选择后点击确认才会发送',
   'session.unavailable': '当前界面未接入新会话功能，请检查插件是否正确加载',
   'session.started': '已启动新会话',
   'widget.title': '交互组件',
@@ -61,6 +64,9 @@ export const zh = {
 export type IntelligentUiKey = keyof typeof zh
 
 export const en = {
+  'choice.recommended': 'Recommended',
+  'choice.continue': 'Discuss the selected option',
+  'choice.current': 'Continue in this conversation; only confirmation sends a message',
   'session.unavailable': 'Starting a new session is unavailable on this surface; check the plugin integration',
   'session.started': 'New session started',
   'widget.title': 'Widget',

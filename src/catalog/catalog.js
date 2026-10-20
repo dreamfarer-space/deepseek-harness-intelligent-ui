@@ -187,6 +187,24 @@ export const CATALOG = Object.freeze({
       variant: { type: 'enum', values: ['primary', 'secondary'] },
     },
   },
+  ChoiceGroup: {
+    description: 'Decision point: 2-6 radio options and one confirm button. Selection is local; confirm sends only the chosen option prompt to the CURRENT conversation. recommended marks an option, never selects it. Preserve discussion-only/no-code constraints in every prompt. No new session or action execution.',
+    children: false,
+    props: {
+      title: { type: 'string', required: true, max: 300 },
+      submitLabel: { type: 'string', max: 200 },
+      recommended: { type: 'string', max: 100 },
+      options: {
+        type: 'array', required: true, max: 6,
+        items: { type: 'object', props: {
+          id: { type: 'string', required: true, max: 100 },
+          label: { type: 'string', required: true, max: 200 },
+          description: { type: 'string', max: 1200 },
+          prompt: { type: 'string', required: true, max: LIMITS.text },
+        } },
+      },
+    },
+  },
   Form: {
     description: 'Input form. On submit the values are sent back to you as the user\'s next message (prefixed by `prompt` when given).',
     children: false,
@@ -383,6 +401,24 @@ function checkSemantics(type, props, path, errors) {
   }
   if (type === 'Button' && ((props.prompt === undefined) === (props.action === undefined))) errors.push(`${path}: needs exactly one of prompt or action`);
   if (type === 'Button' && props.sessionTarget !== undefined && props.action !== undefined) errors.push(`${path}.sessionTarget: only supported with prompt`);
+  if (type === 'ChoiceGroup') {
+    for (const name of ['title', 'submitLabel']) {
+      if (typeof props[name] === 'string' && !props[name].trim()) errors.push(`${path}.${name}: must not be blank`);
+    }
+    if (Array.isArray(props.options)) {
+      if (props.options.length < 2) errors.push(`${path}.options: needs at least 2 options`);
+      const ids = new Set();
+      props.options.forEach((option, i) => {
+        if (!isPlainObject(option)) return;
+        for (const name of ['id', 'label', 'prompt']) {
+          if (typeof option[name] === 'string' && !option[name].trim()) errors.push(`${path}.options[${i}].${name}: must not be blank`);
+        }
+        if (ids.has(option.id)) errors.push(`${path}.options[${i}].id: duplicate option id`);
+        ids.add(option.id);
+      });
+      if (props.recommended !== undefined && !ids.has(props.recommended)) errors.push(`${path}.recommended: must reference an option id`);
+    }
+  }
 
   if (type === 'Chart' && Array.isArray(props.labels) && Array.isArray(props.series)) {
     props.series.forEach((s, i) => {

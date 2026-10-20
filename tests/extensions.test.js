@@ -17,8 +17,8 @@ describe('trusted catalog extensions', () => {
     const render = createRenderTool(resolveConfig({})), patch = createPatchTool(resolveConfig({}));
     expect(render.parameters.properties.components.items.properties.type.enum).not.toContain('example.git/GitDiffViewer');
     install();
-    expect(COMPONENT_TYPES).toHaveLength(20);
-    expect(componentTypes()).toHaveLength(21);
+    expect(COMPONENT_TYPES).toHaveLength(21);
+    expect(componentTypes()).toHaveLength(22);
     expect(render.description).toContain('example.git/GitDiffViewer (componentVersion: 1.0.0)');
     expect(catalogReference()).toContain('"required":["diff"]');
     expect(render.parameters.properties.components.items.properties.type.enum).toContain('example.git/GitDiffViewer');

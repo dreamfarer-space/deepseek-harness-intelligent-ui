@@ -105,3 +105,43 @@ describe('catalogReference', () => {
     expect(ref).toMatch(/Card \(children\)/)
   })
 })
+
+describe('ChoiceGroup validation', () => {
+  const options = [
+    { id: 'local', label: 'Local first', prompt: 'Discuss local storage; do not code.' },
+    { id: 'cloud', label: 'Managed cloud', description: 'Less infrastructure.', prompt: 'Discuss cloud storage; do not code.' },
+  ]
+  const validate = (props = {}) => validateProps('ChoiceGroup', { title: 'Choose a route', options, ...props })
+
+  it('accepts 2-6 options and documents the current-session confirmation contract', () => {
+    expect(validate({ recommended: 'local', submitLabel: 'Continue discussion' })).toEqual([])
+    expect(validate({ options: Array.from({ length: 6 }, (_, i) => ({ ...options[0], id: String(i) })) })).toEqual([])
+    expect(catalogReference()).toContain('- ChoiceGroup')
+    expect(catalogReference()).toContain('confirm sends only the chosen option prompt')
+  })
+
+  it('rejects too few or too many options, duplicate ids and an unknown recommendation', () => {
+    expect(validate({ options: options.slice(0, 1) }).join()).toMatch(/at least 2/)
+    expect(validate({ options: Array.from({ length: 7 }, (_, i) => ({ ...options[0], id: String(i) })) }).length).toBeGreaterThan(0)
+    expect(validate({ options: [options[0], options[0]] }).join()).toMatch(/duplicate option id/)
+    expect(validate({ recommended: 'missing' }).join()).toMatch(/must reference an option id/)
+  })
+
+  it.each(['title', 'submitLabel'])('rejects a blank %s', key => {
+    expect(validate({ [key]: '   ' }).join()).toMatch(/must not be blank/)
+  })
+
+  it.each(['id', 'label', 'prompt'])('rejects blank and missing option %s', key => {
+    expect(validate({ options: [{ ...options[0], [key]: '  ' }, options[1]] }).join()).toMatch(/must not be blank/)
+    const first = { ...options[0] }
+    delete first[key]
+    expect(validate({ options: [first, options[1]] }).join()).toMatch(/required/)
+  })
+
+  it('rejects malformed options, new-session attributes and registered actions', () => {
+    expect(validate({ options: [null, 42] }).length).toBeGreaterThan(0)
+    expect(validate({ sessionTarget: 'new' }).join()).toMatch(/unknown prop/)
+    expect(validate({ action: { actionId: 'run' } }).join()).toMatch(/unknown prop/)
+    expect(validate({ options: [{ ...options[0], prompt: 'x'.repeat(20001) }, options[1]] }).length).toBeGreaterThan(0)
+  })
+})

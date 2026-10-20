@@ -143,6 +143,8 @@ function Component({ node, env, children }: { node: UiNode; env: RenderEnv; chil
       return <ActionButton label={p.label} prompt={p.prompt} variant={p.variant} sessionTarget={p.sessionTarget} env={env} nodeId={node.id} />
     case 'Form':
       return <Form props={p} env={env} nodeId={node.id} />
+    case 'ChoiceGroup':
+      return <ChoiceGroup props={p as ChoiceProps} env={env} nodeId={node.id} />
     case 'Timeline':
       return (
         <ol className="diui-timeline">
@@ -313,6 +315,50 @@ function ActionButton(props: { label: string; prompt: string; variant?: string; 
       </button>
       {(note || (isNew && done)) && <span className="diui-note">{isNew && done ? props.env.t('session.started') : note}</span>}
     </span>
+  )
+}
+
+interface ChoiceOption { id: string; label: string; description?: string; prompt: string }
+interface ChoiceProps { title: string; options: ChoiceOption[]; recommended?: string; submitLabel?: string }
+
+function ChoiceGroup({ props, env, nodeId }: { props: ChoiceProps; env: RenderEnv; nodeId: string }) {
+  const [selected, setSelected] = useUiState<string | undefined>(env.callId, `${nodeId}:choice`, undefined)
+  const [done, setDone] = useUiState(env.callId, `${nodeId}:choiceSubmitted`, false)
+  const [send, busy, note] = useSend(env)
+  const uid = useId()
+  const choice = props.options.find(option => option.id === selected)
+  const disabled = busy || done || env.streaming || !!env.stopped
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (disabled || !choice) return
+    if (await send(choice.prompt)) setDone(true)
+  }
+  return (
+    <form className="diui-choices" onSubmit={event => { void submit(event) }}>
+      <fieldset disabled={disabled} aria-describedby={`${uid}-hint`}>
+        <legend>{props.title}</legend>
+        <div className="diui-choice-options">
+          {props.options.map((option, index) => (
+            <label key={option.id} className="diui-choice" data-selected={choice?.id === option.id || undefined}>
+              <input type="radio" name={`${uid}-choice`} value={option.id} checked={choice?.id === option.id}
+                aria-describedby={option.description ? `${uid}-${index}-description` : undefined}
+                onChange={() => setSelected(option.id)} />
+              <span className="diui-choice-content">
+                <span className="diui-choice-heading"><span>{option.label}</span>
+                  {props.recommended === option.id && <span className="diui-choice-recommended">{env.t('choice.recommended')}</span>}
+                </span>
+                {option.description && <span className="diui-choice-description" id={`${uid}-${index}-description`}>{option.description}</span>}
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <button type="submit" className="diui-button diui-choice-submit" disabled={disabled || !choice} aria-busy={busy || undefined}>
+        {done ? env.t('form.submitted') : props.submitLabel ?? env.t('choice.continue')}
+      </button>
+      <span className="diui-choice-hint" id={`${uid}-hint`}>{env.t('choice.current')}</span>
+      <span className="diui-note" role="status" aria-live="polite">{note ?? (done ? env.t('form.submitted') : '')}</span>
+    </form>
   )
 }
 

@@ -134,6 +134,25 @@ export const STYLES = `
 .diui-button:focus-visible,.diui-tab:focus-visible,.diui-field input:focus-visible,.diui-field select:focus-visible,.diui-field textarea:focus-visible{outline:2px solid var(--ui-accent);outline-offset:1px}
 .diui-action{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
 .diui-note{font-size:12px;color:var(--ui-muted)}
+.diui-choices{display:flex;flex-direction:column;gap:10px;min-width:0}
+.diui-choices fieldset{border:0;padding:0;margin:0;min-width:0}
+.diui-choices legend{font-size:16px;font-weight:600;line-height:1.5;padding:0;margin-bottom:12px;overflow-wrap:anywhere}
+.diui-choice-options{display:flex;flex-direction:column;gap:4px}
+.diui-choice{display:flex;align-items:flex-start;gap:12px;padding:12px 10px;border-radius:var(--ui-radius);cursor:pointer;transition:background .15s}
+.diui-choice:hover{background:var(--ui-surface)}
+.diui-choice:focus-within{outline:2px solid var(--ui-accent);outline-offset:1px}
+.diui-choice[data-selected]{background:var(--ui-surface)}
+.diui-choice input{appearance:none;flex:0 0 20px;width:20px;height:20px;margin:2px 0 0;border:1.5px solid var(--ui-muted);border-radius:50%;background:var(--ui-bg);display:grid;place-items:center;cursor:inherit}
+.diui-choice input:checked{border-color:var(--ui-text);background:var(--ui-text)}
+.diui-choice input:checked::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--ui-bg)}
+.diui-choice-content{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;overflow-wrap:anywhere}
+.diui-choice-heading{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;font-size:15px;font-weight:500;line-height:1.5}
+.diui-choice-recommended{font-size:11px;font-weight:500;color:var(--ui-accent);border:1px solid var(--ui-border);border-radius:999px;padding:1px 7px}
+.diui-choice-description,.diui-choice-hint{font-size:12px;line-height:1.6;color:var(--ui-muted);overflow-wrap:anywhere}
+.diui-choices fieldset:disabled .diui-choice{cursor:default;opacity:.65}
+.diui-choice-submit{width:100%;border-radius:999px;padding:11px 18px;font-size:14px;font-weight:600;background:var(--ui-text);color:var(--ui-bg);border-color:var(--ui-text)}
+.diui-choice-submit:hover:not(:disabled){border-color:var(--ui-text);filter:brightness(.92)}
+@media (forced-colors:active){.diui-choice input{appearance:auto}.diui-choice input:checked::after{display:none}}
 .diui-form{display:flex;flex-direction:column;gap:10px}
 .diui-form-title{margin:0;font-size:15px}
 .diui-field{display:flex;flex-direction:column;gap:4px;font-size:13px}
