@@ -154,7 +154,7 @@ npx deepseek-harness-intelligent-ui doctor             # 只诊断，不做修�
 |---|---|
 | 升级 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@latest` |
 | 试用预发布版（仅在存在 `next` 标签时） | `dsh plugin --profile web add deepseek-harness-intelligent-ui@next` |
-| 固定版本 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.2.5` |
+| 固定版本 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.2.6` |
 | 卸载 | `dsh plugin --profile web remove deepseek-harness-intelligent-ui`（或 `npx deepseek-harness-intelligent-ui uninstall`） |
 | 从源码目录安装 | `dsh plugin --profile web add file:/path/to/deepseek-harness-intelligent-ui` |
 
