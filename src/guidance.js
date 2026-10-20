@@ -30,6 +30,7 @@ export function guidanceText(config) {
     '- anything where the user asked for text, a list or a short answer.',
   ];
   if (config.enableCatalog) {
+    lines.push('- Button prompt defaults to sessionTarget:"current". Use sessionTarget:"new" only for an explicit user action to start an independent Agent task: it inherits the workspace, NOT this conversation history, submits the prompt immediately, and opens the new session. Make its label clear and its prompt self-contained. Never combine sessionTarget with action or use it on Form/Widget.');
     lines.push('', `Use \`${RENDER_TOOL}\` (native components) as the primary choice for structured data and UI:`);
     lines.push('- Always use `ui_render` for dashboards, KPI metrics (Stat), sortable tables (Table), standard charts (bar, line, area, stacked series Chart), interactive forms (Form), timelines (Timeline), flowcharts/sequences (Mermaid), formulas (Math), and parametric curve exploration (Plot).');
     lines.push('- Combine them into rich dashboards using Card, Grid, and Tabs.');

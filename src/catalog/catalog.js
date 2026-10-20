@@ -177,11 +177,12 @@ export const CATALOG = Object.freeze({
     },
   },
   Button: {
-    description: 'Button sends prompt or invokes a host-registered action {actionId,args} on explicit user click. Never invent action ids.',
+    description: 'Button sends prompt on explicit user click: sessionTarget defaults to current; new starts an independent Agent session in the same workspace. Or invokes a host-registered action {actionId,args}. Never invent action ids.',
     children: false,
     props: {
       label: { type: 'string', required: true },
       prompt: { type: 'string' },
+      sessionTarget: { type: 'enum', values: ['current', 'new'] },
       action: ACTION,
       variant: { type: 'enum', values: ['primary', 'secondary'] },
     },
@@ -381,6 +382,7 @@ function checkSemantics(type, props, path, errors) {
     if (props.pageSize !== undefined && !Number.isInteger(props.pageSize)) errors.push(`${path}.pageSize: expected integer`);
   }
   if (type === 'Button' && ((props.prompt === undefined) === (props.action === undefined))) errors.push(`${path}: needs exactly one of prompt or action`);
+  if (type === 'Button' && props.sessionTarget !== undefined && props.action !== undefined) errors.push(`${path}.sessionTarget: only supported with prompt`);
 
   if (type === 'Chart' && Array.isArray(props.labels) && Array.isArray(props.series)) {
     props.series.forEach((s, i) => {

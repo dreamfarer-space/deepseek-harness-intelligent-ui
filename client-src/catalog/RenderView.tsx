@@ -89,6 +89,9 @@ export function RenderView(props: ToolViewProps) {
     t,
     callId: props.callId,
     policy,
+    sendNewSession: settled && props.sendNewSessionPrompt
+      ? async (text, nodeId) => { await props.sendNewSessionPrompt!(guard.admitPrompt(text), props.callId, nodeId) }
+      : undefined,
     send: settled
       ? async (text) => { await props.sendPrompt(guard.admitPrompt(text)) }
       : () => Promise.reject(new Error(t('render.notReady'))),

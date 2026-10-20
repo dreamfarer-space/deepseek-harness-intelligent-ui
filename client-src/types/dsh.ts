@@ -9,6 +9,22 @@ import type { IntelligentUiKey } from '../locales.ts'
 
 export interface ContentBlock { type: string; text?: string }
 
+/** Optional additions are detected before a new-session action mutates the Host. */
+export interface SessionFace {
+  beginSubmission?: (input: { mode: 'queue' | 'steer'; text: string; attachments: readonly unknown[] }) => { requestId: string; abandon: () => void }
+  prompt: (content: { type: 'text'; text: string }[], mode: 'queue' | 'steer', signal?: AbortSignal, requestId?: string) => Promise<{ ok: boolean; error?: { message?: string } }>
+}
+export interface SessionsFace {
+  binding: (id: string) => { session: SessionFace } | undefined
+  list?: { getSnapshot: () => { byId: Record<string, { cwd?: string }> } }
+  create?: (options: { sessionId: string; workspaceId?: string; cwd?: string }) => Promise<string>
+  using?: <T>(id: string, options: { source: 'controllerOperation' }, operation: (reference: { binding: { session: SessionFace } }) => T | Promise<T>) => Promise<T>
+}
+export interface WorkspacesFace {
+  list: { getSnapshot: () => { phase: string; state: string; items: readonly { workspaceId: string; sessionIds: readonly string[] }[] } }
+}
+export interface UiWorkspaceFace { openSession: (id: string) => void | Promise<void> }
+
 export interface PreparingToolCall { readonly phase: 'preparing'; readonly callId: string; readonly name?: string }
 export interface StartedToolCall { readonly phase: 'start'; readonly callId: string; readonly argsRaw: string }
 export interface ToolResultNode {
@@ -28,6 +44,8 @@ export type Translate = (key: IntelligentUiKey, vars?: Record<string, string | n
 export interface IntelligentUiInjected {
   /** Queue one user message in this session. */
   sendPrompt: (text: string) => Promise<void>
+  /** Explicit native Button action; never exposed to the Widget bridge. */
+  sendNewSessionPrompt?: (text: string, uiId: string, nodeId: string) => Promise<void>
   /** The session this surface belongs to. */
   sessionId?: string
   controlled?: ControlledRuntime
