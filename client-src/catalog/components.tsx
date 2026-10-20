@@ -24,6 +24,7 @@ export interface RenderEnv extends ControlledEnv {
   t: Translate
   /** Send an interaction; resolves/rejects with the bridge outcome. */
   send: (text: string) => Promise<void>
+  sendNewSession?: (text: string, nodeId: string) => Promise<void>
   /** Tool call id: interaction state (tabs, sort, form values, sliders) persists under it. */
   callId?: string
   /** CDN/network policy for library-backed components (Math, Mermaid). */
@@ -139,7 +140,7 @@ function Component({ node, env, children }: { node: UiNode; env: RenderEnv; chil
       return <Chart {...(p as ChartProps)} emptyText={env.t('chart.empty')} />
     case 'Button':
       if (p.action) return <ControlledButton label={p.label} action={p.action} env={env} />
-      return <ActionButton label={p.label} prompt={p.prompt} variant={p.variant} env={env} />
+      return <ActionButton label={p.label} prompt={p.prompt} variant={p.variant} sessionTarget={p.sessionTarget} env={env} nodeId={node.id} />
     case 'Form':
       return <Form props={p} env={env} nodeId={node.id} />
     case 'Timeline':
@@ -292,14 +293,25 @@ function useSend(env: RenderEnv): [(text: string) => Promise<boolean>, boolean, 
   return [send, busy, note]
 }
 
-function ActionButton(props: { label: string; prompt: string; variant?: string; env: RenderEnv }) {
-  const [send, busy, note] = useSend(props.env)
+function ActionButton(props: { label: string; prompt: string; variant?: string; sessionTarget?: 'current' | 'new'; env: RenderEnv; nodeId: string }) {
+  const isNew = props.sessionTarget === 'new'
+  const [done, setDone] = useUiState(props.env.callId, `${props.nodeId}:sessionStarted`, false)
+  const [send, busy, note] = useSend(isNew ? {
+    ...props.env,
+    send: text => props.env.sendNewSession
+      ? props.env.sendNewSession(text, props.nodeId)
+      : Promise.reject(new Error(props.env.t('session.unavailable'))),
+  } : props.env)
+  const click = async () => {
+    if (isNew && done) return
+    if (await send(props.prompt) && isNew) setDone(true)
+  }
   return (
     <span className="diui-action">
-      <button type="button" className="diui-button" data-variant={props.variant ?? 'secondary'} disabled={busy || props.env.streaming} aria-busy={busy || undefined} onClick={() => { void send(props.prompt) }}>
+      <button type="button" className="diui-button" data-variant={props.variant ?? 'secondary'} disabled={busy || props.env.streaming || (isNew && done)} aria-busy={busy || undefined} onClick={() => { void click() }}>
         {props.label}
       </button>
-      {note && <span className="diui-note">{note}</span>}
+      {(note || (isNew && done)) && <span className="diui-note">{isNew && done ? props.env.t('session.started') : note}</span>}
     </span>
   )
 }

@@ -6,7 +6,7 @@
 import { createServer } from 'node:http'
 import { appendFileSync, existsSync } from 'node:fs'
 import { definition as EXTENSION } from '../../examples/component-extension/manifest.js'
-import { chartPatch, DASHBOARD, explainSphere, forecast, MATH, SLOW, SPHERE } from './scenarios.mjs'
+import { chartPatch, DASHBOARD, explainSphere, forecast, MATH, SLOW, SPHERE, SESSION_LAUNCH } from './scenarios.mjs'
 
 const PORT = Number(process.argv[2] || 3199)
 const LOG = process.argv[3]
@@ -65,6 +65,8 @@ const textOf = content => typeof content === 'string' ? content : (content || []
 /** Pick the scripted answer for the latest user text. */
 function decide(lastText, tools) {
   if (!tools.includes('ui_render')) return 'no-ui-tools'
+  if (lastText === 'E2E show session launcher') return 'session-launch'
+  if (lastText === 'E2E independent Agent task') return 'session-task'
   if (/GitDiffViewer/.test(lastText)) return 'extension'
   if (/Form "Request a forecast" submitted/.test(lastText)) return 'forecast'
   if (/Explain the surface/.test(lastText)) return 'explain-sphere'
@@ -103,9 +105,12 @@ createServer((req, res) => {
     const lastTool = toolResult && Array.isArray(prev?.content) ? prev.content.find(c => c.type === 'tool_use')?.name : undefined
     const refusedPatch = lastTool === 'ui_patch' && /UI not changed/.test(textOf(toolResult.content))
     const decision = toolResult ? (refusedPatch ? 'patch-retry' : 'after-tool') : decide(lastText, tools)
+    if (decision === 'session-task') log({ sessionTask: true, userMessageCount: b.messages.filter(m => m.role === 'user' && !(Array.isArray(m.content) && m.content.some(c => c.type === 'tool_result'))).length })
     log({ at: new Date().toISOString(), decision, uiTools: tools.filter(t => t.startsWith('ui_')), toolCount: tools.length, guidance: system.includes('# Intelligent UI'), lastText: lastText.slice(0, 200), toolResult: toolResult ? textOf(toolResult.content).slice(0, 300) : undefined })
     const model = b.model
     switch (decision) {
+      case 'session-launch': return sse(res, toolEvents(model, 'ui_render', SESSION_LAUNCH, 36), 20)
+      case 'session-task': return sse(res, textEvents(model, 'Independent Agent started automatically.'), 20)
       case 'extension': return sse(res, toolEvents(model, 'ui_render', EXTENSION, 36), 30)
       case 'dashboard': {
         // Make the partial-tree checkpoint observable even on a busy CI host.

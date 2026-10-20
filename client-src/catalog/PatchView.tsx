@@ -78,6 +78,9 @@ export function PatchView(props: ToolViewProps) {
     // The UI's identity, not this call's: state persists across versions.
     callId: ui.uiId,
     policy,
+    sendNewSession: props.sendNewSessionPrompt
+      ? async (text, nodeId) => { await props.sendNewSessionPrompt!(guard.admitPrompt(text), ui.uiId, nodeId) }
+      : undefined,
     send: async (text) => { await props.sendPrompt(guard.admitPrompt(text)) },
   }
   return (

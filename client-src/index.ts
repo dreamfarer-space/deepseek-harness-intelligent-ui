@@ -15,16 +15,11 @@ import { en, NS, zh } from './locales.ts'
 import { STYLES } from './styles.ts'
 import { inlineView, TurnTail } from './TurnTail.tsx'
 import { uiTurnDefinition } from './turn.ts'
-import type { IntelligentUiInjected } from './types/dsh.ts'
+import type { IntelligentUiInjected, SessionFace, SessionsFace, WorkspacesFace, UiWorkspaceFace } from './types/dsh.ts'
+import { createNewSessionSender } from './new-session.ts'
 import { WidgetView } from './widget/WidgetView.tsx'
 
 export const inject = ['slots', 'locale', 'sessions', 'uiConversation']
-
-/** The subset of the client Session face (dsh-api-session-controller) used here. */
-interface SessionFace {
-  beginSubmission?: (input: { mode: 'queue' | 'steer'; text: string; attachments: readonly unknown[] }) => { requestId: string; abandon: () => void }
-  prompt: (content: { type: 'text'; text: string }[], mode: 'queue' | 'steer', signal?: AbortSignal, requestId?: string) => Promise<{ ok: boolean; error?: { message?: string } }>
-}
 
 interface ClientCtx {
   /** Trusted companion plugin; absence leaves bindings/actions unavailable. */
@@ -35,7 +30,7 @@ interface ClientCtx {
     inject: (name: string, fn: () => unknown) => void
     register: (entry: Record<string, unknown>, component: unknown) => unknown
   }
-  sessions: { binding: (id: string) => { session: SessionFace } | undefined }
+  sessions: SessionsFace
   uiConversation: { events: { register: (definition: unknown) => unknown } }
 }
 
@@ -58,6 +53,10 @@ export async function promptSession(sessions: ClientCtx['sessions'], sessionId: 
 }
 
 export function apply(ctx: ClientCtx): void {
+  const sendNewSession = createNewSessionSender(ctx.sessions, () => ({
+    workspaces: ctx.get?.('workspaces') as WorkspacesFace | undefined,
+    uiWorkspace: ctx.get?.('uiWorkspace') as UiWorkspaceFace | undefined,
+  }))
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'intelligent-ui: dictionaries')
 
   ctx.effect(() => {
@@ -75,6 +74,7 @@ export function apply(ctx: ClientCtx): void {
     return {
       controlled: provider?.forSession(sessionId),
       sendPrompt: text => promptSession(ctx.sessions, sessionId, text),
+      sendNewSessionPrompt: (text, uiId, nodeId) => sendNewSession(sessionId, text, uiId, nodeId),
       sessionId,
     }
   }

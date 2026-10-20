@@ -512,6 +512,24 @@ const dashAfterReload = await dashboards()
 check('11f. reload rebuilds the latest patched version only', dashAfterReload.live === 1 && /Version 2|第 2 版/.test(dashAfterReload.status) && dashAfterReload.tab === 'Forecast', JSON.stringify(dashAfterReload))
 await scrollIntoView(sphere.handle)
 await shot('14-reload.png')
+// A native Button creates a fresh conversation and starts it without using the composer again.
+await send('E2E show session launcher')
+await waitIdle()
+const launcher = await waitFor(async () => (await page.evaluateHandle(() =>
+  [...document.querySelectorAll('.diui-tail .diui-button')].find(button =>
+    button.textContent === 'Start independent Agent' && !button.disabled))).asElement(), 15000)
+if (launcher) {
+  await launcher.evaluate(button => { button.click(); button.click() })
+  const navigated = await waitFor(() => page.evaluate(() =>
+    document.body.innerText.includes('Independent Agent started automatically.') &&
+    !document.body.innerText.includes('Start independent Agent')), 20000)
+  const tasks = mock().filter(e => e.sessionTask)
+  check('12. native Button starts one independent Agent and navigates without copied history',
+    navigated && tasks.length === 1 && tasks[0].userMessageCount === 1, JSON.stringify(tasks))
+} else {
+  check('12. native Button starts one independent Agent and navigates without copied history', false, 'launcher unavailable')
+}
+await shot('15-new-session.png')
 await caption('All checks done')
 await sleep(1200)
 
