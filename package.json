@@ -128,13 +128,13 @@
     "jsdom": "26.1.0",
     "katex": "0.16.11",
     "mermaid": "11.4.1",
-    "puppeteer-core": "25.13.0",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "puppeteer-core": "25.14.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "tar": "7.5.22",
     "three": "0.169.0",
     "typescript": "7.0.2",
-    "vitest": "5.0.4"
+    "vitest": "5.0.5"
   },
   "engines": {
     "node": ">=22.13.0"
