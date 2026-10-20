@@ -42,6 +42,8 @@ export const LIMITS = Object.freeze({
   plotParams: 8,
   timelineItems: 100,
   choiceOptions: 8,
+  scatterPoints: 2000,
+  heatmapAxis: 60,
 });
 
 /**
@@ -183,6 +185,46 @@ export const CATALOG = Object.freeze({
       stacked: { type: 'boolean' },
       height: { type: 'number', min: 120, max: 600 },
       exportable: { type: 'boolean' },
+    },
+  },
+  Scatter: {
+    description: 'Scatter plot of real numeric observations: each point has continuous x and y (not category indexes). Use for correlation/distribution between two measures. Points with a null coordinate are hidden and counted. Hover, tap or arrow keys show a point; legend toggles series.',
+    children: false,
+    props: {
+      series: {
+        type: 'array', required: true, max: LIMITS.chartSeries,
+        items: {
+          type: 'object',
+          props: {
+            name: { type: 'string', required: true },
+            points: {
+              type: 'array', required: true, max: LIMITS.scatterPoints,
+              items: { type: 'object', props: { x: { type: 'scalar', required: true }, y: { type: 'scalar', required: true }, label: { type: 'string', max: 200 } } },
+            },
+          },
+        },
+      },
+      title: { type: 'string' },
+      xLabel: { type: 'string' },
+      yLabel: { type: 'string' },
+      xUnit: { type: 'string' },
+      yUnit: { type: 'string' },
+      height: { type: 'number', min: 160, max: 600 },
+    },
+  },
+  Heatmap: {
+    description: 'Matrix heatmap: values[r][c] belongs to yLabels[r] × xLabels[c]. Use null for missing data (drawn hatched, never as 0). scale "diverging" centres on 0 (negative red, positive blue); default "sequential". Optional fixed min/max.',
+    children: false,
+    props: {
+      xLabels: { type: 'array', required: true, items: { type: 'scalar' }, max: LIMITS.heatmapAxis },
+      yLabels: { type: 'array', required: true, items: { type: 'scalar' }, max: LIMITS.heatmapAxis },
+      values: { type: 'array', required: true, max: LIMITS.heatmapAxis, items: { type: 'array', items: { type: 'scalar' }, max: LIMITS.heatmapAxis } },
+      title: { type: 'string' },
+      unit: { type: 'string' },
+      scale: { type: 'enum', values: ['sequential', 'diverging'] },
+      min: { type: 'number' },
+      max: { type: 'number' },
+      showValues: { type: 'boolean' },
     },
   },
   Button: {
@@ -437,6 +479,30 @@ function checkSemantics(type, props, path, errors) {
     });
   }
   if (type === 'Plot') checkPlot(props, path, errors);
+  if (type === 'Scatter' && Array.isArray(props.series)) {
+    let total = 0;
+    props.series.forEach((ser, si) => {
+      if (!isPlainObject(ser) || !Array.isArray(ser.points)) return;
+      total += ser.points.length;
+      ser.points.forEach((pt, pi) => {
+        if (!isPlainObject(pt)) return;
+        for (const k of ['x', 'y']) {
+          const v = pt[k];
+          if (v !== null && !(typeof v === 'number' && Number.isFinite(v))) errors.push(`${path}.series[${si}].points[${pi}].${k}: expected a finite number or null`);
+        }
+      });
+    });
+    if (total > LIMITS.scatterPoints) errors.push(`${path}.series: ${total} points in total; at most ${LIMITS.scatterPoints}`);
+  }
+  if (type === 'Heatmap' && Array.isArray(props.values) && Array.isArray(props.xLabels) && Array.isArray(props.yLabels)) {
+    if (props.values.length !== props.yLabels.length) errors.push(`${path}.values: has ${props.values.length} rows but yLabels has ${props.yLabels.length}`);
+    props.values.forEach((row, r) => {
+      if (!Array.isArray(row)) return;
+      if (row.length !== props.xLabels.length) errors.push(`${path}.values[${r}]: has ${row.length} values but xLabels has ${props.xLabels.length}`);
+      row.forEach((v, c) => { if (v !== null && !(typeof v === 'number' && Number.isFinite(v))) errors.push(`${path}.values[${r}][${c}]: expected a finite number or null`); });
+    });
+    if (typeof props.min === 'number' && typeof props.max === 'number' && !(props.min < props.max)) errors.push(`${path}: min must be less than max`);
+  }
 }
 
 const IDENT = /^[A-Za-z_][A-Za-z_0-9]*$/;

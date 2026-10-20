@@ -130,6 +130,13 @@ export const STYLES = `
 .diui-chart-title{font-weight:600;font-size:13px;margin-bottom:4px}
 .diui-chart-svg{width:100%;height:auto;display:block}
 .diui-chart-svg text{fill:var(--ui-muted);font-size:11px}
+.diui-chart-svg .diui-axis-label{fill:var(--ui-text);font-size:11px}
+.diui-chart-svg .diui-cell-value{fill:var(--ui-text);font-size:10px;pointer-events:none}
+.diui-chart-svg .diui-cell-value[data-strong]{fill:#fff}
+.diui-colorbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;font-size:11px;color:var(--ui-muted);margin-top:4px}
+.diui-colorbar>i{display:inline-block;width:120px;height:8px;border-radius:4px;border:1px solid var(--ui-border)}
+.diui-colorbar-missing{display:inline-flex;align-items:center;gap:4px;margin-left:8px}
+.diui-colorbar-missing b{display:inline-block;width:10px;height:10px;border:1px solid var(--ui-border);background:repeating-linear-gradient(45deg,var(--ui-muted) 0 1.5px,transparent 1.5px 4px);opacity:.7}
 .diui-grid line,.diui-chart-svg .diui-grid{stroke:var(--ui-border);stroke-width:1}
 .diui-chart-svg .diui-axis-zero{stroke:var(--ui-muted);stroke-width:1}
 .diui-slice{stroke:var(--ui-bg);stroke-width:2}
