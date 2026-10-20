@@ -112,6 +112,19 @@ export const STYLES = `
 .diui-table tbody tr:last-child td{border-bottom:0}
 .diui-table tbody tr:hover{background:var(--ui-surface)}
 .diui-th-button{border:0;background:none;font:inherit;color:inherit;cursor:pointer;padding:0}
+.diui-datagrid{display:flex;flex-direction:column;gap:8px;min-width:0}
+.diui-table-tools{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+.diui-table-export{display:inline-flex;flex-wrap:wrap;gap:6px;margin-left:auto}
+.diui-chart-block{display:flex;flex-direction:column;gap:6px;min-width:0}
+.diui-chart-block>.diui-table-export{margin-left:0}
+.diui-input{font:inherit;font-size:13px;color:var(--ui-text);background:var(--ui-bg);border:1px solid var(--ui-border);border-radius:var(--ui-radius);padding:5px 8px;min-width:0}
+.diui-table-tools input[type=search]{flex:1 1 160px;max-width:280px}
+.diui-input:focus-visible,.diui-th-button:focus-visible,.diui-chart-svg:focus-visible{outline:2px solid var(--ui-accent);outline-offset:1px}
+.diui-filter-row th{font-weight:400;padding:4px 6px;top:auto;position:static}
+.diui-filter-row .diui-input{width:100%;min-width:72px;font-size:12px;padding:3px 6px}
+.diui-range-filter{display:flex;gap:4px}
+.diui-pager{display:flex;align-items:center;justify-content:flex-end;gap:8px;font-size:12px;color:var(--ui-muted)}
+@media (pointer:coarse){.diui-button,.diui-input,.diui-th-button{min-height:36px}}
 .diui-empty{color:var(--ui-muted);text-align:center;padding:12px}
 .diui-chart{margin:0;min-width:0}
 .diui-chart-title{font-weight:600;font-size:13px;margin-bottom:4px}
