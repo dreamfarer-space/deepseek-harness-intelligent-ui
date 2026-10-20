@@ -188,11 +188,12 @@ export const CATALOG = Object.freeze({
     },
   },
   ChoiceGroup: {
-    description: 'Decision point: 2-6 radio options and one confirm button. Selection is local; confirm sends only the chosen option prompt to the CURRENT conversation. recommended marks an option, never selects it. Preserve discussion-only/no-code constraints in every prompt. No new session or action execution.',
+    description: 'Decision point: 2-6 radio options and one confirm button. Selection is local; confirm sends only the chosen option prompt. sessionTarget defaults to current; new starts an independent session in the same workspace without history. recommended marks an option, never selects it. Every prompt must preserve user constraints and include complete task context for a new session. No registered actions.',
     children: false,
     props: {
       title: { type: 'string', required: true, max: 300 },
       submitLabel: { type: 'string', max: 200 },
+      sessionTarget: { type: 'enum', values: ['current', 'new'] },
       recommended: { type: 'string', max: 100 },
       options: {
         type: 'array', required: true, max: 6,
@@ -206,12 +207,13 @@ export const CATALOG = Object.freeze({
     },
   },
   Form: {
-    description: 'Input form. On submit the values are sent back to you as the user\'s next message (prefixed by `prompt` when given).',
+    description: 'Input form. Submit sends all field values prefixed by prompt. sessionTarget defaults to current; new creates an independent session in the same workspace and submits automatically. For new, prompt must contain complete task context and user constraints; conversation history is not copied.',
     children: false,
     props: {
       title: { type: 'string' },
       submitLabel: { type: 'string' },
       prompt: { type: 'string' },
+      sessionTarget: { type: 'enum', values: ['current', 'new'] },
       fields: {
         type: 'array', required: true, max: LIMITS.formFields,
         items: {
@@ -401,6 +403,7 @@ function checkSemantics(type, props, path, errors) {
   }
   if (type === 'Button' && ((props.prompt === undefined) === (props.action === undefined))) errors.push(`${path}: needs exactly one of prompt or action`);
   if (type === 'Button' && props.sessionTarget !== undefined && props.action !== undefined) errors.push(`${path}.sessionTarget: only supported with prompt`);
+  if (type === 'Form' && props.sessionTarget === 'new' && (typeof props.prompt !== 'string' || !props.prompt.trim())) errors.push(`${path}.prompt: new session needs a non-empty task prompt`);
   if (type === 'ChoiceGroup') {
     for (const name of ['title', 'submitLabel']) {
       if (typeof props[name] === 'string' && !props[name].trim()) errors.push(`${path}.${name}: must not be blank`);

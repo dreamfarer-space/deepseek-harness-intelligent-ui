@@ -127,12 +127,13 @@ export const STYLES = `
 .diui-tablist{display:flex;gap:2px;border-bottom:1px solid var(--ui-border);margin-bottom:10px;overflow-x:auto}
 .diui-tab{border:0;background:none;font:inherit;color:var(--ui-muted);padding:6px 12px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
 .diui-tab[aria-selected=true]{color:var(--ui-text);border-bottom-color:var(--ui-accent)}
-.diui-button{font:inherit;font-size:13px;border:1px solid var(--ui-border);background:var(--ui-bg);color:var(--ui-text);border-radius:var(--ui-radius);padding:6px 14px;cursor:pointer}
-.diui-button:hover:not(:disabled){border-color:var(--ui-accent)}
-.diui-button[data-variant=primary]{background:var(--ui-accent);border-color:var(--ui-accent);color:var(--ui-accent-text)}
+.diui-button{font:inherit;font-size:14px;font-weight:600;border:1px solid var(--ui-border);background:var(--ui-bg);color:var(--ui-text);border-radius:999px;padding:11px 18px;max-width:100%;min-width:0;overflow-wrap:anywhere;cursor:pointer}
+.diui-button:hover:not(:disabled){border-color:var(--ui-text);background:var(--ui-surface)}
+.diui-button[data-variant=primary],.diui-choice-submit{background:var(--ui-text);border-color:var(--ui-text);color:var(--ui-bg)}
+.diui-button[data-variant=primary]:hover:not(:disabled),.diui-choice-submit:hover:not(:disabled){background:var(--ui-text);border-color:var(--ui-text);filter:brightness(.92)}
 .diui-button:disabled{opacity:.55;cursor:default}
 .diui-button:focus-visible,.diui-tab:focus-visible,.diui-field input:focus-visible,.diui-field select:focus-visible,.diui-field textarea:focus-visible{outline:2px solid var(--ui-accent);outline-offset:1px}
-.diui-action{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.diui-action{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;max-width:100%;min-width:0}
 .diui-note{font-size:12px;color:var(--ui-muted)}
 .diui-choices{display:flex;flex-direction:column;gap:10px;min-width:0}
 .diui-choices fieldset{border:0;padding:0;margin:0;min-width:0}
@@ -150,8 +151,7 @@ export const STYLES = `
 .diui-choice-recommended{font-size:11px;font-weight:500;color:var(--ui-accent);border:1px solid var(--ui-border);border-radius:999px;padding:1px 7px}
 .diui-choice-description,.diui-choice-hint{font-size:12px;line-height:1.6;color:var(--ui-muted);overflow-wrap:anywhere}
 .diui-choices fieldset:disabled .diui-choice{cursor:default;opacity:.65}
-.diui-choice-submit{width:100%;border-radius:999px;padding:11px 18px;font-size:14px;font-weight:600;background:var(--ui-text);color:var(--ui-bg);border-color:var(--ui-text)}
-.diui-choice-submit:hover:not(:disabled){border-color:var(--ui-text);filter:brightness(.92)}
+.diui-choice-submit{width:100%}
 @media (forced-colors:active){.diui-choice input{appearance:auto}.diui-choice input:checked::after{display:none}}
 .diui-form{display:flex;flex-direction:column;gap:10px}
 .diui-form-title{margin:0;font-size:15px}
@@ -160,7 +160,8 @@ export const STYLES = `
 .diui-field-label{color:var(--ui-muted)}
 .diui-required{color:var(--ui-error)}
 .diui-field input:not([type=checkbox]),.diui-field select,.diui-field textarea{font:inherit;color:var(--ui-text);background:var(--ui-bg);border:1px solid var(--ui-border);border-radius:var(--ui-radius);padding:6px 8px;width:100%;box-sizing:border-box}
-.diui-form-actions{display:flex;align-items:center;gap:10px}
+.diui-form-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.diui-form-actions>button[type=submit]{width:100%;flex:0 0 100%}
 .diui-tail{display:flex;flex-direction:column;gap:8px;margin-top:4px}
 .diui-node-error{font-size:12px;color:var(--ui-error);border:1px dashed var(--ui-error);border-radius:var(--ui-radius);padding:6px 8px}
 .diui-sort{margin-left:4px;opacity:.45;font-size:11px}

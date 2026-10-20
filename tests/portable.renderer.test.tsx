@@ -75,4 +75,24 @@ describe('portable renderer without a DSH Web session', () => {
     await act(async () => host.querySelector<HTMLButtonElement>('button[type=submit]')!.click())
     expect(send).toHaveBeenCalledExactlyOnceWith('Discuss managed storage; do not code.')
   })
+
+  it.each(['Form', 'ChoiceGroup'])('refuses a new-session %s without falling back to the portable host', async type => {
+    const send = vi.fn(async () => {})
+    act(() => renderer.dispose())
+    renderer = mount(host, { sendPrompt: send })
+    act(() => renderer.render({ kind: 'declarative', uiId: `portable-new-${type}`, version: 1,
+      definition: { root: 'c', components: [{ id: 'c', type, props: {
+        title: 'Discuss a plan', sessionTarget: 'new',
+        ...(type === 'Form' ? { prompt: 'Discuss the plan; do not code.', fields: [] } : { options: [
+          { id: 'local', label: 'Local', prompt: 'Discuss local storage; do not code.' },
+          { id: 'cloud', label: 'Cloud', prompt: 'Discuss cloud storage; do not code.' },
+        ] }),
+      } }] } }))
+    if (type === 'ChoiceGroup') act(() => host.querySelector<HTMLInputElement>('input[value=cloud]')!.click())
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 220)) })
+    await act(async () => host.querySelector<HTMLButtonElement>('button[type=submit]')!.click())
+    expect(send).not.toHaveBeenCalled()
+    expect(host.textContent).toContain('Starting a new session is unavailable')
+    expect(host.querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(false)
+  })
 })

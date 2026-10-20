@@ -113,7 +113,7 @@ describe('ChoiceGroup validation', () => {
   ]
   const validate = (props = {}) => validateProps('ChoiceGroup', { title: 'Choose a route', options, ...props })
 
-  it('accepts 2-6 options and documents the current-session confirmation contract', () => {
+  it('accepts 2-6 options and documents the confirmation contract', () => {
     expect(validate({ recommended: 'local', submitLabel: 'Continue discussion' })).toEqual([])
     expect(validate({ options: Array.from({ length: 6 }, (_, i) => ({ ...options[0], id: String(i) })) })).toEqual([])
     expect(catalogReference()).toContain('- ChoiceGroup')
@@ -138,9 +138,12 @@ describe('ChoiceGroup validation', () => {
     expect(validate({ options: [first, options[1]] }).join()).toMatch(/required/)
   })
 
-  it('rejects malformed options, new-session attributes and registered actions', () => {
+  it('rejects malformed options, invalid targets and registered actions', () => {
     expect(validate({ options: [null, 42] }).length).toBeGreaterThan(0)
-    expect(validate({ sessionTarget: 'new' }).join()).toMatch(/unknown prop/)
+    expect(validate({ sessionTarget: 'new' })).toEqual([])
+    expect(validate({ sessionTarget: 'current' })).toEqual([])
+    expect(validate({ sessionTarget: 'other' }).join()).toMatch(/expected one of/)
+    expect(validate({ options: [{ ...options[0], sessionTarget: 'new' }, options[1]] }).join()).toMatch(/unknown prop/)
     expect(validate({ action: { actionId: 'run' } }).join()).toMatch(/unknown prop/)
     expect(validate({ options: [{ ...options[0], prompt: 'x'.repeat(20001) }, options[1]] }).length).toBeGreaterThan(0)
   })

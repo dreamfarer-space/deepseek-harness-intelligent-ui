@@ -4,9 +4,9 @@ import { contextOf, type ControlledEnv, type DataRef } from '../controlled.ts'
 import { componentEntry, validateProps, validateComponentVersion } from '../../src/catalog/catalog.js'
 import { subscribeCatalog } from '../../src/catalog/extensions.js'
 import { ExtensionBoundary, ExtensionSurface, extensionRenderer } from './extensions.tsx'
-import { formatFormSubmission } from '../bridge.ts'
+import { BridgeGuard, formatFormSubmission } from '../bridge.ts'
 import type { WidgetPolicy } from '../policy.ts'
-import { useUiState } from '../state.ts'
+import { getUiState, setUiState, useUiState } from '../state.ts'
 import type { Translate } from '../types/dsh.ts'
 import { Chart, formatNumber, type ChartProps } from './Chart.tsx'
 import { Inline } from './inline.tsx'
@@ -270,7 +270,7 @@ export function compareCells(a: Cell, b: Cell): number {
   return String(a).localeCompare(String(b), undefined, { numeric: true })
 }
 
-function useSend(env: RenderEnv): [(text: string) => Promise<boolean>, boolean, string | undefined] {
+function useSend(env: RenderEnv, newSession = false): [(text: string) => Promise<boolean>, boolean, string | undefined] {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<string | undefined>(undefined)
   // A ref, not state: a second click in the same frame must already see the send in flight.
@@ -282,7 +282,7 @@ function useSend(env: RenderEnv): [(text: string) => Promise<boolean>, boolean, 
     setNote(env.t('bridge.sending'))
     try {
       await env.send(text)
-      setNote(env.t('bridge.sent'))
+      setNote(env.t(newSession ? 'session.started' : 'bridge.sent'))
       return true
     } catch (err) {
       setNote(env.t('bridge.failed', { reason: err instanceof Error ? err.message : String(err) }))
@@ -295,15 +295,37 @@ function useSend(env: RenderEnv): [(text: string) => Promise<boolean>, boolean, 
   return [send, busy, note]
 }
 
-function ActionButton(props: { label: string; prompt: string; variant?: string; sessionTarget?: 'current' | 'new'; env: RenderEnv; nodeId: string }) {
-  const isNew = props.sessionTarget === 'new'
+type SessionTarget = 'current' | 'new'
+
+/** New-session forms/choices keep the first confirmed payload across retries and patches. */
+function useSessionSend(env: RenderEnv, nodeId: string, target?: SessionTarget, freeze = false) {
+  const key = `${nodeId}:launchPrompt`
+  const [launchText] = useUiState<string | undefined>(env.callId, key, undefined)
+  const isNew = target === 'new' || (freeze && launchText !== undefined)
+  const [send, busy, note] = useSend({
+    ...env,
+    send: async text => {
+      const frozen = freeze ? getUiState<string>(env.callId ?? '', key) : undefined
+      if (target !== 'new' && frozen === undefined) return env.send(text)
+      if (!env.sendNewSession) throw new Error(env.t('session.unavailable'))
+      // Validate before freezing; the surface still applies its own admission/rate guard.
+      const payload = new BridgeGuard({ policy: env.policy, armDelayMs: 0, minIntervalMs: 0 }).admitPrompt(frozen ?? text)
+      if (freeze && frozen === undefined && !setUiState(env.callId ?? '', key, payload)) {
+        throw new Error(env.t('session.recoveryUnavailable'))
+      }
+      await env.sendNewSession(payload, nodeId)
+    },
+  }, isNew)
+  return { send, busy, note, isNew, frozen: freeze && launchText !== undefined }
+}
+
+function targetLabel(label: string, env: RenderEnv, isNew: boolean) {
+  return `${label} · ${env.t(isNew ? 'session.targetNew' : 'session.targetCurrent')}`
+}
+
+function ActionButton(props: { label: string; prompt: string; variant?: string; sessionTarget?: SessionTarget; env: RenderEnv; nodeId: string }) {
   const [done, setDone] = useUiState(props.env.callId, `${props.nodeId}:sessionStarted`, false)
-  const [send, busy, note] = useSend(isNew ? {
-    ...props.env,
-    send: text => props.env.sendNewSession
-      ? props.env.sendNewSession(text, props.nodeId)
-      : Promise.reject(new Error(props.env.t('session.unavailable'))),
-  } : props.env)
+  const { send, busy, note, isNew } = useSessionSend(props.env, props.nodeId, props.sessionTarget)
   const click = async () => {
     if (isNew && done) return
     if (await send(props.prompt) && isNew) setDone(true)
@@ -319,23 +341,23 @@ function ActionButton(props: { label: string; prompt: string; variant?: string; 
 }
 
 interface ChoiceOption { id: string; label: string; description?: string; prompt: string }
-interface ChoiceProps { title: string; options: ChoiceOption[]; recommended?: string; submitLabel?: string }
+interface ChoiceProps { title: string; options: ChoiceOption[]; recommended?: string; submitLabel?: string; sessionTarget?: SessionTarget }
 
 function ChoiceGroup({ props, env, nodeId }: { props: ChoiceProps; env: RenderEnv; nodeId: string }) {
   const [selected, setSelected] = useUiState<string | undefined>(env.callId, `${nodeId}:choice`, undefined)
   const [done, setDone] = useUiState(env.callId, `${nodeId}:choiceSubmitted`, false)
-  const [send, busy, note] = useSend(env)
+  const { send, busy, note, isNew, frozen } = useSessionSend(env, nodeId, props.sessionTarget, true)
   const uid = useId()
   const choice = props.options.find(option => option.id === selected)
   const disabled = busy || done || env.streaming || !!env.stopped
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (disabled || !choice) return
-    if (await send(choice.prompt)) setDone(true)
+    if (disabled || (!choice && !frozen)) return
+    if (await send(choice?.prompt ?? '')) setDone(true)
   }
   return (
     <form className="diui-choices" onSubmit={event => { void submit(event) }}>
-      <fieldset disabled={disabled} aria-describedby={`${uid}-hint`}>
+      <fieldset disabled={disabled || frozen} aria-describedby={frozen && !done ? `${uid}-hint` : undefined}>
         <legend>{props.title}</legend>
         <div className="diui-choice-options">
           {props.options.map((option, index) => (
@@ -353,11 +375,11 @@ function ChoiceGroup({ props, env, nodeId }: { props: ChoiceProps; env: RenderEn
           ))}
         </div>
       </fieldset>
-      <button type="submit" className="diui-button diui-choice-submit" disabled={disabled || !choice} aria-busy={busy || undefined}>
-        {done ? env.t('form.submitted') : props.submitLabel ?? env.t('choice.continue')}
+      <button type="submit" className="diui-button diui-choice-submit" disabled={disabled || (!choice && !frozen)} aria-busy={busy || undefined}>
+        {done ? env.t(isNew ? 'session.started' : 'form.submitted') : targetLabel(frozen ? env.t('session.retry') : props.submitLabel ?? env.t('choice.continue'), env, isNew)}
       </button>
-      <span className="diui-choice-hint" id={`${uid}-hint`}>{env.t('choice.current')}</span>
-      <span className="diui-note" role="status" aria-live="polite">{note ?? (done ? env.t('form.submitted') : '')}</span>
+      {frozen && !done && <span className="diui-choice-hint" id={`${uid}-hint`}>{env.t('session.retryHint')}</span>}
+      <span className="diui-note" role="status" aria-live="polite">{note ?? (done ? env.t(isNew ? 'session.started' : 'form.submitted') : '')}</span>
     </form>
   )
 }
@@ -376,13 +398,14 @@ function Form({ props, env, nodeId }: { props: Record<string, any>; env: RenderE
   const [stored, setValues] = useUiState<Record<string, unknown>>(env.callId, `${nodeId}:values`, () => Object.fromEntries(fields.map(f => [f.name, initialValue(f)])))
   // Fields a patch added start from their defaults; the user's input in the others is kept.
   const values = useMemo(() => ({ ...Object.fromEntries(fields.map(f => [f.name, initialValue(f)])), ...stored }), [fields, stored])
-  const [send, busy, note] = useSend(env)
+  const { send, busy, note, isNew, frozen } = useSessionSend(env, nodeId, props.sessionTarget, true)
   // Submitted forms stay locked across remounts and reloads.
   const [done, setDone] = useUiState(env.callId, `${nodeId}:submitted`, false)
   const uid = useId()
   const set = (name: string, v: unknown) => setValues(prev => ({ ...prev, [name]: v }))
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (busy || done || env.streaming || env.stopped) return
     const out: Record<string, unknown> = {}
     for (const f of fields) {
       const v = values[f.name]
@@ -396,7 +419,7 @@ function Form({ props, env, nodeId }: { props: Record<string, any>; env: RenderE
       {fields.map((f) => {
         const id = `${uid}-${f.name}`
         const v = values[f.name]
-        const common = { id, name: f.name, required: f.required, disabled: done || env.streaming }
+        const common = { id, name: f.name, required: f.required, disabled: busy || done || frozen || env.streaming || !!env.stopped }
         let input: ReactNode
         switch (f.type) {
           case 'textarea':
@@ -442,9 +465,12 @@ function Form({ props, env, nodeId }: { props: Record<string, any>; env: RenderE
         )
       })}
       <div className="diui-form-actions">
-        <button type="submit" className="diui-button" data-variant="primary" disabled={busy || done || env.streaming} aria-busy={busy || undefined}>{props.submitLabel ?? env.t('form.submit')}</button>
-        {(note ?? (done ? env.t('form.submitted') : undefined)) && <span className="diui-note" role="status">{note ?? env.t('form.submitted')}</span>}
+        <button type="submit" className="diui-button" data-variant="primary" disabled={busy || done || env.streaming || !!env.stopped} aria-busy={busy || undefined}>
+          {done ? env.t(isNew ? 'session.started' : 'form.submitted') : targetLabel(frozen ? env.t('session.retry') : props.submitLabel ?? env.t('form.submit'), env, isNew)}
+        </button>
+        {(note ?? (done ? env.t(isNew ? 'session.started' : 'form.submitted') : undefined)) && <span className="diui-note" role="status">{note ?? env.t(isNew ? 'session.started' : 'form.submitted')}</span>}
       </div>
+      {frozen && !done && <span className="diui-note">{env.t('session.retryHint')}</span>}
     </form>
   )
 }

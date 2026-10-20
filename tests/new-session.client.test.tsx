@@ -8,7 +8,7 @@ import { RenderView } from '../client-src/catalog/RenderView.tsx'
 import { PatchView } from '../client-src/catalog/PatchView.tsx'
 import { TurnTail } from '../client-src/TurnTail.tsx'
 import { en } from '../client-src/locales.ts'
-import { resetUiStateMemory } from '../client-src/state.ts'
+import { MAX_STATE_CHARS, resetUiStateMemory, setUiState } from '../client-src/state.ts'
 import { validateProps } from '../src/catalog/catalog.js'
 import { applyPatch, snapshotOf } from '../src/catalog/patch.js'
 import type { SessionsFace, ToolViewProps } from '../client-src/types/dsh.ts'
@@ -28,7 +28,7 @@ beforeEach(() => {
   document.body.appendChild(host)
   root = createRoot(host)
 })
-afterEach(() => { act(() => root.unmount()); host.remove() })
+afterEach(() => { act(() => root.unmount()); host.remove(); vi.restoreAllMocks() })
 
 function fixture() {
   const events: string[] = []
@@ -269,6 +269,193 @@ describe('Button sessionTarget validation', () => {
     }
     expect(validateProps('Button', { label: 'Go', prompt: TEXT, sessionTarget: 'other' })).not.toEqual([])
     expect(validateProps('Button', { label: 'Go', action: { actionId: 'safe', args: {} }, sessionTarget: 'new' }).join()).toContain('only supported with prompt')
-    expect(validateProps('Form', { fields: [], sessionTarget: 'new' }).join()).toContain('unknown prop')
+    expect(validateProps('Form', { fields: [], sessionTarget: 'new' }).join()).toContain('non-empty task prompt')
+    expect(validateProps('Form', { fields: [], prompt: TEXT, sessionTarget: 'new' })).toEqual([])
+    expect(validateProps('Form', { fields: [], sessionTarget: 'current' })).toEqual([])
+    expect(validateProps('Form', { fields: [], sessionTarget: 'other' }).join()).toContain('expected one of')
+    expect(validateProps('Form', { fields: [], prompt: ' ', sessionTarget: 'new' }).join()).toContain('non-empty task prompt')
+  })
+})
+
+const INPUT_TASK = 'Discuss a solo developer plan on a limited budget. Do not create files or write code.'
+function inputTree(type: 'Form' | 'ChoiceGroup', sessionTarget?: string) {
+  return { root: 'input', components: [{ id: 'input', type, props: {
+    title: 'Choose a plan', ...(sessionTarget ? { sessionTarget } : {}), submitLabel: 'Continue',
+    ...(type === 'Form'
+      ? { prompt: INPUT_TASK, fields: [{ name: 'route', label: 'Route', type: 'select', options: ['SQLite', 'Supabase'], default: 'SQLite', required: true }] }
+      : { options: [{ id: 'sqlite', label: 'SQLite', prompt: INPUT_TASK }, { id: 'supabase', label: 'Supabase', prompt: 'Another self-contained discussion. Do not code.' }] }),
+  } }] }
+}
+function inputView(f: ReturnType<typeof fixture>, definition: ReturnType<typeof inputTree>) {
+  return <RenderView {...f.injected} callId="input-ui" toolName="ui_render" phase="result"
+    block={{ kind: 'tool-result', callId: 'input-ui', call: { name: 'ui_render', argsRaw: JSON.stringify(definition) }, content: [], isError: false }} />
+}
+function selectInput(type: 'Form' | 'ChoiceGroup') {
+  if (type === 'ChoiceGroup') act(() => host.querySelector<HTMLInputElement>('input[value=sqlite]')!.click())
+}
+const submitInput = () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+const inputButton = () => host.querySelector<HTMLButtonElement>('button[type=submit]')!
+const expectedInput = (type: 'Form' | 'ChoiceGroup') => type === 'Form' ? `${INPUT_TASK}\n{\n  "route": "SQLite"\n}` : INPUT_TASK
+
+describe.each(['Form', 'ChoiceGroup'] as const)('%s session targets', type => {
+  it.each([undefined, 'current'])('preserves current routing for %s and displays the target', async target => {
+    const f = fixture()
+    mount(inputView(f, inputTree(type, target)))
+    selectInput(type)
+    expect(inputButton().textContent).toContain(en['session.targetCurrent'])
+    expect(host.querySelector('.diui-session-info')).toBeNull()
+    expect(host.textContent).not.toContain('Continue in this conversation with its existing context')
+    await act(async () => { submitInput(); submitInput() })
+    expect(f.injected.sendPrompt).toHaveBeenCalledExactlyOnceWith(expectedInput(type))
+    expect(f.create).not.toHaveBeenCalled()
+  })
+
+  it('creates in the inherited workspace, auto-submits once, navigates and locks after reload', async () => {
+    const f = fixture()
+    const definition = inputTree(type, 'new')
+    let release!: () => void
+    f.prompt.mockImplementationOnce(() => new Promise(resolve => { release = () => resolve({ ok: true }) }))
+    mount(inputView(f, definition))
+    selectInput(type)
+    expect(inputButton().textContent).toContain(en['session.targetNew'])
+    expect(host.querySelector('.diui-session-info,[role=tooltip]')).toBeNull()
+    expect(f.create).not.toHaveBeenCalled()
+    await act(async () => { submitInput(); submitInput() })
+    expect(f.create).toHaveBeenCalledExactlyOnceWith({ sessionId: expect.any(String), workspaceId: 'workspace-1' })
+    expect(inputButton().disabled).toBe(true)
+    const input = host.querySelector<HTMLInputElement | HTMLSelectElement>('input,select')!
+    expect(input.matches(':disabled')).toBe(true)
+    expect(f.injected.sendPrompt).not.toHaveBeenCalled()
+    await act(async () => { release() })
+    expect(f.prompt).toHaveBeenCalledExactlyOnceWith([{ type: 'text', text: expectedInput(type) }], 'queue', undefined, 'request-1')
+    expect(f.openSession).toHaveBeenCalledOnce()
+    expect(inputButton().textContent).toBe(en['session.started'])
+    reload(inputView(f, definition))
+    await act(async () => { submitInput() })
+    expect(inputButton().disabled).toBe(true)
+    expect(f.create).toHaveBeenCalledOnce()
+    expect(f.prompt).toHaveBeenCalledOnce()
+  })
+
+  it.each(['create', 'prompt', 'navigation'])('recovers %s failure after patch/reload using the original payload and target', async stage => {
+    const f = fixture()
+    if (stage === 'create') f.create.mockRejectedValueOnce(new Error('offline'))
+    if (stage === 'prompt') f.prompt.mockRejectedValueOnce(new Error('offline'))
+    if (stage === 'navigation') f.openSession.mockRejectedValueOnce(new Error('offline'))
+    const definition = inputTree(type, 'new')
+    mount(inputView(f, definition))
+    selectInput(type)
+    await act(async () => { submitInput() })
+    expect(host.textContent).toContain('offline')
+    expect(inputButton().disabled).toBe(false)
+    expect(host.querySelector('input,select')!.matches(':disabled')).toBe(true)
+    expect(host.textContent).toContain(en['session.retryHint'])
+    const changed = applyPatch(snapshotOf('input-ui', definition), { uiId: 'input-ui', baseVersion: 1, ops: [
+      { op: 'setProps', id: 'input', props: {
+        sessionTarget: 'current', submitLabel: 'Changed label',
+        ...(type === 'Form' ? { prompt: 'Changed task' } : { options: [
+          { id: 'new-a', label: 'Changed A', prompt: 'Changed A' },
+          { id: 'new-b', label: 'Changed B', prompt: 'Changed B' },
+        ] }),
+      } },
+    ] })
+    if (!changed.ok) throw new Error(changed.errors.join())
+    reload(<PatchView {...f.injected} callId="patch-input" toolName="ui_patch" phase="result"
+      block={{ kind: 'tool-result', callId: 'patch-input', call: null, content: [], isError: false, meta: { ok: true, ui: changed.ui } }} />)
+    expect(inputButton().textContent).toContain(en['session.targetNew'])
+    expect(inputButton().textContent).toContain(en['session.retry'])
+    await act(async () => { submitInput() })
+    expect(f.create).toHaveBeenCalledTimes(stage === 'create' ? 2 : 1)
+    if (stage === 'create') expect(f.create.mock.calls[1]).toEqual(f.create.mock.calls[0])
+    expect(f.prompt).toHaveBeenCalledTimes(stage === 'prompt' ? 2 : 1)
+    for (const call of f.prompt.mock.calls) expect(call).toEqual([[{ type: 'text', text: expectedInput(type) }], 'queue', undefined, 'request-1'])
+    expect(f.openSession).toHaveBeenCalledTimes(stage === 'navigation' ? 2 : 1)
+    expect(f.injected.sendPrompt).not.toHaveBeenCalled()
+    expect(inputButton().disabled).toBe(true)
+  })
+
+  it('does not fall back to the current session when the optional service is absent', async () => {
+    const f = fixture()
+    f.injected.sendNewSessionPrompt = undefined as never
+    mount(inputView(f, inputTree(type, 'new')))
+    selectInput(type)
+    await act(async () => { submitInput() })
+    expect(host.textContent).toContain(en['session.unavailable'])
+    expect(f.create).not.toHaveBeenCalled()
+    expect(f.injected.sendPrompt).not.toHaveBeenCalled()
+    expect(host.querySelector('input,select')!.matches(':disabled')).toBe(false)
+  })
+
+  it('rejects an oversized payload before freezing inputs or creating a session', async () => {
+    const f = fixture()
+    const definition = inputTree(type, 'new')
+    if (type === 'Form') (definition.components[0]!.props as any).prompt = 'x'.repeat(5000)
+    else (definition.components[0]!.props as any).options[0].prompt = 'x'.repeat(5000)
+    mount(inputView(f, definition))
+    selectInput(type)
+    await act(async () => { submitInput() })
+    expect(host.textContent).toMatch(/exceeds .* characters/)
+    expect(f.create).not.toHaveBeenCalled()
+    expect(host.querySelector('input,select')!.matches(':disabled')).toBe(false)
+  })
+
+  it('refuses to launch if the frozen task cannot fit in recovery state', async () => {
+    const f = fixture()
+    mount(inputView(f, inputTree(type, 'new')))
+    selectInput(type)
+    expect(setUiState('input-ui', 'padding', 'x'.repeat(MAX_STATE_CHARS - 120))).toBe(true)
+    await act(async () => { submitInput() })
+    expect(host.textContent).toContain(en['session.recoveryUnavailable'])
+    expect(f.create).not.toHaveBeenCalled()
+    expect(f.injected.sendPrompt).not.toHaveBeenCalled()
+    expect(host.querySelector('input,select')!.matches(':disabled')).toBe(false)
+  })
+
+  it('leaves failed current-session submissions editable', async () => {
+    const f = fixture()
+    const clock = vi.spyOn(Date, 'now')
+    clock.mockReturnValue(10000)
+    f.injected.sendPrompt.mockRejectedValueOnce(new Error('offline'))
+    mount(inputView(f, inputTree(type)))
+    selectInput(type)
+    await act(async () => { submitInput() })
+    expect(host.querySelector('input,select')!.matches(':disabled')).toBe(false)
+    act(() => {
+      if (type === 'Form') {
+        const select = host.querySelector('select')!
+        select.value = 'Supabase'
+        select.dispatchEvent(new Event('change', { bubbles: true }))
+      } else host.querySelector<HTMLInputElement>('input[value=supabase]')!.click()
+    })
+    clock.mockReturnValue(12000)
+    await act(async () => { submitInput() })
+    expect(f.injected.sendPrompt).toHaveBeenCalledTimes(2)
+    expect(f.injected.sendPrompt.mock.calls[0]).not.toEqual(f.injected.sendPrompt.mock.calls[1])
+    expect(f.create).not.toHaveBeenCalled()
+  })
+
+  it.each(['streaming', 'stopped'])('refuses submissions while %s', async mode => {
+    const f = fixture()
+    const raw = JSON.stringify(inputTree(type, 'new'))
+    mount(mode === 'streaming'
+      ? <RenderView {...f.injected} callId="input-ui" toolName="ui_render" phase="preparing"
+        block={{ phase: 'preparing', callId: 'input-ui' }} useToolCallArgumentsPartial={() => raw} />
+      : <RenderView {...f.injected} callId="input-ui" toolName="ui_render" phase="result"
+        block={{ kind: 'tool-result', callId: 'input-ui', call: { name: 'ui_render', argsRaw: raw }, content: [], isError: true, error: { name: 'Interrupted', code: 'interrupted' } }} />)
+    expect(inputButton().disabled).toBe(true)
+    await act(async () => { submitInput() })
+    expect(f.create).not.toHaveBeenCalled()
+    expect(f.injected.sendPrompt).not.toHaveBeenCalled()
+  })
+})
+
+describe.each(['Button', 'Form', 'ChoiceGroup'] as const)('%s session controls', type => {
+  it('shows only the task button without an information icon or tooltip', () => {
+    const f = fixture()
+    mount(type === 'Button' ? view(f) : inputView(f, inputTree(type, 'new')))
+    expect(host.querySelectorAll('button')).toHaveLength(1)
+    expect(host.querySelector('.diui-session-info,[role=tooltip]')).toBeNull()
+    expect(f.create).not.toHaveBeenCalled()
+    expect(f.injected.sendPrompt).not.toHaveBeenCalled()
   })
 })

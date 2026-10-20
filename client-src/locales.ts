@@ -4,10 +4,15 @@ export const NS = 'intelligentUi'
 
 export const zh = {
   'choice.recommended': '推荐',
-  'choice.continue': '继续讨论所选方案',
+  'choice.continue': '继续所选方案',
   'choice.current': '在当前会话继续；选择后点击确认才会发送',
   'session.unavailable': '当前界面未接入新会话功能，请检查插件是否正确加载',
   'session.started': '已启动新会话',
+  'session.targetCurrent': '当前会话',
+  'session.targetNew': '新会话',
+  'session.retryHint': '输入已锁定；重试恢复首次确认的任务，复用同一新会话',
+  'session.retry': '重试启动',
+  'session.recoveryUnavailable': '无法保存任务恢复状态，尚未启动新会话',
   'widget.title': '交互组件',
   'widget.generating': '正在生成组件…',
   'widget.preview': '实时预览',
@@ -65,10 +70,15 @@ export type IntelligentUiKey = keyof typeof zh
 
 export const en = {
   'choice.recommended': 'Recommended',
-  'choice.continue': 'Discuss the selected option',
+  'choice.continue': 'Continue with the selected option',
   'choice.current': 'Continue in this conversation; only confirmation sends a message',
   'session.unavailable': 'Starting a new session is unavailable on this surface; check the plugin integration',
   'session.started': 'New session started',
+  'session.targetCurrent': 'Current conversation',
+  'session.targetNew': 'New conversation',
+  'session.retryHint': 'Inputs are locked; retry the first confirmed task in the same new session',
+  'session.retry': 'Retry launch',
+  'session.recoveryUnavailable': 'Could not save task recovery state; no new session was started',
   'widget.title': 'Widget',
   'widget.generating': 'Generating widget…',
   'widget.preview': 'Live preview',
