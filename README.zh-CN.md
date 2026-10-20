@@ -12,7 +12,7 @@
 [![OS](https://img.shields.io/badge/OS-Windows%20%7C%20Linux%20%7C%20macOS-a78bfa)](docs/compatibility.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-97a1c9)](LICENSE)
 
-[快速开始](#-快速开始) · [演示](#-演示) · [如何选择](#-agent-如何选择呈现方式) · [组件](#-组件目录ui_render) · [沙箱组件](#-沙箱组件ui_render_widget) · [扩展](#-扩展) · [安全](#-安全模型) · [配置](#%EF%B8%8F-配置) · [质量](#-真实模型质量基线) · [开发](#-开发与验证)
+[演示](#-演示) · [快速开始](#-快速开始) · [如何选择](#-agent-如何选择呈现方式) · [组件](#-组件目录ui_render) · [沙箱组件](#-沙箱组件ui_render_widget) · [扩展](#-扩展) · [安全](#-安全模型) · [配置](#%EF%B8%8F-配置) · [质量](#-真实模型质量基线) · [开发](#-开发与验证)
 
 </div>
 
@@ -71,44 +71,6 @@ JSON 还在生成，组件就已出现。实时组件在**同一个** iframe 中
 </tr>
 </table>
 
-## 🚀 快速开始
-
-需要 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) **0.1.7 – 0.2.x**（`>=0.1.7-rc.1 <0.3.0`）和 Node.js ≥ 22.13，Windows、Linux、macOS 均可。安装不需要编译：npm 包自带预构建的浏览器端 bundle，没有任何安装脚本。
-
-```sh
-dsh plugin --profile web add deepseek-harness-intelligent-ui
-```
-
-重启 DSH Web（`dsh web`），试着提一个需要可视化的问题，例如 *“按渠道对比 Q1–Q4 营收”* 或 *“让我在 3D 里探索 x²+y²+z²=2Rz”*。**桌面版**在 **Plugins → Add plugin** 中输入同一个包名即可。
-
-引导式安装器会先检查 Node、`dsh` 版本、pnpm 和 profile，再执行同样的 `dsh plugin add`：
-
-```sh
-npx deepseek-harness-intelligent-ui install     # 可选 --profile <名称>、--dsh <路径>、--dry-run
-npx deepseek-harness-intelligent-ui doctor      # 只诊断，不做修改
-```
-
-| 操作 | 命令 |
-|---|---|
-| 升级 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@latest` |
-| 试用预发布版（存在 `next` 标签时） | `dsh plugin --profile web add deepseek-harness-intelligent-ui@next` |
-| 固定版本 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.2.7` |
-| 卸载 | `dsh plugin --profile web remove deepseek-harness-intelligent-ui`（或 `npx deepseek-harness-intelligent-ui uninstall`） |
-| 从源码目录安装 | `dsh plugin --profile web add file:/path/to/deepseek-harness-intelligent-ui` |
-
-<details>
-<summary><b>🩺 常见问题</b></summary>
-<br>
-
-- *提示 `pnpm was not found`*：DSH 用 pnpm 安装插件。运行 `corepack enable`（Node 自带）或 `npm i -g pnpm`。
-- *提示 `… is incompatible with dsh X`*：当前 DSH 版本不在支持范围内。升级 DSH（`npm i -g @deepseek-ai/dsh@latest`），或在[兼容性文档](docs/compatibility.md)里找支持该版本的插件发行版。
-- *从 0.1.x 升级（以前用 `file:` 安装的 `dsh-intelligent-ui`）*：先运行 `dsh plugin --profile web remove dsh-intelligent-ui`。新旧两个包会插入同一个 `intelligent-ui` 行，`doctor` 能检测到这种冲突。
-- *界面没有出现*：安装后要重启 DSH Web，并确认启动的是安装插件时指定的 profile。
-
-</details>
-
-**兼容性。** CI 在每次推送和每晚定时任务中，用 Windows、Linux、macOS 对 DSH `0.1.7-rc.2`、`0.2.0-rc.1`、`latest`、`next`、`alpha` 安装打包后的插件并运行完整的浏览器 E2E，DSH 一发新版就能发现问题。详情和本地验证记录见 [docs/compatibility.md](docs/compatibility.md)。
-
 ## 🎬 演示
 
 ### 功能一览
@@ -159,6 +121,44 @@ https://github.com/user-attachments/assets/e4eb0adc-659e-4c80-b473-449aa42ca00f
 无法播放视频的页面（如 npm）可以看 GIF 版：[demo.gif](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/demo.gif)。
 
 </details>
+
+## 🚀 快速开始
+
+需要 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) **0.1.7 – 0.2.x**（`>=0.1.7-rc.1 <0.3.0`）和 Node.js ≥ 22.13，Windows、Linux、macOS 均可。安装不需要编译：npm 包自带预构建的浏览器端 bundle，没有任何安装脚本。
+
+```sh
+dsh plugin --profile web add deepseek-harness-intelligent-ui
+```
+
+重启 DSH Web（`dsh web`），试着提一个需要可视化的问题，例如 *“按渠道对比 Q1–Q4 营收”* 或 *“让我在 3D 里探索 x²+y²+z²=2Rz”*。**桌面版**在 **Plugins → Add plugin** 中输入同一个包名即可。
+
+引导式安装器会先检查 Node、`dsh` 版本、pnpm 和 profile，再执行同样的 `dsh plugin add`：
+
+```sh
+npx deepseek-harness-intelligent-ui install     # 可选 --profile <名称>、--dsh <路径>、--dry-run
+npx deepseek-harness-intelligent-ui doctor      # 只诊断，不做修改
+```
+
+| 操作 | 命令 |
+|---|---|
+| 升级 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@latest` |
+| 试用预发布版（存在 `next` 标签时） | `dsh plugin --profile web add deepseek-harness-intelligent-ui@next` |
+| 固定版本 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.2.7` |
+| 卸载 | `dsh plugin --profile web remove deepseek-harness-intelligent-ui`（或 `npx deepseek-harness-intelligent-ui uninstall`） |
+| 从源码目录安装 | `dsh plugin --profile web add file:/path/to/deepseek-harness-intelligent-ui` |
+
+<details>
+<summary><b>🩺 常见问题</b></summary>
+<br>
+
+- *提示 `pnpm was not found`*：DSH 用 pnpm 安装插件。运行 `corepack enable`（Node 自带）或 `npm i -g pnpm`。
+- *提示 `… is incompatible with dsh X`*：当前 DSH 版本不在支持范围内。升级 DSH（`npm i -g @deepseek-ai/dsh@latest`），或在[兼容性文档](docs/compatibility.md)里找支持该版本的插件发行版。
+- *从 0.1.x 升级（以前用 `file:` 安装的 `dsh-intelligent-ui`）*：先运行 `dsh plugin --profile web remove dsh-intelligent-ui`。新旧两个包会插入同一个 `intelligent-ui` 行，`doctor` 能检测到这种冲突。
+- *界面没有出现*：安装后要重启 DSH Web，并确认启动的是安装插件时指定的 profile。
+
+</details>
+
+**兼容性。** CI 在每次推送和每晚定时任务中，用 Windows、Linux、macOS 对 DSH `0.1.7-rc.2`、`0.2.0-rc.1`、`latest`、`next`、`alpha` 安装打包后的插件并运行完整的浏览器 E2E，DSH 一发新版就能发现问题。详情和本地验证记录见 [docs/compatibility.md](docs/compatibility.md)。
 
 ## 🧠 Agent 如何选择呈现方式
 

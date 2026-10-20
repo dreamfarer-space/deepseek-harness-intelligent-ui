@@ -12,7 +12,7 @@
 [![OS](https://img.shields.io/badge/OS-Windows%20%7C%20Linux%20%7C%20macOS-a78bfa)](docs/compatibility.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-97a1c9)](LICENSE)
 
-[Quick start](#-quick-start) · [Demo](#-demo) · [How it decides](#-how-the-agent-decides) · [Components](#-component-catalog-ui_render) · [Widgets](#-sandboxed-widgets-ui_render_widget) · [Extending](#-extending) · [Security](#-security-model) · [Configuration](#%EF%B8%8F-configuration) · [Quality](#-real-model-quality-baseline) · [Develop](#-develop-and-verify)
+[Demo](#-demo) · [Quick start](#-quick-start) · [How it decides](#-how-the-agent-decides) · [Components](#-component-catalog-ui_render) · [Widgets](#-sandboxed-widgets-ui_render_widget) · [Extending](#-extending) · [Security](#-security-model) · [Configuration](#%EF%B8%8F-configuration) · [Quality](#-real-model-quality-baseline) · [Develop](#-develop-and-verify)
 
 </div>
 
@@ -71,44 +71,6 @@ Tabs, sort, filters, form values, sliders and `UI.state` survive turn folding, i
 </tr>
 </table>
 
-## 🚀 Quick start
-
-You need [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) **0.1.7 – 0.2.x** (`>=0.1.7-rc.1 <0.3.0`) and Node.js ≥ 22.13, on Windows, Linux or macOS. Nothing is compiled during install: the package ships its prebuilt browser bundle and has no install scripts.
-
-```sh
-dsh plugin --profile web add deepseek-harness-intelligent-ui
-```
-
-Restart DSH Web (`dsh web`) and ask for something visual, for example *"compare Q1–Q4 revenue by channel"* or *"let me explore x²+y²+z²=2Rz in 3D"*. In the **desktop app**, use **Plugins → Add plugin** with the same package name.
-
-The guided installer checks Node, the `dsh` version, pnpm and the profile first, then runs the same `dsh plugin add`:
-
-```sh
-npx deepseek-harness-intelligent-ui install     # --profile <name>, --dsh <path>, --dry-run
-npx deepseek-harness-intelligent-ui doctor      # diagnose only
-```
-
-| Task | Command |
-|---|---|
-| Upgrade | `dsh plugin --profile web add deepseek-harness-intelligent-ui@latest` |
-| Try a prerelease (when a `next` dist-tag exists) | `dsh plugin --profile web add deepseek-harness-intelligent-ui@next` |
-| Pin a version | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.2.7` |
-| Uninstall | `dsh plugin --profile web remove deepseek-harness-intelligent-ui` (or `npx deepseek-harness-intelligent-ui uninstall`) |
-| From a checkout | `dsh plugin --profile web add file:/path/to/deepseek-harness-intelligent-ui` |
-
-<details>
-<summary><b>🩺 Troubleshooting</b></summary>
-<br>
-
-- *`pnpm was not found`*: DSH installs plugins with pnpm. Run `corepack enable` (it ships with Node) or `npm i -g pnpm`.
-- *`… is incompatible with dsh X`*: your DSH is outside the supported range. Upgrade DSH (`npm i -g @deepseek-ai/dsh@latest`) or check [compatibility](docs/compatibility.md) for a plugin release that supports it.
-- *Upgrading from 0.1.x (`dsh-intelligent-ui` via `file:`)*: run `dsh plugin --profile web remove dsh-intelligent-ui` first. Both packages insert the same `intelligent-ui` row, and `doctor` reports the conflict.
-- *The UI does not appear*: restart DSH Web after installing, and make sure you started the profile you installed into.
-
-</details>
-
-**Compatibility.** CI installs the packed plugin and runs the full browser E2E on Windows, Linux and macOS against DSH `0.1.7-rc.2`, `0.2.0-rc.1`, `latest`, `next` and `alpha`, on every push and nightly, so new DSH releases are caught early. Details and local verification history: [docs/compatibility.md](docs/compatibility.md).
-
 ## 🎬 Demo
 
 ### Feature tour
@@ -159,6 +121,44 @@ All 11 browser cases of the [quality baseline](#-real-model-quality-baseline), g
 GIF version for viewers that cannot play video (e.g. npm): [demo.gif](https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/real-model/demo.gif).
 
 </details>
+
+## 🚀 Quick start
+
+You need [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) **0.1.7 – 0.2.x** (`>=0.1.7-rc.1 <0.3.0`) and Node.js ≥ 22.13, on Windows, Linux or macOS. Nothing is compiled during install: the package ships its prebuilt browser bundle and has no install scripts.
+
+```sh
+dsh plugin --profile web add deepseek-harness-intelligent-ui
+```
+
+Restart DSH Web (`dsh web`) and ask for something visual, for example *"compare Q1–Q4 revenue by channel"* or *"let me explore x²+y²+z²=2Rz in 3D"*. In the **desktop app**, use **Plugins → Add plugin** with the same package name.
+
+The guided installer checks Node, the `dsh` version, pnpm and the profile first, then runs the same `dsh plugin add`:
+
+```sh
+npx deepseek-harness-intelligent-ui install     # --profile <name>, --dsh <path>, --dry-run
+npx deepseek-harness-intelligent-ui doctor      # diagnose only
+```
+
+| Task | Command |
+|---|---|
+| Upgrade | `dsh plugin --profile web add deepseek-harness-intelligent-ui@latest` |
+| Try a prerelease (when a `next` dist-tag exists) | `dsh plugin --profile web add deepseek-harness-intelligent-ui@next` |
+| Pin a version | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.2.7` |
+| Uninstall | `dsh plugin --profile web remove deepseek-harness-intelligent-ui` (or `npx deepseek-harness-intelligent-ui uninstall`) |
+| From a checkout | `dsh plugin --profile web add file:/path/to/deepseek-harness-intelligent-ui` |
+
+<details>
+<summary><b>🩺 Troubleshooting</b></summary>
+<br>
+
+- *`pnpm was not found`*: DSH installs plugins with pnpm. Run `corepack enable` (it ships with Node) or `npm i -g pnpm`.
+- *`… is incompatible with dsh X`*: your DSH is outside the supported range. Upgrade DSH (`npm i -g @deepseek-ai/dsh@latest`) or check [compatibility](docs/compatibility.md) for a plugin release that supports it.
+- *Upgrading from 0.1.x (`dsh-intelligent-ui` via `file:`)*: run `dsh plugin --profile web remove dsh-intelligent-ui` first. Both packages insert the same `intelligent-ui` row, and `doctor` reports the conflict.
+- *The UI does not appear*: restart DSH Web after installing, and make sure you started the profile you installed into.
+
+</details>
+
+**Compatibility.** CI installs the packed plugin and runs the full browser E2E on Windows, Linux and macOS against DSH `0.1.7-rc.2`, `0.2.0-rc.1`, `latest`, `next` and `alpha`, on every push and nightly, so new DSH releases are caught early. Details and local verification history: [docs/compatibility.md](docs/compatibility.md).
 
 ## 🧠 How the agent decides
 
