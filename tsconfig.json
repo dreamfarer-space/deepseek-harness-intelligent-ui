@@ -24,6 +24,7 @@
     "client-src/**/*.tsx",
     "client-src/**/*.d.ts",
     "renderer-src/**/*.ts",
-    "renderer-src/**/*.tsx"
+    "renderer-src/**/*.tsx",
+    "tests/fixtures/extension-types.ts"
   ]
 }

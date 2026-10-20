@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Add Catalog API v1 for trusted third-party components: namespaced manifests, strict shared props schemas, version checks, React renderers, disable/uninstall lifecycle, and safe fallback in streamed, patched and portable UIs.
+- Ship public schema-inferred TypeScript declarations and a runnable GitDiffViewer extension template.
+
 ## [0.2.5]
 
 ### Added

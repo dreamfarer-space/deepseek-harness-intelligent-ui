@@ -12,7 +12,7 @@
  * across restarts and confines patches to UIs of the same conversation.
  * @module deepseek-harness-intelligent-ui/catalog/patch
  */
-import { LIMITS, validateTree } from './catalog.js';
+import { CATALOG, LIMITS, validateTree } from './catalog.js';
 
 export const PATCH_OPS = Object.freeze(['setProps', 'replaceNode', 'insertChild', 'removeNode']);
 
@@ -38,9 +38,9 @@ function isPlainObject(v) {
 
 const clone = v => JSON.parse(JSON.stringify(v));
 
-/** Same leniency as validateTree: `props.children` becomes the node's children. */
+/** Legacy built-ins alone accept props.children; extensions use their exact schema. */
 function normalize(node) {
-  if (isPlainObject(node.props) && 'children' in node.props) {
+  if (Object.hasOwn(CATALOG, node.type) && isPlainObject(node.props) && 'children' in node.props) {
     if (node.children === undefined && Array.isArray(node.props.children)) node.children = node.props.children;
     delete node.props.children;
   }
@@ -91,7 +91,7 @@ function checkNewNode(node, at) {
   if (node.children !== undefined && (!Array.isArray(node.children) || node.children.some(c => typeof c !== 'string'))) {
     return `${at}(${node.id}).children: expected array of component ids`;
   }
-  const extra = Object.keys(node).find(k => !['id', 'type', 'props', 'children'].includes(k));
+  const extra = Object.keys(node).find(k => !['id', 'type', 'componentVersion', 'props', 'children'].includes(k));
   return extra ? `${at}(${node.id}).${extra}: unknown field` : undefined;
 }
 
@@ -177,7 +177,7 @@ export function applyPatch(ui, args) {
         if (problem) break;
         const prev = nodes.get(op.id);
         for (const c of prev.children ?? []) if (parentOf.get(c) === op.id) parentOf.delete(c);
-        const next = normalize({ id: op.id, type: op.node.type, ...(op.node.props !== undefined ? { props: clone(op.node.props) } : {}), ...(op.node.children !== undefined ? { children: [...op.node.children] } : {}) });
+        const next = normalize({ id: op.id, type: op.node.type, ...(op.node.componentVersion !== undefined ? { componentVersion: op.node.componentVersion } : {}), ...(op.node.props !== undefined ? { props: clone(op.node.props) } : {}), ...(op.node.children !== undefined ? { children: [...op.node.children] } : {}) });
         nodes.set(op.id, next);
         for (const c of next.children ?? []) parentOf.set(c, op.id);
         changed.add(op.id);

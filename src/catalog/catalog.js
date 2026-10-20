@@ -10,6 +10,8 @@
  */
 
 import { checkExpression, FUNCTIONS } from './expr.js';
+import { extensionEntry, extensionTypes } from './extensions.js';
+import { validateSchema } from '../controlled/runtime.js';
 
 const DATA_REF = { type: 'object', props: { id: { type: 'string', required: true, max: 100 }, scope: { type: 'string', required: true, max: 200 } } };
 const ACTION = { type: 'object', props: { actionId: { type: 'string', required: true, max: 100 }, args: { type: 'any', required: true } } };
@@ -281,6 +283,17 @@ export const CATALOG = Object.freeze({
 /** Component type names in catalog order. */
 export const COMPONENT_TYPES = Object.freeze(Object.keys(CATALOG));
 
+export function componentEntry(type) {
+  return Object.hasOwn(CATALOG, type) ? CATALOG[type] : extensionEntry(type);
+}
+export function componentTypes() { return [...COMPONENT_TYPES, ...extensionTypes()]; }
+export function validateComponentVersion(type, version) {
+  const entry = extensionEntry(type);
+  if (entry && version !== entry.version) return [`componentVersion: ${type} requires ${entry.version}`];
+  if (!entry && version !== undefined) return ['componentVersion: only registered extensions accept a version'];
+  return [];
+}
+
 function isPlainObject(v) {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
@@ -436,11 +449,15 @@ function checkPlot(props, path, errors) {
  * @returns {string[]} error messages; empty when valid.
  */
 export function validateProps(type, props, path = 'props') {
-  const entry = CATALOG[type];
-  if (!entry) return [`${path}: unknown component type ${JSON.stringify(type)}; use one of ${COMPONENT_TYPES.join(', ')}`];
+  const entry = componentEntry(type);
+  if (!entry) return [`${path}: unknown component type ${JSON.stringify(type)}; use one of ${componentTypes().join(', ')}`];
   const p = props === undefined ? {} : props;
   if (!isPlainObject(p)) return [`${path}: expected object, got ${describe(p)}`];
   const errors = [];
+  if (entry.propsSchema) {
+    try { validateSchema(entry.propsSchema, p); } catch (error) { errors.push(`${path}: ${error.message}`); }
+    return errors;
+  }
   checkProps(p, entry.props, path, errors);
   checkSemantics(type, p, path, errors);
   return errors;
@@ -473,15 +490,16 @@ export function validateTree(args) {
     if (typeof node.id !== 'string' || node.id === '') { errors.push(`${at}.id: expected non-empty string`); return; }
     if (byId.has(node.id)) { errors.push(`${at}.id: duplicate id ${JSON.stringify(node.id)}`); return; }
     byId.set(node.id, node);
-    if (isPlainObject(node.props) && 'children' in node.props) {
+    if (Object.hasOwn(CATALOG, node.type) && isPlainObject(node.props) && 'children' in node.props) {
       if (node.children === undefined && Array.isArray(node.props.children)) {
         node.children = node.props.children;
       }
       delete node.props.children;
     }
-    const entry = CATALOG[node.type];
+    const entry = componentEntry(node.type);
     types[node.type] = (types[node.type] || 0) + 1;
     errors.push(...validateProps(node.type, node.props, `${at}(${node.id}).props`));
+    errors.push(...validateComponentVersion(node.type, node.componentVersion).map(e => `${at}(${node.id}).${e}`));
     if (node.children !== undefined) {
       if (!Array.isArray(node.children) || node.children.some(c => typeof c !== 'string')) {
         errors.push(`${at}(${node.id}).children: expected array of component ids`);
@@ -490,7 +508,7 @@ export function validateTree(args) {
       }
     }
     for (const key of Object.keys(node)) {
-      if (!['id', 'type', 'props', 'children'].includes(key)) errors.push(`${at}(${node.id}).${key}: unknown field`);
+      if (!['id', 'type', 'componentVersion', 'props', 'children'].includes(key)) errors.push(`${at}(${node.id}).${key}: unknown field`);
     }
   });
 
@@ -547,8 +565,9 @@ export function catalogReference() {
     else if (s.type === 'array') t = s.items ? (s.items.type === 'object' ? `[{${fmt(s.items.props)}}]` : `${s.items.type === 'array' ? `${s.items.items.type}[]` : s.items.type}[]`) : 'array';
     return `${k}${s.required ? '' : '?'}: ${t}`;
   }).join(', ');
-  return COMPONENT_TYPES.map((name) => {
-    const e = CATALOG[name];
+  return componentTypes().map((name) => {
+    const e = componentEntry(name);
+    if (e.propsSchema) return `- ${name} (componentVersion: ${e.version}${e.children ? ', children' : ''}) propsSchema=${JSON.stringify(e.propsSchema)}: ${e.description}${e.actions.length ? `; allowed host actionIds: ${e.actions.join(', ')}` : ''}`;
     return `- ${name}${e.children ? ' (children)' : ''} {${fmt(e.props)}}: ${e.description}`;
   }).join('\n');
 }

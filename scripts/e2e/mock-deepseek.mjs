@@ -5,6 +5,7 @@
 // Usage: node scripts/e2e/mock-deepseek.mjs [port] [log-file]
 import { createServer } from 'node:http'
 import { appendFileSync, existsSync } from 'node:fs'
+import { definition as EXTENSION } from '../../examples/component-extension/manifest.js'
 import { chartPatch, DASHBOARD, explainSphere, forecast, MATH, SLOW, SPHERE } from './scenarios.mjs'
 
 const PORT = Number(process.argv[2] || 3199)
@@ -64,6 +65,7 @@ const textOf = content => typeof content === 'string' ? content : (content || []
 /** Pick the scripted answer for the latest user text. */
 function decide(lastText, tools) {
   if (!tools.includes('ui_render')) return 'no-ui-tools'
+  if (/GitDiffViewer/.test(lastText)) return 'extension'
   if (/Form "Request a forecast" submitted/.test(lastText)) return 'forecast'
   if (/Explain the surface/.test(lastText)) return 'explain-sphere'
   if (/interrupted\. Please generate/.test(lastText)) return 'regenerate'
@@ -104,6 +106,7 @@ createServer((req, res) => {
     log({ at: new Date().toISOString(), decision, uiTools: tools.filter(t => t.startsWith('ui_')), toolCount: tools.length, guidance: system.includes('# Intelligent UI'), lastText: lastText.slice(0, 200), toolResult: toolResult ? textOf(toolResult.content).slice(0, 300) : undefined })
     const model = b.model
     switch (decision) {
+      case 'extension': return sse(res, toolEvents(model, 'ui_render', EXTENSION, 36), 30)
       case 'dashboard': {
         // Make the partial-tree checkpoint observable even on a busy CI host.
         // Keep the stream open after the first Stat is complete; the browser
