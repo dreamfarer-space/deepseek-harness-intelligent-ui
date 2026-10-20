@@ -223,6 +223,26 @@ CI 每天定时在 Windows、Linux、macOS 上跑完整矩阵，DSH 一发新版
 
 **`Math` 与 `Mermaid` 的渲染：** 两者在与组件相同的沙箱中，从 CDN 白名单加载 KaTeX 或 Mermaid。第三方代码不在 DSH 页面中运行。CDN 不可用时，显示源码与明确的静态降级提示。[可选离线资源包](docs/offline-resources.md) 内置锁定版本的 KaTeX/字体、Mermaid、Three.js/OrbitControls、D3、Chart.js 和 canvas-confetti，无需开放沙箱网络。
 
+### 演示视频
+
+以下视频都是在 **DeepSeek Harness 桌面版**中通过 magpie 调用真实模型现场录制的，没有脚本化回答。镜头跟随鼠标，放大到正在操作的区域；等待模型回答的部分做了快进（右上角显示倍速）。可用 `npm run demo:features` 重新录制（见 `scripts/demo/`）。
+
+**`Choice`：选一个方案，在当前会话中继续或新开会话**（DeepSeek-V4.1-Flash）
+
+https://github.com/user-attachments/assets/1317993c-17b1-4fca-9356-c365afcc6101
+
+**`Table` 数据表格：按类型排序、搜索、按列筛选、分页、导出 CSV**（DeepSeek-V4.1-Flash）
+
+https://github.com/user-attachments/assets/be9c74e4-2ed3-402c-bd08-d57ea8516eec
+
+**`Scatter` 与 `Heatmap`：悬停、点按、键盘查看；缺失值用斜线标出，不显示为 0**（DeepSeek-Flash）
+
+https://github.com/user-attachments/assets/cb575946-bab5-4551-9621-489dee55df07
+
+**`CodeDiff`、`FileTree` 与 `JsonView`：代码按文本显示、上下文可折叠、复制 JSONPath**（DeepSeek-Flash）
+
+https://github.com/user-attachments/assets/75900041-3880-4e21-97f8-21bfd41872ad
+
 ## 🔁 原位增量更新（`ui_patch`）
 
 用户要求修改之前显示的界面时（例如“把柱状图换成折线图，其余不变”），Agent 按组件 id 打补丁，不必重新发送整棵组件树。

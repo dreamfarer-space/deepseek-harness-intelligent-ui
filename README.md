@@ -212,6 +212,26 @@ A UI travels as a **flat node list with id references**, because DSH's tool-sche
 
 `Math` and `Mermaid` render inside the same sandbox as widgets, loading KaTeX or Mermaid from the CDN allowlist. No third-party code runs in the DSH page. If the CDN is unreachable, the source text and a static fallback status are shown. An [optional offline resource package](docs/offline-resources.md) embeds locked KaTeX/fonts, Mermaid, Three.js/OrbitControls, D3, Chart.js and canvas-confetti without opening the sandbox network.
 
+### See them in action
+
+Recorded live in the **DeepSeek Harness desktop app** with a real model through the magpie gateway; nothing is scripted. The camera follows the cursor and zooms into each interaction; waits for the model are fast-forwarded (the badge shows the speed). Re-record with `npm run demo:features` (see `scripts/demo/`).
+
+**`Choice`: pick one, continue here or in a new session** (DeepSeek-V4.1-Flash)
+
+https://github.com/user-attachments/assets/1317993c-17b1-4fca-9356-c365afcc6101
+
+**`Table` as a data grid: typed sorting, search, per-column filters, paging, CSV export** (DeepSeek-V4.1-Flash)
+
+https://github.com/user-attachments/assets/be9c74e4-2ed3-402c-bd08-d57ea8516eec
+
+**`Scatter` and `Heatmap`: hover, tap and keyboard inspection; missing data hatched, never 0** (DeepSeek-Flash)
+
+https://github.com/user-attachments/assets/cb575946-bab5-4551-9621-489dee55df07
+
+**`CodeDiff`, `FileTree` and `JsonView`: code as text, collapsible context, JSONPath copy** (DeepSeek-Flash)
+
+https://github.com/user-attachments/assets/75900041-3880-4e21-97f8-21bfd41872ad
+
 ## 🔁 Updating a UI in place (`ui_patch`)
 
 When the user asks to change a UI shown earlier ("make that bar chart a line chart; leave the rest"), the agent patches it by component id instead of re-sending the whole tree.
