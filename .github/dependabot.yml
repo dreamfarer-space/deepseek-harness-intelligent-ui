@@ -14,6 +14,15 @@ updates:
       # New jsdom majors require a newer Node than our 22.13.0 CI floor.
       - dependency-name: jsdom
         update-types: [version-update:semver-major]
+      # Widget libraries are pinned in lockstep with the CDN import map/URLs
+      # (client-src/widget/frame.ts, client-src/catalog/LibFrame.tsx), the offline
+      # bundle (scripts/offline/build.mjs) and docs; bump them all together by hand.
+      - dependency-name: katex
+      - dependency-name: mermaid
+      - dependency-name: three
+      - dependency-name: d3
+      - dependency-name: chart.js
+      - dependency-name: canvas-confetti
     groups:
       dev-dependencies:
         dependency-type: development
