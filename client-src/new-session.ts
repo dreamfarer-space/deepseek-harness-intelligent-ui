@@ -29,8 +29,12 @@ export function createNewSessionSender(
         throw new Error('This DSH host does not support creating and opening Agent sessions')
       }
       let state = getUiState<Launch>(uiId, key)
+      // Durable: a launch whose identity could be lost on reload must not start,
+      // or a retry after the reload would create and run a second session.
       const save = () => {
-        if (!setUiState(uiId, key, { ...state })) throw new Error('Could not save the new session recovery state')
+        if (!setUiState(uiId, key, { ...state }, { durable: true })) {
+          throw new Error('Browser storage is unavailable, so a retry after reload could start the task twice; enable site storage and try again')
+        }
       }
       if (!state) {
         const snapshot = workspaces?.list?.getSnapshot()
@@ -48,8 +52,15 @@ export function createNewSessionSender(
       if (state.text !== text) throw new Error(`This button already targets session ${state.sessionId} with a different prompt`)
       try {
         if (!state.created) {
-          const id = await sessions.create({ sessionId: state.sessionId,
-            ...(state.workspaceId ? { workspaceId: state.workspaceId } : { cwd: state.cwd }) })
+          let id: string
+          try {
+            id = await sessions.create({ sessionId: state.sessionId,
+              ...(state.workspaceId ? { workspaceId: state.workspaceId } : { cwd: state.cwd }) })
+          } catch (err) {
+            // A create whose response (or `created` save) was lost: the persisted id already exists.
+            if (!sessions.list?.getSnapshot().byId[state.sessionId]) throw err
+            id = state.sessionId
+          }
           state = { ...state, sessionId: id, created: true }
           save()
         }

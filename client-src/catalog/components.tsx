@@ -141,6 +141,8 @@ function Component({ node, env, children }: { node: UiNode; env: RenderEnv; chil
     case 'Button':
       if (p.action) return <ControlledButton label={p.label} action={p.action} env={env} />
       return <ActionButton label={p.label} prompt={p.prompt} variant={p.variant} sessionTarget={p.sessionTarget} env={env} nodeId={node.id} />
+    case 'Choice':
+      return <Choice props={p} env={env} nodeId={node.id} />
     case 'Form':
       return <Form props={p} env={env} nodeId={node.id} />
     case 'Timeline':
@@ -313,6 +315,56 @@ function ActionButton(props: { label: string; prompt: string; variant?: string; 
       </button>
       {(note || (isNew && done)) && <span className="diui-note">{isNew && done ? props.env.t('session.started') : note}</span>}
     </span>
+  )
+}
+
+interface ChoiceOption { label: string; description?: string; prompt: string }
+
+/** Pick one option, then continue here or hand it to a fresh session. Locks once either succeeds. */
+function Choice({ props, env, nodeId }: { props: Record<string, any>; env: RenderEnv; nodeId: string }) {
+  const options = props.options as ChoiceOption[]
+  // Surfaces without the native session action (portable renderer, streaming preview) offer only this session.
+  const canStartNew = !!env.sendNewSession
+  const [picked, setPicked] = useUiState<number | null>(env.callId, `${nodeId}:picked`, null)
+  const [done, setDone] = useUiState<'current' | 'new' | null>(env.callId, `${nodeId}:done`, null)
+  const [sendHere, busyHere, noteHere] = useSend(env)
+  // Each option is its own launch: a failed launch is resumed by retrying the same option.
+  const [sendNew, busyNew, noteNew] = useSend({
+    ...env,
+    send: text => env.sendNewSession!(text, `${nodeId}#${picked}`),
+  })
+  const [last, setLast] = useState<'current' | 'new' | null>(null)
+  const name = useId()
+  const option = picked === null ? undefined : options[picked]
+  const busy = busyHere || busyNew
+  const locked = done !== null || busy || env.streaming
+  const go = async (target: 'current' | 'new') => {
+    if (!option || done) return
+    setLast(target)
+    if (await (target === 'new' ? sendNew : sendHere)(option.prompt)) setDone(target)
+  }
+  const note = done === 'new' ? env.t('session.started') : done === 'current' ? env.t('choice.sent')
+    : last === 'new' ? noteNew : last === 'current' ? noteHere : undefined
+  return (
+    <fieldset className="diui-choice" disabled={done !== null}>
+      <legend className="diui-choice-question"><Inline text={props.question} /></legend>
+      <div className="diui-choice-options" role="radiogroup">
+        {options.map((o, i) => (
+          <label key={i} className="diui-choice-option" data-selected={picked === i || undefined}>
+            <input type="radio" name={name} checked={picked === i} disabled={locked} onChange={() => setPicked(i)} />
+            <span className="diui-choice-text">
+              <span className="diui-choice-label"><Inline text={o.label} /></span>
+              {o.description && <span className="diui-choice-desc"><Inline text={o.description} /></span>}
+            </span>
+          </label>
+        ))}
+      </div>
+      <div className="diui-choice-actions">
+        <button type="button" className="diui-button" data-variant="primary" disabled={!option || locked} aria-busy={busyHere || undefined} onClick={() => { void go('current') }}>{env.t('choice.continue')}</button>
+        {canStartNew && <button type="button" className="diui-button" data-variant="secondary" disabled={!option || locked} aria-busy={busyNew || undefined} onClick={() => { void go('new') }}>{env.t('choice.newSession')}</button>}
+        {note && <span className="diui-note" role="status">{note}</span>}
+      </div>
+    </fieldset>
   )
 }
 

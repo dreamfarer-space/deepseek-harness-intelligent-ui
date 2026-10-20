@@ -272,3 +272,100 @@ describe('Button sessionTarget validation', () => {
     expect(validateProps('Form', { fields: [], sessionTarget: 'new' }).join()).toContain('unknown prop')
   })
 })
+
+describe('durable launch recovery', () => {
+  it('refuses to start when the recovery state cannot reach storage', async () => {
+    const f = fixture()
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('full', 'QuotaExceededError') })
+    try {
+      await expect(f.send('source', TEXT, 'ui-1', 'task')).rejects.toThrow('Browser storage is unavailable')
+      resetUiStateMemory()
+      await expect(createNewSessionSender(f.sessions, () => f.services)('source', TEXT, 'ui-1', 'task')).rejects.toThrow('Browser storage is unavailable')
+    } finally { setItem.mockRestore() }
+    expect(f.create).not.toHaveBeenCalled()
+    expect(f.prompt).not.toHaveBeenCalled()
+  })
+  it('does not start a second task when storage fills after creation and the page reloads', async () => {
+    const f = fixture()
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+    f.create.mockImplementationOnce(async ({ sessionId }) => {
+      f.events.push('create')
+      setItem.mockImplementation(() => { throw new DOMException('full', 'QuotaExceededError') })
+      return sessionId
+    })
+    try {
+      await expect(f.send('source', TEXT, 'ui-1', 'task')).rejects.toThrow('Browser storage is unavailable')
+    } finally { setItem.mockRestore() }
+    expect(f.prompt).not.toHaveBeenCalled()
+    // The Host rejects a duplicate id; the session it already holds is reused.
+    const id = f.create.mock.calls[0]![0].sessionId
+    f.create.mockRejectedValueOnce(new Error(`session "${id}" already exists`))
+    f.sessions.list = { getSnapshot: () => ({ byId: { source: { cwd: '/project' }, [id]: {} } }) }
+    resetUiStateMemory()
+    await createNewSessionSender(f.sessions, () => f.services)('source', TEXT, 'ui-1', 'task')
+    expect(f.create).toHaveBeenCalledTimes(2)
+    expect(f.create.mock.calls[1]).toEqual(f.create.mock.calls[0])
+    expect(f.prompt).toHaveBeenCalledOnce()
+    expect(f.openSession).toHaveBeenCalledWith(id)
+  })
+})
+
+describe('Choice card', () => {
+  const OPTIONS = [
+    { label: 'Python', description: 'Fast to script', prompt: 'Build the CLI in Python' },
+    { label: 'Node.js', prompt: 'Build the CLI in Node.js' },
+  ]
+  const choice = (f: ReturnType<typeof fixture>, extra: Record<string, unknown> = {}) => (
+    <RenderView {...f.injected} callId="ui-1" toolName="ui_render" phase="result"
+      block={{ kind: 'tool-result', callId: 'ui-1', call: { name: 'ui_render', argsRaw: JSON.stringify({
+        root: 'pick', components: [{ id: 'pick', type: 'Choice', props: { question: 'Which runtime?', options: OPTIONS, ...extra } }],
+      }) }, content: [], isError: false }} />
+  )
+  const radios = () => [...host.querySelectorAll<HTMLInputElement>('.diui-choice input[type=radio]')]
+  const action = (label: string) => [...host.querySelectorAll<HTMLButtonElement>('.diui-choice-actions .diui-button')].find(b => b.textContent === label)
+  const pick = (i: number) => act(() => { radios()[i]!.click() })
+
+  it('needs a pick, then continues in the current session and locks', async () => {
+    const f = fixture()
+    mount(choice(f))
+    expect(radios()).toHaveLength(2)
+    expect(host.textContent).toContain('Fast to script')
+    expect(action(en['choice.continue'])!.disabled).toBe(true)
+    pick(1)
+    await act(async () => { action(en['choice.continue'])!.click() })
+    expect(f.injected.sendPrompt).toHaveBeenCalledWith('Build the CLI in Node.js')
+    expect(f.create).not.toHaveBeenCalled()
+    expect(host.textContent).toContain(en['choice.sent'])
+    reload(choice(f))
+    expect(radios()[1]!.checked).toBe(true)
+    expect(host.querySelector<HTMLFieldSetElement>('.diui-choice')!.disabled).toBe(true)
+  })
+  it('starts the picked option in a new session once', async () => {
+    const f = fixture()
+    mount(choice(f))
+    pick(0)
+    await act(async () => { action(en['choice.newSession'])!.click(); action(en['choice.newSession'])!.click() })
+    expect(f.create).toHaveBeenCalledOnce()
+    expect(f.prompt).toHaveBeenCalledWith([{ type: 'text', text: 'Build the CLI in Python' }], 'queue', undefined, 'request-1')
+    expect(f.openSession).toHaveBeenCalledOnce()
+    expect(f.injected.sendPrompt).not.toHaveBeenCalled()
+    expect(host.textContent).toContain(en['session.started'])
+  })
+  it('offers only the current session where the host cannot open sessions', () => {
+    const f = fixture()
+    f.injected.sendNewSessionPrompt = undefined as never
+    mount(choice(f))
+    expect(action(en['choice.newSession'])).toBeUndefined()
+    expect(action(en['choice.continue'])).toBeDefined()
+  })
+  it('rejects props that would hide an action', () => {
+    const f = fixture()
+    mount(choice(f, { allowNewSession: false }))
+    expect(host.querySelector('.diui-node-error')).not.toBeNull()
+  })
+  it('validates its options', () => {
+    expect(validateProps('Choice', { question: 'Q', options: OPTIONS })).toEqual([])
+    expect(validateProps('Choice', { question: 'Q', options: OPTIONS.slice(0, 1) }).join()).toContain('at least 2')
+    expect(validateProps('Choice', { question: 'Q', options: [{ label: 'A' }, { label: 'B' }] })).not.toEqual([])
+  })
+})

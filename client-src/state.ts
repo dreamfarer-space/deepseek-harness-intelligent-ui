@@ -39,13 +39,15 @@ function load(callId: string): Bag {
   return bag
 }
 
-function persist(callId: string, bag: Bag): void {
+/** @returns whether the bag reached storage. */
+function persist(callId: string, bag: Bag): boolean {
   const s = storage()
-  if (!s) return
+  if (!s) return false
   try {
     s.setItem(PREFIX + callId, JSON.stringify({ t: Date.now(), v: bag }))
-    evict(s)
-  } catch { /* quota or unavailable: memory still holds it */ }
+  } catch { return false /* quota or unavailable: memory still holds it */ }
+  try { evict(s) } catch { /* eviction is housekeeping */ }
+  return true
 }
 
 function evict(s: Storage): void {
@@ -70,16 +72,20 @@ export function getUiState<T>(callId: string, key: string): T | undefined {
 /**
  * Write one value. Values must be JSON-serializable; a write that would push
  * the call's state past {@link MAX_STATE_CHARS} is refused.
+ *
+ * `durable` is for state that guards a side effect (e.g. a session launch):
+ * the write is refused, and memory left unchanged, unless it reached storage
+ * and will therefore survive a reload.
  * @returns whether the value was stored.
  */
-export function setUiState(callId: string, key: string, value: unknown): boolean {
+export function setUiState(callId: string, key: string, value: unknown, options?: { durable?: boolean }): boolean {
   const prev = load(callId)
   const next = { ...prev, [key]: value }
   let json: string
   try { json = JSON.stringify(next) } catch { return false }
   if (json.length > MAX_STATE_CHARS) return false
+  if (!persist(callId, next) && options?.durable) return false
   memory.set(callId, next)
-  persist(callId, next)
   for (const l of [...(listeners.get(callId) ?? [])]) l()
   return true
 }

@@ -5,6 +5,9 @@ export const NS = 'intelligentUi'
 export const zh = {
   'session.unavailable': '当前界面未接入新会话功能，请检查插件是否正确加载',
   'session.started': '已启动新会话',
+  'choice.continue': '在当前会话中继续',
+  'choice.newSession': '新开会话',
+  'choice.sent': '已在当前会话中继续',
   'widget.title': '交互组件',
   'widget.generating': '正在生成组件…',
   'widget.preview': '实时预览',
@@ -63,6 +66,9 @@ export type IntelligentUiKey = keyof typeof zh
 export const en = {
   'session.unavailable': 'Starting a new session is unavailable on this surface; check the plugin integration',
   'session.started': 'New session started',
+  'choice.continue': 'Continue in this session',
+  'choice.newSession': 'Start new session',
+  'choice.sent': 'Continued in this session',
   'widget.title': 'Widget',
   'widget.generating': 'Generating widget…',
   'widget.preview': 'Live preview',
