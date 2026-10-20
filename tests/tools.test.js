@@ -72,7 +72,7 @@ describe('config and guidance', () => {
     expect(guidanceText({ enableCatalog: true, enableWidget: false })).toMatch(RENDER_TOOL)
     expect(guidanceText({ enableCatalog: true, enableWidget: false })).not.toMatch(WIDGET_TOOL)
     expect(guidanceText({ enableCatalog: false, enableWidget: false })).toBe('')
-    expect(guidanceText({ enableCatalog: false, enableWidget: true })).not.toContain('ChoiceGroup')
+    expect(guidanceText({ enableCatalog: false, enableWidget: true })).not.toContain('Choice')
     expect(uiPrompt('show x', { enableCatalog: false, enableWidget: true })).toMatch(/using ui_render_widget;/)
   })
 

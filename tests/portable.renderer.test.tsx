@@ -57,13 +57,13 @@ describe('portable renderer without a DSH Web session', () => {
     expect(document.documentElement.style.colorScheme).toBe('dark')
   })
 
-  it('renders ChoiceGroup and sends a selected prompt only after confirmation', async () => {
+  it('renders Choice and sends a selected prompt only after confirmation', async () => {
     const send = vi.fn(async () => {})
     act(() => renderer.dispose())
     renderer = mount(host, { sendPrompt: send })
     act(() => renderer.render({ kind: 'declarative', uiId: 'portable-choices', version: 1,
-      definition: { root: 'c', components: [{ id: 'c', type: 'ChoiceGroup', props: {
-        title: 'Choose a route', recommended: 'local', options: [
+      definition: { root: 'c', components: [{ id: 'c', type: 'Choice', props: {
+        question: 'Choose a route', recommended: 'local', options: [
           { id: 'local', label: 'Local first', prompt: 'Discuss local storage; do not code.' },
           { id: 'cloud', label: 'Cloud', prompt: 'Discuss managed storage; do not code.' },
         ],
@@ -76,19 +76,19 @@ describe('portable renderer without a DSH Web session', () => {
     expect(send).toHaveBeenCalledExactlyOnceWith('Discuss managed storage; do not code.')
   })
 
-  it.each(['Form', 'ChoiceGroup'])('refuses a new-session %s without falling back to the portable host', async type => {
+  it.each(['Form', 'Choice'])('refuses a new-session %s without falling back to the portable host', async type => {
     const send = vi.fn(async () => {})
     act(() => renderer.dispose())
     renderer = mount(host, { sendPrompt: send })
     act(() => renderer.render({ kind: 'declarative', uiId: `portable-new-${type}`, version: 1,
       definition: { root: 'c', components: [{ id: 'c', type, props: {
-        title: 'Discuss a plan', sessionTarget: 'new',
+        ...(type === 'Form' ? { title: 'Discuss a plan' } : { question: 'Discuss a plan' }), sessionTarget: 'new',
         ...(type === 'Form' ? { prompt: 'Discuss the plan; do not code.', fields: [] } : { options: [
           { id: 'local', label: 'Local', prompt: 'Discuss local storage; do not code.' },
           { id: 'cloud', label: 'Cloud', prompt: 'Discuss cloud storage; do not code.' },
         ] }),
       } }] } }))
-    if (type === 'ChoiceGroup') act(() => host.querySelector<HTMLInputElement>('input[value=cloud]')!.click())
+    if (type === 'Choice') act(() => host.querySelector<HTMLInputElement>('input[value=cloud]')!.click())
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 220)) })
     await act(async () => host.querySelector<HTMLButtonElement>('button[type=submit]')!.click())
     expect(send).not.toHaveBeenCalled()

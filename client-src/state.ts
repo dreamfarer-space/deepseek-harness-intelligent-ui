@@ -92,8 +92,8 @@ function readPersistentBag(callId: string): Bag {
  * the call's state past {@link MAX_STATE_CHARS} is refused.
  * @returns whether the value was stored in memory; persistence is best-effort.
  */
-export function setUiState(callId: string, key: string, value: unknown): boolean {
-  return writeUiState(callId, key, value, false)
+export function setUiState(callId: string, key: string, value: unknown, options?: { durable?: boolean }): boolean {
+  return writeUiState(callId, key, value, options?.durable ?? false)
 }
 
 /** Recovery state must reach localStorage before it can authorize an external action. */

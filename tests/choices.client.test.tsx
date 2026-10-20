@@ -18,8 +18,8 @@ const options = [
   { id: 'supabase', label: 'Supabase', description: 'Managed backend.', prompt: 'Discuss Supabase for a solo developer on a limited budget. No files or coding.' },
   { id: 'custom', label: 'Custom backend', prompt: 'Discuss a custom backend. No files or coding.' },
 ]
-const props = { title: 'Which route?', recommended: 'sqlite', options }
-const tree = (p = props) => ({ root: 'choice', components: [{ id: 'choice', type: 'ChoiceGroup', props: p }] })
+const props = { question: 'Which route?', recommended: 'sqlite', options }
+const tree = (p = props) => ({ root: 'choice', components: [{ id: 'choice', type: 'Choice', props: p }] })
 const block = (args: unknown, extra: Partial<ToolResultNode> = {}): ToolResultNode => ({
   kind: 'tool-result', callId: 'choices', call: { name: 'ui_render', argsRaw: JSON.stringify(args) },
   content: [], isError: false, meta: { ok: true }, ...extra,
@@ -57,10 +57,10 @@ function reload() {
   render()
 }
 
-describe('ChoiceGroup decisions', () => {
+describe('Choice decisions', () => {
   it('offers accessible choices without preselecting the recommendation or sending before confirmation', async () => {
     render()
-    expect(host.querySelector('legend')!.textContent).toBe(props.title)
+    expect(host.querySelector('legend')!.textContent).toBe(props.question)
     expect(host.querySelector('.diui-choice-recommended')!.textContent).toBe('Recommended')
     expect(radios().every(radio => !radio.checked)).toBe(true)
     expect(submitButton().disabled).toBe(true)
@@ -81,7 +81,7 @@ describe('ChoiceGroup decisions', () => {
     await act(async () => { submit() })
     expect(send).toHaveBeenCalledExactlyOnceWith(options[1]!.prompt)
     expect(sendNew).not.toHaveBeenCalled()
-    expect(submitButton().textContent).toBe(en['form.submitted'])
+    expect(submitButton().textContent).toBe(en['choice.sent'])
     expect(submitButton().disabled).toBe(true)
     await act(async () => { submit() })
     expect(send).toHaveBeenCalledTimes(1)
@@ -102,6 +102,23 @@ describe('ChoiceGroup decisions', () => {
     expect(host.querySelector('fieldset')!.disabled).toBe(true)
     choose(1)
     expect(radios()[0]!.checked).toBe(true)
+    await act(async () => { release() })
+    expect(submitButton().disabled).toBe(true)
+  })
+
+  it.each(['current', 'new'])('accepts only the first destination when %s is clicked first', async target => {
+    let release!: () => void
+    const sending = target === 'new' ? sendNew : send
+    sending.mockImplementation(() => new Promise(resolve => { release = resolve }))
+    render()
+    choose(0)
+    const newButton = host.querySelector<HTMLButtonElement>('button[type=button]')!
+    await act(async () => {
+      if (target === 'new') { newButton.click(); submit() }
+      else { submit(); newButton.click() }
+    })
+    expect(sending).toHaveBeenCalledTimes(1)
+    expect(target === 'new' ? send : sendNew).not.toHaveBeenCalled()
     await act(async () => { release() })
     expect(submitButton().disabled).toBe(true)
   })
@@ -130,6 +147,8 @@ describe('ChoiceGroup decisions', () => {
     }
     patch(options.map(option => ({ ...option, description: 'Updated description' })))
     expect(radios()[1]!.checked).toBe(true)
+    patch([options[1]!, options[2]!, options[0]!])
+    expect(radios()[0]!.checked).toBe(true)
     patch([options[0]!, options[2]!])
     expect(radios().every(radio => !radio.checked)).toBe(true)
     expect(submitButton().disabled).toBe(true)

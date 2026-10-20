@@ -56,7 +56,7 @@ JSON 还在生成，组件就已出现。实时组件在**同一个** iframe 中
 <tr>
 <td valign="top">
 
-### 🧩 20 种组件
+### 🧩 21 种组件
 卡片、栅格、标签页、表格、图表、时间线、`Plot`、KaTeX `Math`、`Mermaid`、表单，渲染前先校验。
 
 </td>
@@ -154,7 +154,7 @@ npx deepseek-harness-intelligent-ui doctor             # 只诊断，不做修�
 |---|---|
 | 升级 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@latest` |
 | 试用预发布版（仅在存在 `next` 标签时） | `dsh plugin --profile web add deepseek-harness-intelligent-ui@next` |
-| 固定版本 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.2.5` |
+| 固定版本 | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.2.6` |
 | 卸载 | `dsh plugin --profile web remove deepseek-harness-intelligent-ui`（或 `npx deepseek-harness-intelligent-ui uninstall`） |
 | 从源码目录安装 | `dsh plugin --profile web add file:/path/to/deepseek-harness-intelligent-ui` |
 
@@ -211,11 +211,18 @@ CI 每天定时在 Windows、Linux、macOS 上跑完整矩阵，DSH 一发新版
 | 数据 | `Stat`、`Progress`、`List`、`Table`（可排序）、`Timeline` |
 | 图表 | `Chart`（柱状、折线、面积、饼图；可堆叠，悬停提示，可点图例显隐系列） |
 | 数学与图示 | **`Plot`**、**`Math`**（KaTeX）、**`Mermaid`** |
-| 交互 | `Button`、`Form` |
+| 交互 | `Button`、`Choice`、`Form` |
 
 - **`Plot`**：绘制 y = f(x)，参数滑块拖动后曲线即时重绘。表达式由安全编译器解析，不使用 `eval`。
 - **`Form`**：字段类型有文本、数字、**范围滑块**、下拉、勾选、日期、多行文本。
 - **`Button` 与 `Form`**：点击或提交后，内容作为下一条用户消息发给 Agent。
+- **`Choice`**：选择题卡片。选中一个选项后，可「在当前会话中继续」，或「新开会话」在同一工作区启动独立任务（不携带当前对话历史）。
+
+`Choice` 支持 2–8 个选项。建议为每项提供稳定的 `id`，使选择在补丁重排后仍对应原方案；`recommended` 只标注推荐项，不自动选中。选择只更新本地状态，确认后才发送。默认由用户通过两个动作选择当前或新会话；仅在用户明确指定目标时设置 `sessionTarget`。原有无 ID 选项继续兼容。
+
+`Form` 同样支持可选的 `sessionTarget: "current" | "new"`，默认当前会话。新会话不会复制对话历史，Prompt 必须包含任务背景和用户约束。新会话失败重试会锁定首次确认的内容及操作身份；恢复存储不可用或损坏时阻止启动，普通 UI 状态仍允许尽力保存。
+
+本 fork 原有 `ChoiceGroup` 协议统一为 `Choice`：已有定义需将 `type: "ChoiceGroup"` / `title` 更新为 `type: "Choice"` / `question`；如需保留单个当前会话确认动作，设置 `sessionTarget: "current"`。
 
 **传输与校验：** DSH 的工具 schema 不支持递归，所以界面以**扁平节点列表加 id 引用**的形式传输。Host 先校验再确认，检查项包括未知类型或属性；id 悬空、重复或成环；一个节点有多个父节点；图表数据长度不一致；`Plot` 表达式无法编译、参数默认值越界等。发现问题时返回 `ok:false` 并附带出错路径，模型据此修正后重试。
 

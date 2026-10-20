@@ -50,8 +50,15 @@ export function createNewSessionSender(
       save()
       try {
         if (!state.created) {
-          const id = await sessions.create({ sessionId: state.sessionId,
-            ...(state.workspaceId ? { workspaceId: state.workspaceId } : { cwd: state.cwd }) })
+          let id: string
+          try {
+            id = await sessions.create({ sessionId: state.sessionId,
+              ...(state.workspaceId ? { workspaceId: state.workspaceId } : { cwd: state.cwd }) })
+          } catch (err) {
+            // A create whose response (or `created` save) was lost: the persisted id already exists.
+            if (!sessions.list?.getSnapshot().byId[state.sessionId]) throw err
+            id = state.sessionId
+          }
           state = { ...state, sessionId: id, created: true }
           save()
         }

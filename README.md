@@ -50,7 +50,7 @@ Sliders, rotate, zoom, sort, tabs and hover tooltips run in the browser and neve
 <tr>
 <td valign="top">
 
-### 🧩 20-component catalog
+### 🧩 21-component catalog
 Cards, grids, tabs, tables, charts, timelines, `Plot`, KaTeX `Math`, `Mermaid`, forms. Validated before it renders.
 
 </td>
@@ -148,7 +148,7 @@ npx deepseek-harness-intelligent-ui doctor             # diagnose only
 |---|---|
 | Upgrade | `dsh plugin --profile web add deepseek-harness-intelligent-ui@latest` |
 | Try a prerelease (only when the `next` dist-tag exists) | `dsh plugin --profile web add deepseek-harness-intelligent-ui@next` |
-| Pin a version | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.2.5` |
+| Pin a version | `dsh plugin --profile web add deepseek-harness-intelligent-ui@0.2.6` |
 | Uninstall | `dsh plugin --profile web remove deepseek-harness-intelligent-ui` (or `npx deepseek-harness-intelligent-ui uninstall`) |
 | From a checkout | `dsh plugin --profile web add file:/path/to/deepseek-harness-intelligent-ui` |
 
@@ -205,7 +205,13 @@ The plugin injects a system-prompt section (`src/guidance.js`) that makes the mo
 | Data | `Stat`, `Progress`, `List`, `Table` (sortable), `Timeline` |
 | Charts | `Chart`: bar / line / area / pie, stacked, hover tooltip, toggleable legend |
 | Math & diagrams | **`Plot`** (y = f(x) with parameter sliders that redraw instantly; expressions run in a safe compiler, never `eval`), **`Math`** (KaTeX), **`Mermaid`** (flowchart, sequence, class, state, ER, gantt, mindmap…) |
-| Interaction | `Button` (sends a prompt), `Form` (text, number, **range slider**, select, checkbox, date, textarea; submits the values as a message) |
+| Interaction | `Button` (sends a prompt, here or in a new session), `Choice` (single-choice card: continue in this session or start a new one), `Form` (text, number, **range slider**, select, checkbox, date, textarea; submits the values as a message) |
+
+`Choice` accepts 2–8 options. Give each option a stable `id` so selection survives reordered patches; `recommended` marks an option without selecting it. Selection stays local until confirmation. By default, the user chooses the current or a new session with separate actions; set `sessionTarget` only when the user explicitly requested a fixed destination. Existing options without IDs remain supported.
+
+`Form` also accepts optional `sessionTarget: "current" | "new"` (default: `"current"`). New-session prompts must include the task background and user constraints because conversation history is not copied. The first confirmed payload and launch identity stay frozen across failed new-session retries. Unavailable or corrupt recovery storage blocks launching; ordinary UI state remains best-effort.
+
+This fork's former `ChoiceGroup` protocol is consolidated into `Choice`: update existing definitions from `type: "ChoiceGroup"` / `title` to `type: "Choice"` / `question`. Use `sessionTarget: "current"` to retain a single current-session confirmation action.
 
 A UI travels as a **flat node list with id references**, because DSH's tool-schema subset has no recursion. The Host validates it before acknowledging: unknown types or props, dangling or duplicate ids, cycles, two parents, chart length mismatches, `Plot` expressions that do not compile, slider defaults out of range, and so on. Problems come back as `ok:false` with paths, so the model can fix them and retry.
 

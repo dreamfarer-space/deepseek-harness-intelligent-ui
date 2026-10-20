@@ -3,9 +3,11 @@
 export const NS = 'intelligentUi'
 
 export const zh = {
+  'choice.newSession': '新开会话',
+  'choice.sent': '已在当前会话中继续',
   'choice.recommended': '推荐',
-  'choice.continue': '继续所选方案',
-  'choice.current': '在当前会话继续；选择后点击确认才会发送',
+  'choice.continue': '在当前会话中继续',
+  'choice.hint': '点击后自动发送所选方案；新会话继承工作区，不包含当前对话历史',
   'session.unavailable': '当前界面未接入新会话功能，请检查插件是否正确加载',
   'session.started': '已启动新会话',
   'session.targetCurrent': '当前会话',
@@ -69,9 +71,11 @@ export const zh = {
 export type IntelligentUiKey = keyof typeof zh
 
 export const en = {
+  'choice.newSession': 'Start new session',
+  'choice.sent': 'Continued in this session',
   'choice.recommended': 'Recommended',
-  'choice.continue': 'Continue with the selected option',
-  'choice.current': 'Continue in this conversation; only confirmation sends a message',
+  'choice.continue': 'Continue in this session',
+  'choice.hint': 'Confirmation sends the selected prompt. A new session inherits the workspace, without conversation history.',
   'session.unavailable': 'Starting a new session is unavailable on this surface; check the plugin integration',
   'session.started': 'New session started',
   'session.targetCurrent': 'Current conversation',

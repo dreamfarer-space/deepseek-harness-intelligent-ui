@@ -38,6 +38,7 @@ export const LIMITS = Object.freeze({
   plotFunctions: 8,
   plotParams: 8,
   timelineItems: 100,
+  choiceOptions: 8,
 });
 
 /**
@@ -187,18 +188,18 @@ export const CATALOG = Object.freeze({
       variant: { type: 'enum', values: ['primary', 'secondary'] },
     },
   },
-  ChoiceGroup: {
-    description: 'Decision point: 2-6 radio options and one confirm button. Selection is local; confirm sends only the chosen option prompt. sessionTarget defaults to current; new starts an independent session in the same workspace without history. recommended marks an option, never selects it. Every prompt must preserve user constraints and include complete task context for a new session. No registered actions.',
+  Choice: {
+    description: 'Single-choice decision card with 2-8 options. Selection is local; the primary action continues in the current session and an optional secondary action starts a new session. Set sessionTarget only for an explicitly chosen fixed destination. Give options stable ids; recommended marks an id without selecting it. Every prompt must preserve user constraints and be self-contained for a new session. New-session retries retain the first confirmed task. No registered actions.',
     children: false,
     props: {
-      title: { type: 'string', required: true, max: 300 },
+      question: { type: 'string', required: true, max: 300 },
       submitLabel: { type: 'string', max: 200 },
       sessionTarget: { type: 'enum', values: ['current', 'new'] },
       recommended: { type: 'string', max: 100 },
       options: {
-        type: 'array', required: true, max: 6,
+        type: 'array', required: true, max: LIMITS.choiceOptions,
         items: { type: 'object', props: {
-          id: { type: 'string', required: true, max: 100 },
+          id: { type: 'string', max: 100 },
           label: { type: 'string', required: true, max: 200 },
           description: { type: 'string', max: 1200 },
           prompt: { type: 'string', required: true, max: LIMITS.text },
@@ -404,8 +405,8 @@ function checkSemantics(type, props, path, errors) {
   if (type === 'Button' && ((props.prompt === undefined) === (props.action === undefined))) errors.push(`${path}: needs exactly one of prompt or action`);
   if (type === 'Button' && props.sessionTarget !== undefined && props.action !== undefined) errors.push(`${path}.sessionTarget: only supported with prompt`);
   if (type === 'Form' && props.sessionTarget === 'new' && (typeof props.prompt !== 'string' || !props.prompt.trim())) errors.push(`${path}.prompt: new session needs a non-empty task prompt`);
-  if (type === 'ChoiceGroup') {
-    for (const name of ['title', 'submitLabel']) {
+  if (type === 'Choice') {
+    for (const name of ['question', 'submitLabel']) {
       if (typeof props[name] === 'string' && !props[name].trim()) errors.push(`${path}.${name}: must not be blank`);
     }
     if (Array.isArray(props.options)) {
@@ -416,8 +417,8 @@ function checkSemantics(type, props, path, errors) {
         for (const name of ['id', 'label', 'prompt']) {
           if (typeof option[name] === 'string' && !option[name].trim()) errors.push(`${path}.options[${i}].${name}: must not be blank`);
         }
-        if (ids.has(option.id)) errors.push(`${path}.options[${i}].id: duplicate option id`);
-        ids.add(option.id);
+        if (option.id !== undefined && ids.has(option.id)) errors.push(`${path}.options[${i}].id: duplicate option id`);
+        if (option.id !== undefined) ids.add(option.id);
       });
       if (props.recommended !== undefined && !ids.has(props.recommended)) errors.push(`${path}.recommended: must reference an option id`);
     }

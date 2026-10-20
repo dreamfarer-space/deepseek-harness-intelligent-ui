@@ -106,30 +106,32 @@ describe('catalogReference', () => {
   })
 })
 
-describe('ChoiceGroup validation', () => {
+describe('Choice validation', () => {
   const options = [
     { id: 'local', label: 'Local first', prompt: 'Discuss local storage; do not code.' },
     { id: 'cloud', label: 'Managed cloud', description: 'Less infrastructure.', prompt: 'Discuss cloud storage; do not code.' },
   ]
-  const validate = (props = {}) => validateProps('ChoiceGroup', { title: 'Choose a route', options, ...props })
+  const validate = (props = {}) => validateProps('Choice', { question: 'Choose a route', options, ...props })
 
-  it('accepts 2-6 options', () => {
+  it('accepts 2-8 options', () => {
     expect(validate({ recommended: 'local', submitLabel: 'Continue discussion' })).toEqual([])
     expect(validate({ options: Array.from({ length: 6 }, (_, i) => ({ ...options[0], id: String(i) })) })).toEqual([])
+    expect(validate({ options: options.map(({ id, ...option }) => option) })).toEqual([])
+    expect(validate({ options: [{ ...options[0], id: '  ' }, options[1]] }).join()).toMatch(/must not be blank/)
   })
 
   it('rejects too few or too many options, duplicate ids and an unknown recommendation', () => {
     expect(validate({ options: options.slice(0, 1) }).join()).toMatch(/at least 2/)
-    expect(validate({ options: Array.from({ length: 7 }, (_, i) => ({ ...options[0], id: String(i) })) }).length).toBeGreaterThan(0)
+    expect(validate({ options: Array.from({ length: 9 }, (_, i) => ({ ...options[0], id: String(i) })) }).length).toBeGreaterThan(0)
     expect(validate({ options: [options[0], options[0]] }).join()).toMatch(/duplicate option id/)
     expect(validate({ recommended: 'missing' }).join()).toMatch(/must reference an option id/)
   })
 
-  it.each(['title', 'submitLabel'])('rejects a blank %s', key => {
+  it.each(['question', 'submitLabel'])('rejects a blank %s', key => {
     expect(validate({ [key]: '   ' }).join()).toMatch(/must not be blank/)
   })
 
-  it.each(['id', 'label', 'prompt'])('rejects blank and missing option %s', key => {
+  it.each(['label', 'prompt'])('rejects blank and missing option %s', key => {
     expect(validate({ options: [{ ...options[0], [key]: '  ' }, options[1]] }).join()).toMatch(/must not be blank/)
     const first = { ...options[0] }
     delete first[key]
