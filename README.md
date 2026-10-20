@@ -205,6 +205,7 @@ The plugin injects a system-prompt section (`src/guidance.js`) that makes the mo
 | Data | `Stat`, `Progress`, `List`, `Table` (data grid: typed sort incl. ISO dates, search, per-column filters, paging, CSV/Markdown export), `Timeline` |
 | Charts | `Chart`: bar / line / area / pie, stacked, hover/tap/keyboard tooltip, toggleable legend, optional data export; `Scatter` (continuous x/y); `Heatmap` (matrix, sequential or diverging, explicit missing cells) |
 | Math & diagrams | **`Plot`** (y = f(x) with parameter sliders that redraw instantly; expressions run in a safe compiler, never `eval`), **`Math`** (KaTeX), **`Mermaid`** (flowchart, sequence, class, state, ER, gantt, mindmap…) |
+| Code & structure | `CodeDiff` (multi-file diff or unified patch), `FileTree`, `JsonView` (paths, copy) |
 | Interaction | `Button` (sends a prompt, here or in a new session), `Choice` (single-choice card: continue in this session or start a new one), `Form` (text, number, **range slider**, select, checkbox, date, textarea; submits the values as a message) |
 
 A UI travels as a **flat node list with id references**, because DSH's tool-schema subset has no recursion. The Host validates it before acknowledging: unknown types or props, dangling or duplicate ids, cycles, two parents, chart length mismatches, `Plot` expressions that do not compile, slider defaults out of range, and so on. Problems come back as `ok:false` with paths, so the model can fix them and retry.

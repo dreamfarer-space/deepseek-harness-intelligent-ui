@@ -211,6 +211,7 @@ CI 每天定时在 Windows、Linux、macOS 上跑完整矩阵，DSH 一发新版
 | 数据 | `Stat`、`Progress`、`List`、`Table`（数据表格：按类型排序含 ISO 日期、搜索、按列筛选、分页、CSV/Markdown 导出）、`Timeline` |
 | 图表 | `Chart`（柱状、折线、面积、饼图；可堆叠，悬停/点按/键盘提示，可点图例显隐系列，可选数据导出）；`Scatter`（连续坐标散点图）；`Heatmap`（矩阵热力图，顺序/发散色标，缺失值单独标识） |
 | 数学与图示 | **`Plot`**、**`Math`**（KaTeX）、**`Mermaid`** |
+| 代码与结构 | `CodeDiff`（多文件差异或 unified patch）、`FileTree`、`JsonView`（路径、复制） |
 | 交互 | `Button`、`Choice`、`Form` |
 
 - **`Plot`**：绘制 y = f(x)，参数滑块拖动后曲线即时重绘。表达式由安全编译器解析，不使用 `eval`。

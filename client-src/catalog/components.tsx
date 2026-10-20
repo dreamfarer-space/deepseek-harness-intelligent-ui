@@ -12,6 +12,7 @@ import { Chart, formatNumber, type ChartProps } from './Chart.tsx'
 import { Inline } from './inline.tsx'
 import { LibFrame } from './LibFrame.tsx'
 import { Plot, type PlotProps } from './Plot.tsx'
+import { CodeDiff, FileTree, JsonView } from './CodeView.tsx'
 import { Heatmap, Scatter, type HeatmapProps, type ScatterProps } from './Scatter.tsx'
 import { ExportButtons, Table, type Cell } from './Table.tsx'
 
@@ -153,6 +154,12 @@ function Component({ node, env, children }: { node: UiNode; env: RenderEnv; chil
       return <Scatter {...(p as ScatterProps)} emptyText={env.t('chart.empty')} missingText={count => env.t('chart.missingPoints', { count })} />
     case 'Heatmap':
       return <Heatmap {...(p as HeatmapProps)} emptyText={env.t('chart.empty')} noDataText={env.t('chart.noData')} />
+    case 'CodeDiff':
+      return <CodeDiff files={p.files} title={p.title} context={p.context} t={env.t} callId={env.callId} nodeId={node.id} />
+    case 'FileTree':
+      return <FileTree entries={p.entries} title={p.title} expandDepth={p.expandDepth} t={env.t} callId={env.callId} nodeId={node.id} />
+    case 'JsonView':
+      return <JsonView data={p.data} title={p.title} expandDepth={p.expandDepth} t={env.t} callId={env.callId} nodeId={node.id} />
     case 'Button':
       if (p.action) return <ControlledButton label={p.label} action={p.action} env={env} />
       return <ActionButton label={p.label} prompt={p.prompt} variant={p.variant} sessionTarget={p.sessionTarget} env={env} nodeId={node.id} />

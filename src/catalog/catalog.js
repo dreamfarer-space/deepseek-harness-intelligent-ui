@@ -44,6 +44,11 @@ export const LIMITS = Object.freeze({
   choiceOptions: 8,
   scatterPoints: 2000,
   heatmapAxis: 60,
+  diffFiles: 20,
+  diffChars: 200_000,
+  treeEntries: 2000,
+  jsonChars: 100_000,
+  jsonDepth: 32,
 });
 
 /**
@@ -225,6 +230,55 @@ export const CATALOG = Object.freeze({
       min: { type: 'number' },
       max: { type: 'number' },
       showValues: { type: 'boolean' },
+    },
+  },
+  CodeDiff: {
+    description: 'Read-only code diff viewer for one or more files: give each file before/after full text (the diff is computed, unchanged runs collapse to expandable context) or a unified diff `patch`. Shows line numbers and +/- counts; large files start collapsed. Content is shown as text, never executed. For displaying changes, not applying them.',
+    children: false,
+    props: {
+      title: { type: 'string' },
+      context: { type: 'number', min: 0, max: 20 },
+      files: {
+        type: 'array', required: true, max: LIMITS.diffFiles,
+        items: {
+          type: 'object',
+          props: {
+            path: { type: 'string', required: true, max: 500 },
+            before: { type: 'string', max: LIMITS.diffChars },
+            after: { type: 'string', max: LIMITS.diffChars },
+            patch: { type: 'string', max: LIMITS.diffChars },
+            language: { type: 'string', max: 40 },
+          },
+        },
+      },
+    },
+  },
+  FileTree: {
+    description: 'Collapsible file/directory tree built from slash-separated paths (a trailing / marks an empty directory), with optional per-entry status (added/modified/deleted/renamed) and short note. Labels only: nothing is read from disk.',
+    children: false,
+    props: {
+      title: { type: 'string' },
+      expandDepth: { type: 'number', min: 0, max: 32 },
+      entries: {
+        type: 'array', required: true, max: LIMITS.treeEntries,
+        items: {
+          type: 'object',
+          props: {
+            path: { type: 'string', required: true, max: 500 },
+            status: { type: 'enum', values: ['added', 'modified', 'deleted', 'renamed'] },
+            note: { type: 'string', max: 200 },
+          },
+        },
+      },
+    },
+  },
+  JsonView: {
+    description: 'Collapsible JSON tree for any JSON value (`data`), with per-node path ($.a[0].b) and copy path / copy value. Use to inspect API responses, configs or tool output.',
+    children: false,
+    props: {
+      data: { type: 'any', required: true },
+      title: { type: 'string' },
+      expandDepth: { type: 'number', min: 0, max: 32 },
     },
   },
   Button: {
@@ -494,6 +548,24 @@ function checkSemantics(type, props, path, errors) {
     });
     if (total > LIMITS.scatterPoints) errors.push(`${path}.series: ${total} points in total; at most ${LIMITS.scatterPoints}`);
   }
+  if (type === 'CodeDiff' && Array.isArray(props.files)) {
+    let total = 0;
+    props.files.forEach((f, i) => {
+      if (!isPlainObject(f)) return;
+      const hasPatch = f.patch !== undefined;
+      if (hasPatch && (f.before !== undefined || f.after !== undefined)) errors.push(`${path}.files[${i}]: use either patch or before/after, not both`);
+      if (!hasPatch && f.before === undefined && f.after === undefined) errors.push(`${path}.files[${i}]: needs before/after text or a patch`);
+      for (const k of ['before', 'after', 'patch']) if (typeof f[k] === 'string') total += f[k].length;
+    });
+    if (total > LIMITS.diffChars) errors.push(`${path}.files: ${total} characters in total; at most ${LIMITS.diffChars}`);
+  }
+  if (type === 'JsonView' && props.data !== undefined) {
+    let json;
+    try { json = JSON.stringify(props.data); } catch { json = undefined; }
+    if (json === undefined) errors.push(`${path}.data: must be a JSON value`);
+    else if (json.length > LIMITS.jsonChars) errors.push(`${path}.data: ${json.length} characters; at most ${LIMITS.jsonChars}`);
+    else if (jsonDepth(props.data) > LIMITS.jsonDepth) errors.push(`${path}.data: nested deeper than ${LIMITS.jsonDepth} levels`);
+  }
   if (type === 'Heatmap' && Array.isArray(props.values) && Array.isArray(props.xLabels) && Array.isArray(props.yLabels)) {
     if (props.values.length !== props.yLabels.length) errors.push(`${path}.values: has ${props.values.length} rows but yLabels has ${props.yLabels.length}`);
     props.values.forEach((row, r) => {
@@ -503,6 +575,14 @@ function checkSemantics(type, props, path, errors) {
     });
     if (typeof props.min === 'number' && typeof props.max === 'number' && !(props.min < props.max)) errors.push(`${path}: min must be less than max`);
   }
+}
+
+function jsonDepth(v, d = 0) {
+  if (d > LIMITS.jsonDepth) return d;
+  if (v === null || typeof v !== 'object') return d;
+  let max = d + 1;
+  for (const c of Array.isArray(v) ? v : Object.values(v)) max = Math.max(max, jsonDepth(c, d + 1));
+  return max;
 }
 
 const IDENT = /^[A-Za-z_][A-Za-z_0-9]*$/;
