@@ -22,6 +22,9 @@ const TONES = ['default', 'muted', 'info', 'success', 'warning', 'error'];
 /** Field kinds a Form may contain. */
 export const FORM_FIELD_TYPES = ['text', 'number', 'range', 'select', 'checkbox', 'date', 'textarea'];
 
+/** Value kinds a Table column can be sorted and filtered as. */
+export const COLUMN_TYPES = ['text', 'number', 'date', 'boolean'];
+
 /** Chart kinds the SVG renderer draws. */
 export const CHART_KINDS = ['bar', 'line', 'area', 'pie'];
 
@@ -138,11 +141,15 @@ export const CATALOG = Object.freeze({
     },
   },
   Table: {
-    description: 'Data table. rows[i][j] belongs to columns[j]. Or use a host-registered dataRef for shared local search/filter/sort/paging.',
+    description: 'Data table / data grid. rows[i][j] belongs to columns[j]. Optional local, model-free interactions: sortable (typed: numbers, ISO 8601 dates `YYYY-MM-DD[THH:mm]`, booleans; empty values last), searchable, filterable (per-column contains / min-max range), pageSize, exportable (CSV/Markdown of the filtered rows). columnTypes overrides inferred types. Or use a host-registered dataRef for shared local search/filter/sort/paging.',
     children: false,
     props: {
       dataRef: DATA_REF,
       pageSize: { type: 'number', min: 1, max: 100 },
+      columnTypes: { type: 'array', max: LIMITS.tableColumns, items: { type: 'enum', values: COLUMN_TYPES } },
+      searchable: { type: 'boolean' },
+      filterable: { type: 'boolean' },
+      exportable: { type: 'boolean' },
       columns: { type: 'array', items: { type: 'string' }, max: LIMITS.tableColumns },
       rows: {
         type: 'array', max: LIMITS.tableRows,
@@ -175,6 +182,7 @@ export const CATALOG = Object.freeze({
       unit: { type: 'string' },
       stacked: { type: 'boolean' },
       height: { type: 'number', min: 120, max: 600 },
+      exportable: { type: 'boolean' },
     },
   },
   Button: {
@@ -399,6 +407,8 @@ function checkSemantics(type, props, path, errors) {
       if (type === 'Chart' && props.kind === 'pie' && Array.isArray(props.valueColumns) && props.valueColumns.length !== 1) errors.push(`${path}: bound pie chart needs exactly one value column`);
     } else if (inline.some(k => props[k] === undefined)) errors.push(`${path}: needs ${inline.join(' and ')} or dataRef`);
     if (props.pageSize !== undefined && !Number.isInteger(props.pageSize)) errors.push(`${path}.pageSize: expected integer`);
+    if (Array.isArray(props.columnTypes) && Array.isArray(props.columns) && props.columnTypes.length > props.columns.length) errors.push(`${path}.columnTypes: has ${props.columnTypes.length} entries but columns has ${props.columns.length}`);
+    if (type === 'Table' && props.dataRef !== undefined && (props.searchable || props.filterable)) errors.push(`${path}: searchable/filterable apply to inline rows; a dataRef table already has shared search and filter`);
   }
   if (type === 'Button' && ((props.prompt === undefined) === (props.action === undefined))) errors.push(`${path}: needs exactly one of prompt or action`);
   if (type === 'Button' && props.sessionTarget !== undefined && props.action !== undefined) errors.push(`${path}.sessionTarget: only supported with prompt`);

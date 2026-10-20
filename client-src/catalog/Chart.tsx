@@ -1,4 +1,4 @@
-import { useState, type PointerEvent, type ReactElement } from 'react'
+import { useState, type KeyboardEvent, type PointerEvent, type ReactElement } from 'react'
 
 /** Categorical palette readable on light and dark surfaces. */
 export const PALETTE = ['#4d6bfe', '#22a06b', '#f2a33a', '#e5484d', '#8e6cef', '#12a5c4', '#e0569b', '#7fae2e', '#f07a2e', '#6b7a90', '#1aa89a', '#b25fe0']
@@ -174,8 +174,22 @@ function Cartesian(props: ChartProps & { height: number; n: number; colorOf: (s:
     const i = Math.floor((vx - PAD.left) / band)
     props.onHover(i >= 0 && i < n ? i : undefined)
   }
+  // Keyboard: arrows step through categories, Home/End jump, Escape clears; the tooltip follows.
+  const onKey = (e: KeyboardEvent<SVGSVGElement>) => {
+    const h = props.hover
+    let next: number | undefined
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = h === undefined ? 0 : Math.min(n - 1, h + 1)
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = h === undefined ? n - 1 : Math.max(0, h - 1)
+    else if (e.key === 'Home') next = 0
+    else if (e.key === 'End') next = n - 1
+    else if (e.key !== 'Escape') return
+    e.preventDefault()
+    props.onHover(next)
+  }
   return (
-    <svg className="diui-chart-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={props.title ?? 'chart'} onPointerMove={onMove} onPointerLeave={() => props.onHover(undefined)}>
+    <svg className="diui-chart-svg" viewBox={`0 0 ${W} ${H}`} role="img" tabIndex={0} aria-label={props.title ?? 'chart'}
+      onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={e => { if (e.pointerType === 'mouse') props.onHover(undefined) }}
+      onKeyDown={onKey} onBlur={() => props.onHover(undefined)}>
       {props.hover !== undefined && <rect x={PAD.left + band * props.hover} y={PAD.top} width={band} height={ih} className="diui-hover-band" />}
       {ticks.map(t => (
         <g key={t}>

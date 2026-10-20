@@ -208,8 +208,8 @@ CI 每天定时在 Windows、Linux、macOS 上跑完整矩阵，DSH 一发新版
 |---|---|
 | 布局 | `Card`、`Stack`、`Grid`、`Tabs`（支持键盘操作） |
 | 文本与提示 | `Text`（markdown 子集）、`Code`、`Alert`、`Badge`、`Divider` |
-| 数据 | `Stat`、`Progress`、`List`、`Table`（可排序）、`Timeline` |
-| 图表 | `Chart`（柱状、折线、面积、饼图；可堆叠，悬停提示，可点图例显隐系列） |
+| 数据 | `Stat`、`Progress`、`List`、`Table`（数据表格：按类型排序含 ISO 日期、搜索、按列筛选、分页、CSV/Markdown 导出）、`Timeline` |
+| 图表 | `Chart`（柱状、折线、面积、饼图；可堆叠，悬停/点按/键盘提示，可点图例显隐系列，可选数据导出） |
 | 数学与图示 | **`Plot`**、**`Math`**（KaTeX）、**`Mermaid`** |
 | 交互 | `Button`、`Choice`、`Form` |
 
