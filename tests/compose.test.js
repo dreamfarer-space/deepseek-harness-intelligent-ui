@@ -121,10 +121,10 @@ describe('ui_patch over composition blocks', () => {
   const messages = () => [
     { role: 'user', content: [{ type: 'text', text: 'compare' }] },
     { role: 'assistant', content: [{ type: 'tool-call', id: 'comp-1', name: COMPOSE_TOOL, arguments: JSON.stringify({ blocks: blocks() }) }] },
-    { role: 'tool', toolCallId: 'comp-1', content: [{ type: 'text', text: 'ok' }] },
+    { role: 'tool', toolCallId: 'comp-1', content: [{ type: 'text', text: 'Composed answer is now displayed in order.' }] },
   ]
 
-  it('exposes catalog blocks as version-1 UIs and ignores refused compositions', () => {
+  it('exposes catalog blocks as version-1 UIs and ignores refused compositions', async () => {
     const uis = collectUis(messages(), { render: RENDER_TOOL, patch: PATCH_TOOL, compose: COMPOSE_TOOL, config })
     expect([...uis.keys()]).toEqual(['comp-1#chart'])
     expect(uis.get('comp-1#chart')).toMatchObject({ version: 1, root: 'r', title: 'Comparison' })
@@ -133,6 +133,17 @@ describe('ui_patch over composition blocks', () => {
     expect(collectUis(refused, { render: RENDER_TOOL, patch: PATCH_TOOL, compose: COMPOSE_TOOL, config }).size).toBe(0)
     // Without the compose capability the same history yields nothing.
     expect(collectUis(messages(), { render: RENDER_TOOL, patch: PATCH_TOOL }).size).toBe(0)
+    const disabled = resolveConfig({ enableWidget: false })
+    const value = await createComposeTool(disabled).execute({ blocks: blocks() }, { callId: 'comp-1' })
+    expect(value.ok).toBe(false)
+    const declined = messages()
+    declined[2].content = tool.output.render({}, value)
+    const patchArgs = { uiId: 'comp-1#chart', baseVersion: 1, ops: [{ op: 'setProps', id: 'r', props: { kind: 'line' } }] }
+    const exec = { agent: { session: { deriveMessages: () => declined } } }
+    expect((await createPatchTool(disabled).execute(patchArgs, exec)).ok).toBe(false)
+    // Enabling widgets later cannot turn the earlier refusal into a success.
+    expect((await createPatchTool(config).execute(patchArgs, exec)).ok).toBe(false)
+    expect(collectUis(messages(), { render: RENDER_TOOL, patch: PATCH_TOOL, compose: COMPOSE_TOOL, config: disabled }).size).toBe(0)
   })
 
   it('patches one block in place and reports the next version', async () => {

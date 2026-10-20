@@ -245,7 +245,7 @@ export function applyPatch(ui, args) {
  * replaying them reproduces exactly the versions the user saw. Calls without a
  * result yet (including the one being executed) are ignored.
  * Catalog blocks of `ui_compose` calls (`tools.compose`) join the same map under
- * their derived `block:<id>` identity, so one patch protocol addresses both.
+ * their derived `<callId>#<blockId>` identity, so one patch protocol addresses both.
  * @param {readonly any[]} messages - `Session.deriveMessages()`.
  * @param {{ render: string, patch: string, compose?: string, config?: any }} tools - tool names.
  * @returns {Map<string, UiSnapshot>}
@@ -268,8 +268,14 @@ export function collectUis(messages, tools) {
     let args;
     try { args = typeof call.arguments === 'string' ? JSON.parse(call.arguments) : call.arguments; } catch { continue; }
     if (tools.compose !== undefined && call.name === tools.compose) {
-      // Revalidate the composition before trusting any of its blocks.
-      const composed = validateComposition(clone(args ?? null), tools.config ?? {});
+      // deriveMessages omits presentationMeta, so require the tool's positive
+      // acknowledgment as well as valid arguments before recovering any block.
+      if (!m.content?.some(b => b?.type === 'text' && b.text?.startsWith('Composed answer'))) continue;
+      const config = tools.config ?? {};
+      const composed = validateComposition(clone(args ?? null), config, {
+        requireCatalog: config.enableCatalog !== false,
+        requireWidget: config.enableWidget !== false,
+      });
       if (composed.ok) {
         for (const block of composed.blocks) {
           if (block.type !== 'catalog') continue;

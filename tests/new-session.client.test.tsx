@@ -6,6 +6,7 @@ import { apply } from '../client-src/index.ts'
 import { createNewSessionSender } from '../client-src/new-session.ts'
 import { RenderView } from '../client-src/catalog/RenderView.tsx'
 import { PatchView } from '../client-src/catalog/PatchView.tsx'
+import { ComposeView } from '../client-src/compose/ComposeView.tsx'
 import { TurnTail } from '../client-src/TurnTail.tsx'
 import { en } from '../client-src/locales.ts'
 import { MAX_STATE_CHARS, resetUiStateMemory, setUiState } from '../client-src/state.ts'
@@ -65,6 +66,32 @@ function reload(el: React.ReactElement) {
 }
 
 describe('new Agent session adapter', () => {
+  it('isolates composed block actions and resumes the original session through a patch', async () => {
+    const f = fixture()
+    f.openSession.mockRejectedValueOnce(new Error('navigation failed'))
+    const composition = { blocks: ['left', 'right'].map(id => ({
+      id, type: 'catalog', ...tree('new', `Discuss ${id}`),
+    })) }
+    const composed = <ComposeView {...f.injected} callId="comp" toolName="ui_compose" phase="result"
+      block={{ kind: 'tool-result', callId: 'comp', call: { name: 'ui_compose', argsRaw: JSON.stringify(composition) }, content: [], isError: false, meta: { ok: true } }} />
+    mount(composed)
+    await click()
+    expect(f.create).toHaveBeenCalledOnce()
+    const firstSession = f.create.mock.calls[0]![0].sessionId
+    // Reload also resets the UI rate limiter while retaining durable recovery.
+    reload(composed)
+    await act(async () => host.querySelectorAll<HTMLButtonElement>('.diui-button')[1]!.click())
+    expect(f.create).toHaveBeenCalledTimes(2)
+    expect(f.prompt).toHaveBeenCalledTimes(2)
+    const ui = { ...tree('new', 'Discuss left'), uiId: 'comp#left', version: 2 }
+    reload(<PatchView {...f.injected} callId="patch" toolName="ui_patch" phase="result"
+      block={{ kind: 'tool-result', callId: 'patch', call: { name: 'ui_patch', argsRaw: '{}' }, content: [], isError: false, meta: { ok: true, ui } }} />)
+    await click()
+    expect(f.create).toHaveBeenCalledTimes(2)
+    expect(f.prompt).toHaveBeenCalledTimes(2)
+    expect(f.openSession).toHaveBeenLastCalledWith(firstSession)
+  })
+
   it.each(['quota', 'unavailable'])('blocks creation when recovery storage is %s and resumes safely once restored', async failure => {
     const f = fixture()
     if (failure === 'quota') vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Full', 'QuotaExceededError') })

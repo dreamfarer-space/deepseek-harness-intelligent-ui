@@ -57,6 +57,7 @@ export function projectNativeUiEvents(events, { hostId, sessionId }) {
     settled.push({ id, call, meta, seq: event.seq });
   }
   const latest = new Map();
+  const blockVersions = new Map();
   for (const { id, call, meta, seq } of settled.sort((a, b) => a.seq - b.seq)) {
     const args = call.args;
     const policy = object(meta.policy) ? meta.policy : undefined;
@@ -77,13 +78,16 @@ export function projectNativeUiEvents(events, { hostId, sessionId }) {
     }
     if (call.kind === COMPOSE_TOOL) {
       // The whole answer is one artifact; catalog blocks inside it stay patchable
-      // through their derived `block:<id>` identity in the latest snapshot.
+      // through their derived `<callId>#<blockId>` identity in the latest snapshot.
       if (latest.has(id)) continue;
       const result = validateComposition(args, { maxWidgetBytes: MAX_ARGUMENT_CHARS }, {});
       if (!result.ok) continue;
       latest.set(id, { kind: 'composition', hostId, sessionId, uiId: id, version: 1,
         title: typeof args.title === 'string' ? args.title : undefined,
         definition: args, policy, turn, seq });
+      for (const block of result.blocks) {
+        if (block.type === 'catalog') blockVersions.set(`${id}#${block.id}`, 1);
+      }
       continue;
     }
     if (call.kind !== 'ui_patch' || !text(args.uiId) || !Number.isSafeInteger(args.baseVersion)) continue;
@@ -91,8 +95,9 @@ export function projectNativeUiEvents(events, { hostId, sessionId }) {
     const owner = splitComposeUiId(args.uiId)?.[0] ?? args.uiId;
     const prior = latest.get(owner);
     const next = meta.ui;
-    if (!prior || prior.version !== args.baseVersion
-      || !object(next) || next.uiId !== args.uiId || next.version !== prior.version + 1
+    const version = prior?.kind === 'composition' ? blockVersions.get(args.uiId) : prior?.version;
+    if (!prior || version !== args.baseVersion
+      || !object(next) || next.uiId !== args.uiId || next.version !== version + 1
       || !validTree(next)) continue;
     const block = compositionBlockOf(prior, args.uiId);
     if (prior.kind === 'declarative') {
@@ -112,7 +117,8 @@ export function projectNativeUiEvents(events, { hostId, sessionId }) {
         components: next.components,
       }),
     };
-    latest.set(prior.uiId, { ...prior, version: next.version, definition,
+    blockVersions.set(args.uiId, next.version);
+    latest.set(prior.uiId, { ...prior, version: prior.version + 1, definition,
       policy: policy ?? prior.policy, turn: prior.turn, updatedTurn: turn ?? prior.updatedTurn, seq });
   }
   return [...latest.values()].sort((a, b) => a.seq - b.seq);

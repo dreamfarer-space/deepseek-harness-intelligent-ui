@@ -10,7 +10,7 @@ import { useLatestUiVersion } from '../versions.ts'
 import { Markdown } from './Markdown.tsx'
 import { indexNodes } from '../catalog/RenderView.tsx'
 import { renderNode, type RenderEnv, type UiNode } from '../catalog/components.tsx'
-import { WidgetFrame } from '../widget/WidgetFrame.tsx'
+import { WidgetWithErrors } from '../widget/WidgetWithErrors.tsx'
 
 /**
  * Stable identity of a catalog block: derived from the composition call id and
@@ -39,7 +39,8 @@ function WidgetBlock(props: { block: ComposeBlock; env: RenderEnv; settled: bool
   return (
     <div className="diui-compose-widget">
       <div className="diui-compose-widget-head">{props.title}</div>
-      <WidgetFrame
+      <WidgetWithErrors
+        t={env.t}
         controlled={env.controlled}
         sessionId={env.sessionId}
         callId={blockUiId(env.callId ?? '', block.id)}
@@ -58,9 +59,15 @@ function WidgetBlock(props: { block: ComposeBlock; env: RenderEnv; settled: bool
 }
 
 /** One catalog block: the existing component renderer, unchanged. */
-function CatalogBlock(props: { block: ComposeBlock; env: RenderEnv; nodes: ReadonlyMap<string, UiNode> }) {
+function CatalogBlock(props: { block: ComposeBlock; env: RenderEnv; nodes: ReadonlyMap<string, UiNode>; sendNewSessionPrompt?: ToolViewProps['sendNewSessionPrompt'] }) {
   const { block, env } = props
-  const blockEnv = useMemo<RenderEnv>(() => ({ ...env, nodes: props.nodes, callId: blockUiId(env.callId ?? '', block.id) }), [env, props.nodes, block.id])
+  const callId = blockUiId(env.callId ?? '', block.id)
+  const blockEnv: RenderEnv = {
+    ...env, nodes: props.nodes, callId,
+    sendNewSession: props.sendNewSessionPrompt
+      ? (text, nodeId) => props.sendNewSessionPrompt!(text, callId, nodeId)
+      : undefined,
+  }
   if (typeof block.root !== 'string' || block.root === '') {
     return <div className="diui-node-error">{env.t('node.missing', { id: String(block.root ?? '') })}</div>
   }
@@ -112,9 +119,6 @@ export function ComposeView(props: ToolViewProps) {
     t,
     callId: props.callId,
     policy,
-    sendNewSession: settled && props.sendNewSessionPrompt
-      ? async (text, nodeId) => { await props.sendNewSessionPrompt!(guard.admitPrompt(text), props.callId, nodeId) }
-      : undefined,
     send: settled
       ? async (text) => { await props.sendPrompt(guard.admitPrompt(text)) }
       : () => Promise.reject(new Error(t('render.notReady'))),
@@ -146,7 +150,10 @@ export function ComposeView(props: ToolViewProps) {
         : (
             <div className="diui-compose">
               {blocks.map((entry, index) => (
-                <BlockItem key={`${entry.id}:${index}`} block={entry} env={env} settled={settled} policy={policy} />
+                <BlockItem key={`${entry.id}:${index}`} block={entry} env={env} settled={settled} policy={policy}
+                  sendNewSessionPrompt={settled && props.sendNewSessionPrompt
+                    ? async (text, uiId, nodeId) => { await props.sendNewSessionPrompt!(guard.admitPrompt(text), uiId, nodeId) }
+                    : undefined} />
               ))}
             </div>
           )}
@@ -154,7 +161,7 @@ export function ComposeView(props: ToolViewProps) {
   )
 }
 
-function BlockItem(props: { block: ComposeBlock; env: RenderEnv; settled: boolean; policy: ReturnType<typeof policyFromMeta> }) {
+function BlockItem(props: { block: ComposeBlock; env: RenderEnv; settled: boolean; policy: ReturnType<typeof policyFromMeta>; sendNewSessionPrompt?: ToolViewProps['sendNewSessionPrompt'] }) {
   const { block, env } = props
   // Hooks run for every block; only catalog blocks use their nodes/version.
   const nodes = useMemo(() => block.type === 'catalog' ? indexNodes(block.components) : new Map<string, UiNode>(), [block])
@@ -170,5 +177,5 @@ function BlockItem(props: { block: ComposeBlock; env: RenderEnv; settled: boolea
       </div>
     )
   }
-  return <CatalogBlock block={block} env={env} nodes={nodes} />
+  return <CatalogBlock block={block} env={env} nodes={nodes} sendNewSessionPrompt={props.sendNewSessionPrompt} />
 }

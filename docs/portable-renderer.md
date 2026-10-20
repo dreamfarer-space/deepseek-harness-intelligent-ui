@@ -14,6 +14,8 @@ The bundle defines `DshIntelligentUiRenderer.mount(element, host)`:
 
 `uiId` is the original ui_render call ID (or widget/composition call ID); `version` starts at 1 and is monotonically increasing. A composed answer's catalog blocks are addressed as `<composition uiId>#<block id>`. The caller must keep Host+Session+uiId isolation, validate success and reject stale/conflicting patches **before** passing data to render(). The renderer does not reconstruct from a text summary.
 
+Catalog blocks have independent patch versions, each starting at 1. Every accepted block patch increments the composition artifact version by one; that artifact revision is not a block's `baseVersion`.
+
 ## Security and packaging
 
 The host must **not** expose arbitrary RPC, identity, local files, credentials or Android native APIs to the WebView. A hostile widget must remain in its opaque-origin sandbox: `WidgetFrame` uses iframe CSP, a per-frame token and a source-checked postMessage bridge. A remote host must independently authenticate and scope prompt actions. The bundle has React and catalog code built in; the CDN allowance only affects optional libraries inside a sandboxed Widget, never bootstrap dependencies.

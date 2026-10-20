@@ -50,7 +50,7 @@ export function createPatchTool(config) {
   return {
     name: PATCH_TOOL,
     description: [
-      `Change a UI that ${RENDER_TOOL}, ${COMPOSE_TOOL} (a catalog block's uiId is "block:<block id>") or an earlier ${PATCH_TOOL} already showed in THIS conversation, in place, without re-sending the whole UI.`,
+      `Change a UI that ${RENDER_TOOL}, ${COMPOSE_TOOL} (a catalog block's uiId is "<composition call id>#<block id>") or an earlier ${PATCH_TOOL} already showed in THIS conversation, in place, without re-sending the whole UI.`,
       'Address it by its uiId and the version you are changing (both are in the tool result that showed it); address components by their ids.',
       'Components you do not touch keep their content and the user\'s state (table sort, selected tab, form input, slider positions).',
       'Operations, applied in order and all-or-nothing:',

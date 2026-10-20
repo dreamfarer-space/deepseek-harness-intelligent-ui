@@ -3,7 +3,7 @@ import { validateWidget } from '../../src/tools/widget.js';
 import { validateComposition } from '../../src/compose/compose.js';
 
 /** Bump whenever a check changes: reports with different versions are not comparable. */
-export const ASSERTION_VERSION = 4;
+export const ASSERTION_VERSION = 5;
 
 /** Validate every call before constructing a follow-up tool-result history. */
 export function checkedCalls(message, config) {
@@ -133,10 +133,9 @@ export function composeChecks(id, args) {
 /** Prose exists, and at least one UI block has prose both before and after it. */
 export function compositionInterleaves(args) {
   const blocks = Array.isArray(args?.blocks) ? args.blocks : [];
-  const firstUi = blocks.findIndex(b => b?.type !== 'markdown');
-  const lastUi = blocks.map(b => b?.type !== 'markdown').lastIndexOf(true);
-  return firstUi > 0 && lastUi >= 0 && lastUi < blocks.length - 1
-    && blocks.slice(firstUi).some(b => b?.type === 'markdown');
+  const prose = block => block?.type === 'markdown' && typeof block.text === 'string' && block.text.trim() !== '';
+  return blocks.some((block, i) => (block?.type === 'catalog' || block?.type === 'widget')
+    && blocks.slice(0, i).some(prose) && blocks.slice(i + 1).some(prose));
 }
 
 /** The markdown text of a composed answer, in order. */

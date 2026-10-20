@@ -59,7 +59,7 @@ export function createComposeTool(config) {
           items: {
             type: 'object',
             properties: {
-              id: { type: 'string', description: 'Stable block id: letters, digits, "_" or "-", starting with a letter. A catalog block is addressable as "block:<id>".' },
+              id: { type: 'string', description: 'Stable block id: letters, digits, "_" or "-", starting with a letter. A catalog block is addressable as "<composition call id>#<block id>".' },
               type: { type: 'string', enum: [...BLOCK_TYPES] },
               text: { type: 'string', description: 'markdown: the prose for this position.' },
               title: { type: 'string', description: 'catalog/widget: short title shown above the UI.' },

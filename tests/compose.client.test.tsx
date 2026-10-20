@@ -147,6 +147,19 @@ describe('ComposeView', () => {
     expect(host.textContent).toContain(en['compose.copied'])
   })
 
+  it('shows script errors from its widget frame', () => {
+    render(view())
+    const frame = host.querySelector('iframe')!
+    const token = /var TOKEN = "([0-9a-f]+)"/.exec(frame.srcdoc)![1]
+    act(() => window.dispatchEvent(new MessageEvent('message', {
+      source: frame.contentWindow,
+      data: { __diui: token, type: 'error', kind: 'runtime', message: 'Simulator failed' },
+    })))
+    expect(host.querySelector('.diui-compose-widget .diui-problem')!.textContent).toContain('1 script error')
+    act(() => host.querySelector<HTMLButtonElement>('.diui-compose-widget .diui-problem button')!.click())
+    expect(host.textContent).toContain('runtime: Simulator failed')
+  })
+
   it('keeps the finished part of a stopped answer and offers to regenerate', async () => {
     const send = vi.fn(async () => {})
     const raw = JSON.stringify(args)

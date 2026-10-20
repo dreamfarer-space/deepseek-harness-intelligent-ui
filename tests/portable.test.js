@@ -27,6 +27,7 @@ describe('native portable artifact contract', () => {
     const composed = { blocks: [
       { id: 'intro', type: 'markdown', text: 'Before.' },
       { id: 'chart', type: 'catalog', title: 'Chart', root: 'root', components: [{ id: 'root', type: 'Text', props: { text: 'Hello' } }] },
+      { id: 'other', type: 'catalog', ...tree },
       { id: 'sim', type: 'widget', html: '<div id="x"></div>' },
     ] }
     const patch = { uiId: 'comp#chart', baseVersion: 1, ops: [{ op: 'setProps', id: 'root', props: { text: 'Patched' } }] }
@@ -34,12 +35,18 @@ describe('native portable artifact contract', () => {
     const list = [
       call(1, 'comp', 'ui_compose', composed), result(2, 'comp', { ok: true }),
       call(3, 'p1', 'ui_patch', patch, 2), result(4, 'p1', { ok: true, ui: snapshot }),
+      call(5, 'p2', 'ui_patch', { ...patch, uiId: 'comp#other' }, 3),
+      result(6, 'p2', { ok: true, ui: { ...snapshot, uiId: 'comp#other' } }),
+      call(7, 'stale', 'ui_patch', patch, 4), result(8, 'stale', { ok: true, ui: snapshot }),
+      call(9, 'p3', 'ui_patch', { ...patch, baseVersion: 2 }, 5),
+      result(10, 'p3', { ok: true, ui: { ...snapshot, version: 3 } }),
     ]
     const [artifact] = projectNativeUiEvents(list, { hostId: 'h1', sessionId: 's1' })
-    expect(artifact).toMatchObject({ kind: 'composition', uiId: 'comp', version: 2, updatedTurn: '2' })
+    expect(artifact).toMatchObject({ kind: 'composition', uiId: 'comp', version: 4, updatedTurn: '5' })
     expect(artifact.definition.blocks[0]).toEqual(composed.blocks[0])
     expect(artifact.definition.blocks[1].components[0].props.text).toBe('Patched')
-    expect(artifact.definition.blocks[2]).toEqual(composed.blocks[2])
+    expect(artifact.definition.blocks[2].components[0].props.text).toBe('Patched')
+    expect(artifact.definition.blocks[3]).toEqual(composed.blocks[3])
     // A refused composition is never projected.
     const bad = [{ ...call(1, 'bad', 'ui_compose', { blocks: [{ id: 'x', type: 'catalog', root: 'r', components: [] }] }), data: { ...call(1, 'bad', 'ui_compose', { blocks: [] }).data } }, result(2, 'bad', { ok: true })]
     expect(projectNativeUiEvents(bad, { hostId: 'h1', sessionId: 's1' })).toEqual([])

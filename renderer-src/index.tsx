@@ -3,7 +3,7 @@
  * Contract: mount(element, {sendPrompt, onHeight}), render(snapshot), setTheme(), dispose().
  * No DSH session, Remote credentials or RPC APIs enter the renderer.
  */
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
 import { catalogRevision, subscribeCatalog } from '../src/catalog/extensions.js'
 import { validateTree } from '../src/catalog/catalog.js'
@@ -12,7 +12,7 @@ import { DEFAULT_POLICY, policyFromMeta } from '../client-src/policy.ts'
 import { STYLES } from '../client-src/styles.ts'
 import { en, zh } from '../client-src/locales.ts'
 import { renderNode, type UiNode, type RenderEnv } from '../client-src/catalog/components.tsx'
-import { WidgetFrame } from '../client-src/widget/WidgetFrame.tsx'
+import { WidgetWithErrors } from '../client-src/widget/WidgetWithErrors.tsx'
 import { Markdown } from '../client-src/compose/Markdown.tsx'
 import type { WidgetPolicy } from '../client-src/policy.ts'
 import type { Translate } from '../client-src/types/dsh.ts'
@@ -54,7 +54,6 @@ function Surface({ artifact, host, theme }: { artifact: PortableUiArtifact; host
   useSyncExternalStore(subscribeCatalog, catalogRevision, catalogRevision)
   const definition = readDefinition(artifact.definition)
   const policy = useMemo(() => policyFromMeta({ policy: artifact.policy ?? DEFAULT_POLICY }), [artifact.policy])
-  const [widgetErrors, setWidgetErrors] = useState<readonly string[]>([])
   const guard = useMemo(() => new BridgeGuard({ policy, armDelayMs: 200, minIntervalMs: 1000 }), [policy])
   const t = ((key: keyof typeof zh, vars?: Record<string, string | number>) => {
     // English is the portable renderer default; consumers may provide locale in future.
@@ -100,7 +99,8 @@ function Surface({ artifact, host, theme }: { artifact: PortableUiArtifact; host
                   if (block.type !== 'widget' || typeof block.html !== 'string' || block.html === '') return null
                   return (
                     <div className="diui-remote-widget" key={i}>
-                      <WidgetFrame
+                      <WidgetWithErrors
+                        t={t}
                         controlled={host.controlled}
                         sessionId={host.sessionId}
                         callId={`${artifact.uiId}#${block.id}`}
@@ -113,7 +113,6 @@ function Surface({ artifact, host, theme }: { artifact: PortableUiArtifact; host
                         jsExpressions={Array.isArray(block.jsExpressions) ? block.jsExpressions.filter((s: unknown): s is string => typeof s === 'string') : []}
                         initialHeight={typeof block.initialHeight === 'number' ? block.initialHeight : undefined}
                         policy={policy}
-                        onErrors={setWidgetErrors}
                         sendPrompt={host.sendPrompt}
                       />
                     </div>
@@ -123,7 +122,8 @@ function Surface({ artifact, host, theme }: { artifact: PortableUiArtifact; host
           : typeof definition.html !== 'string' || definition.html.length === 0
             ? <div className="diui-remote-error">Invalid widget</div>
             : <div className="diui-remote-widget">
-                <WidgetFrame
+                <WidgetWithErrors
+                  t={t}
                   controlled={host.controlled}
                   sessionId={host.sessionId}
                   callId={artifact.uiId}
@@ -136,10 +136,8 @@ function Surface({ artifact, host, theme }: { artifact: PortableUiArtifact; host
                   jsExpressions={Array.isArray(definition.jsExpressions) ? definition.jsExpressions.filter((s): s is string => typeof s === 'string') : []}
                   initialHeight={typeof definition.initialHeight === 'number' ? definition.initialHeight : undefined}
                   policy={policy}
-                  onErrors={setWidgetErrors}
                   sendPrompt={host.sendPrompt}
                 />
-                {widgetErrors.length > 0 && <div className="diui-remote-error">Widget script error: {widgetErrors[0]}</div>}
               </div>}
     </div>
   )
