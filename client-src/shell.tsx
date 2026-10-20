@@ -42,10 +42,12 @@ export function Shell(props: {
   actions?: ReactNode
   /** Banner between the head and the body (e.g. "generation stopped"). */
   notice?: ReactNode
+  /** No card border/background: the body is the answer itself (composed prose). */
+  plain?: boolean
   children?: ReactNode
 }) {
   return (
-    <div className="diui diui-shell" data-kind={props.kind} data-state={props.state} aria-busy={props.state === 'generating' || undefined}>
+    <div className="diui diui-shell" data-kind={props.kind} data-state={props.state} data-plain={props.plain || undefined} aria-busy={props.state === 'generating' || undefined}>
       <div className="diui-shell-head">
         <span className="diui-shell-icon" aria-hidden="true">{props.kind === 'widget' ? '◇' : '▦'}</span>
         <span className="diui-shell-title">{props.title}</span>

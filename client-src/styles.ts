@@ -33,6 +33,9 @@ export const STYLES = `
 .diui-head-button:disabled{opacity:.55;cursor:default}
 .diui-head-button:focus-visible{outline:2px solid var(--ui-accent);outline-offset:1px}
 .diui-shell-notice{padding:6px 12px;font-size:12px;color:var(--ui-warning);background:var(--ui-surface);border-bottom:1px solid var(--ui-border)}
+.diui-shell[data-plain]{border:0;border-radius:0;box-shadow:none;background:transparent;margin:0}
+.diui-shell[data-plain] .diui-shell-head{padding-left:0;padding-right:0}
+.diui-shell[data-plain] .diui-shell-body{background:transparent}
 .diui-shell[data-state=error] .diui-shell-icon{color:var(--ui-error)}
 .diui-shell[data-state=stopped] .diui-shell-icon{color:var(--ui-warning)}
 .diui-error-count{color:var(--ui-error)}
@@ -223,6 +226,32 @@ export const STYLES = `
 .diui-form-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
 .diui-form-actions>button[type=submit]{width:100%;flex:0 0 100%}
 .diui-tail{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.diui-compose{display:flex;flex-direction:column;gap:12px;padding:2px 14px 14px}
+.diui-compose>.diui-render{padding:0}
+.diui-compose-widget-head{font-weight:600;font-size:13px;margin-bottom:6px}
+.diui-compose-pointer{font-size:12px;color:var(--ui-muted);border:1px dashed var(--ui-border);border-radius:var(--ui-radius);padding:6px 10px}
+.diui-md{font-size:14px;line-height:1.65;overflow-wrap:anywhere}
+.diui-md>:first-child{margin-top:0}
+.diui-md>:last-child{margin-bottom:0}
+.diui-md h1,.diui-md h2,.diui-md h3,.diui-md h4{line-height:1.3;margin:1.1em 0 .45em}
+.diui-md h1{font-size:1.45em}
+.diui-md h2{font-size:1.25em}
+.diui-md h3{font-size:1.1em}
+.diui-md h4{font-size:1em}
+.diui-md p,.diui-md ul,.diui-md ol,.diui-md blockquote,.diui-md table,.diui-md pre{margin:.6em 0}
+.diui-md ul,.diui-md ol{padding-left:1.4em}
+.diui-md li+li{margin-top:.2em}
+.diui-md blockquote{margin-left:0;padding:2px 12px;border-left:3px solid var(--ui-border);color:var(--ui-muted)}
+.diui-md code{font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Consolas,monospace);font-size:.92em;background:var(--ui-surface);padding:1px 4px;border-radius:4px}
+.diui-md pre{padding:10px;border-radius:var(--ui-radius);background:var(--ui-surface);border:1px solid var(--ui-border);overflow:auto}
+.diui-md pre code{background:none;padding:0;font-size:12.5px}
+.diui-md table{border-collapse:collapse;width:100%;font-size:13px;display:block;overflow:auto}
+.diui-md th,.diui-md td{padding:5px 9px;border:1px solid var(--ui-border);text-align:left;vertical-align:top}
+.diui-md th{background:var(--ui-surface);font-weight:600}
+.diui-md a{color:var(--ui-accent)}
+.diui-md hr{border:0;border-top:1px solid var(--ui-border);margin:1em 0}
+.diui-md img{max-width:100%}
+@media (max-width:560px){.diui-compose{padding:2px 10px 10px}}
 .diui-node-error{font-size:12px;color:var(--ui-error);border:1px dashed var(--ui-error);border-radius:var(--ui-radius);padding:6px 8px}
 .diui-sort{margin-left:4px;opacity:.45;font-size:11px}
 th[aria-sort] .diui-sort{opacity:1;color:var(--ui-accent)}

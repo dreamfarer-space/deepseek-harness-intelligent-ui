@@ -15,6 +15,7 @@ const [url, outDir, mockLog] = process.argv.slice(2)
 const RECORD = process.argv.includes('--record')
 const SESSION_ONLY = process.env.E2E_SESSION_ONLY === '1'
 const DATA_ONLY = process.env.E2E_DATA_ONLY === '1'
+const COMPOSE_ONLY = process.env.E2E_COMPOSE_ONLY === '1'
 if (!url || !outDir || !mockLog) {
   console.error('usage: node scripts/e2e/browser.mjs <url> <out-dir> <mock-log> [--record]')
   process.exit(2)
@@ -246,6 +247,65 @@ async function checkDataTools() {
   if (ready) await shellShot('16-data-tools.png', 'Data tools')
 }
 
+async function checkCompose() {
+  await caption('14 · Prose and UI interleaved in one composed answer')
+  const callsBefore = mock().length
+  await send('E2E compose answer')
+  await waitIdle()
+  const compose = await waitFor(() => page.evaluate(() => {
+    const shell = [...document.querySelectorAll('.diui-tail .diui-shell')].find(s => s.querySelector('.diui-compose'))
+    if (!shell) return undefined
+    const parts = [...shell.querySelector('.diui-compose').children]
+    return {
+      title: shell.querySelector('.diui-shell-title')?.textContent,
+      state: shell.dataset.state,
+      order: parts.map(p => p.className),
+      prose: parts.filter(p => p.className === 'diui-md').map(p => p.textContent),
+      headings: [...shell.querySelectorAll('.diui-md h2, .diui-md h3')].map(h => h.textContent),
+      table: !!shell.querySelector('.diui-md table'),
+      chart: !!shell.querySelector('.diui-chart-svg'),
+      choice: shell.querySelectorAll('.diui-choice-option').length,
+      live: [...document.querySelectorAll('.diui-shell')].filter(s => s.querySelector('.diui-shell-body') && s.querySelector('.diui-shell-title')?.textContent === 'Route decision').length,
+    }
+  }), 20000)
+  check('14a. one composed answer shows prose → UI → prose → decision → prose in order',
+    compose && compose.state === 'ready' && compose.order.join() === 'diui-md,diui-render,diui-md,diui-render,diui-md'
+      && compose.headings.join() === '推荐结论,为什么先本地' && compose.table && compose.chart && compose.choice === 2 && compose.live === 1,
+    JSON.stringify(compose))
+  check('14b. composing made exactly one model call', mock().length === callsBefore + 1, `calls ${callsBefore} → ${mock().length} (the composition is the answer; no closing text)`)
+
+  // The prose continues after the UI; selecting a Choice in a catalog block stays local until confirmation.
+  const firstOption = await page.evaluateHandle(() => [...document.querySelectorAll('.diui-compose input[type=radio]')][1])
+  await firstOption.asElement().click()
+  await sleep(200)
+  check('14c. a Choice inside a composition selects locally without sending', mock().length === callsBefore + 1, `calls ${mock().length}`)
+  const submit = await page.evaluateHandle(() => [...document.querySelectorAll('.diui-compose .diui-choice-submit')][0])
+  await submit.asElement().click()
+  await waitIdle()
+  const followed = mock().slice(callsBefore).at(-1)
+  check('14d. confirming the Choice sends its prompt once, in this session', /继续讨论 Supabase 方案/.test(followed?.lastText ?? ''), followed?.lastText?.slice(0, 120))
+
+  // A later ui_patch addresses the block's derived uiId and replaces only that block.
+  await send('Switch the compose line chart to a line chart')
+  await waitIdle()
+  const patched = await waitFor(() => page.evaluate(() => {
+    const compositions = [...document.querySelectorAll('.diui-shell[data-state=ready]')].filter(s => s.querySelector('.diui-shell-body') && s.querySelector('.diui-shell-title')?.textContent === 'Route decision')
+    const composition = compositions.at(-1)
+    const block = [...document.querySelectorAll('.diui-shell[data-state=ready]')].find(s => s.querySelector('.diui-shell-body') && s.querySelector('.diui-shell-title')?.textContent === '成本与运维对比')
+    const svg = block?.querySelector('.diui-chart-svg')
+    return composition && {
+      live: compositions.length,
+      prose: composition.querySelectorAll('.diui-md').length,
+      choice: composition.querySelectorAll('.diui-choice-option').length,
+      pointer: composition.querySelectorAll('.diui-compose-pointer').length,
+      bars: svg?.querySelectorAll('rect[rx="2"]').length ?? -1,
+      lines: svg?.querySelectorAll('path[fill=none]').length ?? -1,
+    }
+  }), 20000)
+  check('14e. ui_patch updates one block of the composition in place and keeps the prose', patched && patched.live === 1 && patched.prose === 3 && patched.choice === 2 && patched.pointer === 1 && patched.bars === 0 && patched.lines >= 1, JSON.stringify(patched))
+  await shellShot('17-compose.png', 'Route decision')
+}
+
 async function checkNewSession() {
   await send('E2E show session launcher')
   await waitIdle()
@@ -285,7 +345,7 @@ for (let i = 0; i < 40; i++) {
 if (RECORD) await startRecording()
 await shot('0-home.png')
 
-if (!SESSION_ONLY && !DATA_ONLY) {
+if (!SESSION_ONLY && !DATA_ONLY && !COMPOSE_ONLY) {
 // 1) Plain question → plain text, no UI.
 await caption('1 · A plain question gets a plain answer — no UI')
 const before = (await shells()).length
@@ -626,7 +686,8 @@ check('11f. reload rebuilds the latest patched version only', dashAfterReload.li
 await scrollIntoView(sphere.handle)
 await shot('14-reload.png')
 }
-if (!SESSION_ONLY) await checkDataTools()
+if (!SESSION_ONLY && !COMPOSE_ONLY) await checkDataTools()
+if (!DATA_ONLY) await checkCompose()
 // A native Button creates a fresh conversation and starts it without using the composer again.
 if (!DATA_ONLY) await checkNewSession()
 await caption('All checks done')

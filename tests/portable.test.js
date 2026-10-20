@@ -23,6 +23,32 @@ describe('native portable artifact contract', () => {
     expect(snapshot[0]).toMatchObject({ uiId: 'base', version: 3, definition: v3, turn: '1', updatedTurn: '3' });
   });
 
+  it('projects a composition and applies a patch to one of its catalog blocks', () => {
+    const composed = { blocks: [
+      { id: 'intro', type: 'markdown', text: 'Before.' },
+      { id: 'chart', type: 'catalog', title: 'Chart', root: 'root', components: [{ id: 'root', type: 'Text', props: { text: 'Hello' } }] },
+      { id: 'sim', type: 'widget', html: '<div id="x"></div>' },
+    ] }
+    const patch = { uiId: 'comp#chart', baseVersion: 1, ops: [{ op: 'setProps', id: 'root', props: { text: 'Patched' } }] }
+    const snapshot = { root: 'root', components: [{ id: 'root', type: 'Text', props: { text: 'Patched' } }], uiId: 'comp#chart', version: 2 }
+    const list = [
+      call(1, 'comp', 'ui_compose', composed), result(2, 'comp', { ok: true }),
+      call(3, 'p1', 'ui_patch', patch, 2), result(4, 'p1', { ok: true, ui: snapshot }),
+    ]
+    const [artifact] = projectNativeUiEvents(list, { hostId: 'h1', sessionId: 's1' })
+    expect(artifact).toMatchObject({ kind: 'composition', uiId: 'comp', version: 2, updatedTurn: '2' })
+    expect(artifact.definition.blocks[0]).toEqual(composed.blocks[0])
+    expect(artifact.definition.blocks[1].components[0].props.text).toBe('Patched')
+    expect(artifact.definition.blocks[2]).toEqual(composed.blocks[2])
+    // A refused composition is never projected.
+    const bad = [{ ...call(1, 'bad', 'ui_compose', { blocks: [{ id: 'x', type: 'catalog', root: 'r', components: [] }] }), data: { ...call(1, 'bad', 'ui_compose', { blocks: [] }).data } }, result(2, 'bad', { ok: true })]
+    expect(projectNativeUiEvents(bad, { hostId: 'h1', sessionId: 's1' })).toEqual([])
+    // A patch for an unknown block of a composition is ignored.
+    const stranger = [call(1, 'comp', 'ui_compose', composed), result(2, 'comp', { ok: true }),
+      call(3, 'p2', 'ui_patch', { ...patch, uiId: 'comp#nope' }, 2), result(4, 'p2', { ok: true, ui: { ...snapshot, uiId: 'comp#nope' } })]
+    expect(projectNativeUiEvents(stranger, { hostId: 'h1', sessionId: 's1' })[0].version).toBe(1)
+  });
+
   it('ignores failed/stale/metadata-less calls and scopes to Host and Session', () => {
     const list = [
       call(1, 'base', 'ui_render', tree), result(2, 'base', { ok: true }),

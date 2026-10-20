@@ -11,11 +11,13 @@ import { useSyncExternalStore } from 'react'
 import { PATCH_TOOL } from '../src/tools/patch.js'
 import { RENDER_TOOL } from '../src/tools/render.js'
 import { WIDGET_TOOL } from '../src/tools/widget.js'
+import { COMPOSE_TOOL } from '../src/compose/constants.js'
+import { composeUiId, validateComposition } from '../src/compose/compose.js'
 import type { ToolResultNode } from './types/dsh.ts'
 import { noteUiVersion } from './versions.ts'
 
 export const TURN_DATA_KEY = 'intelligent-ui'
-const UI_TOOLS = new Set<string>([RENDER_TOOL, PATCH_TOOL, WIDGET_TOOL])
+const UI_TOOLS = new Set<string>([RENDER_TOOL, PATCH_TOOL, WIDGET_TOOL, COMPOSE_TOOL])
 
 /** Settled UI results of one Turn, in settlement order. */
 export interface UiTurnData {
@@ -69,13 +71,19 @@ function noteVersion(callId: string, call: CallHead, meta: unknown): void {
     if (ui) noteUiVersion(ui.uiId, ui.version, ui.title)
     return
   }
-  if (call.name !== RENDER_TOOL) return
-  let title: string | undefined
-  try {
-    const args = JSON.parse(call.argsRaw) as { title?: unknown }
-    title = typeof args.title === 'string' ? args.title : undefined
-  } catch { /* malformed calls are never presentable anyway */ }
-  noteUiVersion(callId, 1, title)
+  if (call.name !== RENDER_TOOL && call.name !== COMPOSE_TOOL) return
+  let args: Record<string, unknown>
+  try { args = JSON.parse(call.argsRaw) as Record<string, unknown> } catch { return }
+  if (call.name === RENDER_TOOL) {
+    noteUiVersion(callId, 1, typeof args.title === 'string' ? args.title : undefined)
+    return
+  }
+  // Catalog blocks are independently patchable UIs; a failed composition registers none.
+  const composed = validateComposition(args, {})
+  if (!composed.ok) return
+  for (const block of composed.blocks) {
+    if (block.type === 'catalog') noteUiVersion(composeUiId(callId, block.id), 1, block.title)
+  }
 }
 
 /** The Conversation Node Definition (accumulator only; publishes no view node). */

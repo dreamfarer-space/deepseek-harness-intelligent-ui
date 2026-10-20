@@ -38,6 +38,31 @@ export const DATA_TOOLS = {
   ],
 }
 
+/** One composed answer: prose, native UI, prose, a decision and a sandboxed widget, in that order. */
+const lines = (...parts) => parts.join(String.fromCharCode(10))
+export const COMPOSE = {
+  title: 'Route decision',
+  blocks: [
+    { id: 'intro', type: 'markdown', text: lines('## 推荐结论', '', '先用 **本地 SQLite**，把数据模型和同步边界跑通，再考虑托管后端。', '', '| 路线 | 月成本 | 运维负担 |', '| --- | --- | --- |', '| 本地 SQLite | 约 0 | 低 |', '| Supabase | 约 $25 | 中 |') },
+    { id: 'compare', type: 'catalog', title: '成本与运维对比', root: 'stack', components: [
+      { id: 'stack', type: 'Stack', children: ['chart'] },
+      { id: 'chart', type: 'Chart', props: { kind: 'bar', title: 'Monthly cost (USD)', labels: ['Local', 'Supabase', 'Custom'], series: [{ name: 'Cost', values: [0, 25, 60] }] } },
+    ] },
+    { id: 'analysis', type: 'markdown', text: lines('### 为什么先本地', '', '1. 单人维护，同步冲突面小。', '2. 托管方案在离线时不可用。', '3. 迁移到 Supabase 只需要替换存储层。') },
+    { id: 'next', type: 'catalog', title: '下一步', root: 'choice', components: [
+      { id: 'choice', type: 'Choice', props: { question: '接下来讨论哪条路线？', options: [
+        { id: 'local', label: '本地 SQLite', description: '先把本地模型定下来', prompt: '继续讨论本地 SQLite 方案，只讨论，不写代码。' },
+        { id: 'cloud', label: 'Supabase', description: '托管后端与同步', prompt: '继续讨论 Supabase 方案，只讨论，不写代码。' },
+      ] } },
+    ] },
+    { id: 'outro', type: 'markdown', text: '选好路线后，再决定同步频率与冲突策略。' },
+  ],
+}
+
+export function composePatch(uiId) {
+  return { uiId, baseVersion: 1, ops: [{ op: 'setProps', id: 'chart', props: { kind: 'line', title: 'Monthly cost (line)' } }] }
+}
+
 export const DASHBOARD = {
   title: 'Quarterly sales (sample data)',
   root: 'card',

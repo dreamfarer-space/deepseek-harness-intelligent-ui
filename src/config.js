@@ -10,6 +10,7 @@ import Schema from '@deepseek-ai/schemastery';
 export const DEFAULTS = Object.freeze({
   enableCatalog: true,
   enableWidget: true,
+  enableCompose: true,
   injectGuidance: true,
   cdnAllowlist: ['https://esm.sh', 'https://cdn.jsdelivr.net', 'https://unpkg.com'],
   allowNetwork: false,
@@ -24,6 +25,8 @@ export const Config = Schema.object({
     .description('Register `ui_render` (declarative cards, tables, charts, forms).'),
   enableWidget: Schema.boolean().default(DEFAULTS.enableWidget)
     .description('Register `ui_render_widget` (sandboxed streaming HTML/CSS/JS widgets).'),
+  enableCompose: Schema.boolean().default(DEFAULTS.enableCompose)
+    .description('Register `ui_compose` (one answer that interleaves markdown, native components and widgets). Needs at least one UI capability.'),
   injectGuidance: Schema.boolean().default(DEFAULTS.injectGuidance)
     .description('Add a system-prompt section telling the model when and how to answer with UI.'),
   cdnAllowlist: Schema.array(Schema.string()).default([...DEFAULTS.cdnAllowlist])

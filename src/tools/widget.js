@@ -40,7 +40,7 @@ export function createWidgetTool(config) {
       'Interactivity: sliders, buttons, drag, rotate and zoom must update the widget immediately in JS (listen to "input" events; recompute and redraw). Never call sendPrompt for those.',
       `Sandbox: no same-origin access (no localStorage/cookies/parent DOM). External resources only from: ${cdn}.${policy.allowNetwork ? ' fetch() to those origins is allowed.' : ' Network requests (fetch/XHR/WebSocket) are blocked.'}`,
       'To talk to the conversation call `Bridge.sendPrompt({ text })` (returns a Promise; the clicked button is disabled until it settles) ONLY in response to an explicit user action that needs you (e.g. an "Explain" or "Submit" button) — never on load, timers or ordinary input changes. Include the relevant current values in the text. `Bridge.openLink({ url })` opens an https link.',
-      'After calling, add at most one short sentence; do not paste the code into the reply.',
+      'After calling, add at most one short sentence; do not paste the code into the reply. When the widget is one part of a longer explanation, use ui_compose to place prose around it.',
     ].join('\n'),
     parameters: {
       type: 'object',

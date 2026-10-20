@@ -8,6 +8,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `ui_compose`: one answer whose ordered blocks interleave markdown prose with the existing declarative catalog and the existing sandboxed widget, for analysis, teaching and sectioned reports where UI must sit between paragraphs. Blocks reuse the existing validators, renderers and sandbox; each catalog block is patchable in place as `<composition uiId>#<block id>`. New `enableCompose` setting (default on). The finished composition is shown beneath the reply with a "Copy text" action, and the portable renderer accepts a `composition` artifact. Guidance now routes prose-heavy answers here while keeping dashboards terse.
+
 - `Choice` single-choice card with "Continue in this session" / "Start new session", and Button `sessionTarget: "new"` to start an independent Agent session in the same workspace ([#39](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/pull/39)).
 - `Table` data-grid options ([#17](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/17)): typed sorting (numbers, ISO 8601 dates, booleans; empty values last), `columnTypes`, `searchable`, `filterable` (per-column contains / min-max ranges, AND-combined), `pageSize` for inline rows, and `exportable` CSV/Markdown of the filtered, sorted rows. All local; nothing is sent to the model. Interaction state survives remounts and reloads.
 - CSV export is RFC 4180 with a UTF-8 BOM and neutralises spreadsheet formula injection (`=`, `+`, `-`, `@`, TAB, CR); Markdown export escapes table syntax.

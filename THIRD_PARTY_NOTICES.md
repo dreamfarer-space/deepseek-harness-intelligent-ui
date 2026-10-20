@@ -14,6 +14,12 @@ This plugin adapts the following from OpenIntelligentUI. It contains no verbatim
 
 Copyright (c) CopilotKit. Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, subject to the condition that the above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
 
+## react-markdown and remark-gfm — MIT License
+
+https://github.com/remarkjs/react-markdown (10.1.0) and https://github.com/remarkjs/remark-gfm (4.0.1) are bundled into `client/client.js` and `renderer/renderer.js` to render the prose blocks of composed answers. Raw HTML is never rendered and links are restricted to http(s)/mailto.
+
+Copyright (c) 2015 Espen Hovlandsdal. Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+
 ## idiomorph — 0BSD License
 
 https://github.com/bigskysoftware/idiomorph (v0.7.4). Its minified build is embedded in `client/client.js` and injected into widget preview frames.

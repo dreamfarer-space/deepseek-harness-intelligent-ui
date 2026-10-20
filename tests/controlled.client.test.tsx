@@ -131,7 +131,7 @@ it('resolves the optional registry through real Cordis contexts without breaking
     if (withProvider) ctx.provide('intelligentUiControlled', { forSession: (id: string) => id === 's' ? runtime : undefined })
     const plugin = await ctx.plugin(client)
     try {
-      expect(entries).toHaveLength(4)
+      expect(entries).toHaveLength(5)
       expect(() => entries[0]!.inject('s')).not.toThrow()
       expect(entries[0]!.inject('s').controlled).toBe(withProvider ? runtime : undefined)
       expect(entries[0]!.inject('other').controlled).toBeUndefined()

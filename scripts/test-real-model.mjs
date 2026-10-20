@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { createRenderTool } from '../src/tools/render.js';
 import { createPatchTool } from '../src/tools/patch.js';
 import { createWidgetTool } from '../src/tools/widget.js';
+import { createComposeTool } from '../src/tools/compose.js';
 import { guidanceText } from '../src/guidance.js';
 import { resolveConfig } from '../src/config.js';
 import { validateTree } from '../src/catalog/catalog.js';
@@ -21,7 +22,7 @@ const config = resolveConfig({});
 
 // The same tools, descriptions and system guidance the plugin registers in DSH.
 const systemGuidance = guidanceText(config);
-export const pluginTools = [createRenderTool(config), createPatchTool(config), createWidgetTool(config)];
+export const pluginTools = [createRenderTool(config), createPatchTool(config), createWidgetTool(config), createComposeTool(config)];
 const SYSTEM = `You are a helpful AI assistant in DeepSeek Harness.\n\n${systemGuidance}`;
 
 const tools = pluginTools.map(tool => ({

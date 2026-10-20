@@ -9,8 +9,10 @@
 import { PATCH_TOOL } from '../src/tools/patch.js'
 import { RENDER_TOOL } from '../src/tools/render.js'
 import { WIDGET_TOOL } from '../src/tools/widget.js'
+import { COMPOSE_TOOL } from '../src/compose/constants.js'
 import { PatchView } from './catalog/PatchView.tsx'
 import { RenderView } from './catalog/RenderView.tsx'
+import { ComposeView } from './compose/ComposeView.tsx'
 import { en, NS, zh } from './locales.ts'
 import { STYLES } from './styles.ts'
 import { inlineView, TurnTail } from './TurnTail.tsx'
@@ -79,7 +81,10 @@ export function apply(ctx: ClientCtx): void {
     }
   }
 
-  for (const [key, view] of [[RENDER_TOOL, RenderView], [PATCH_TOOL, PatchView], [WIDGET_TOOL, WidgetView]] as const) {
+  // ui_compose is only registered by Hosts that have a UI capability; the slot
+  // key is harmless when the tool never appears in this session.
+  const views = [[RENDER_TOOL, RenderView], [PATCH_TOOL, PatchView], [WIDGET_TOOL, WidgetView], [COMPOSE_TOOL, ComposeView]] as const
+  for (const [key, view] of views) {
     ctx.slots.inject('tool.call.toolview', () => ctx.slots.register(
       { name: 'tool.call.toolview', key, locale: NS, inject: injected },
       inlineView(view),

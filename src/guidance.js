@@ -5,6 +5,8 @@
  * router) for DeepSeek models.
  * @module deepseek-harness-intelligent-ui/guidance
  */
+import { composeEnabled } from './compose/compose.js';
+import { COMPOSE_TOOL } from './compose/constants.js';
 import { RENDER_TOOL } from './tools/render.js';
 import { PATCH_TOOL } from './tools/patch.js';
 import { WIDGET_TOOL } from './tools/widget.js';
@@ -13,11 +15,12 @@ import { WIDGET_TOOL } from './tools/widget.js';
 export const GUIDANCE_ORDER = 3200;
 
 /**
- * @param {{ enableCatalog: boolean, enableWidget: boolean }} config
+ * @param {{ enableCatalog: boolean, enableWidget: boolean, enableCompose?: boolean }} config
  * @returns {string} empty when no UI tool is enabled.
  */
 export function guidanceText(config) {
   if (!config.enableCatalog && !config.enableWidget) return '';
+  const compose = composeEnabled(config);
   const lines = [
     '# Intelligent UI',
     'You can answer with interactive UI rendered directly in the chat. Choose the presentation yourself on every turn; never ask the user which format they want, and do not mention the tool names.',
@@ -28,6 +31,7 @@ export function guidanceText(config) {
     '- explanations, arguments and step-by-step reasoning that read best as prose and do not ask the user to choose a next direction;',
     '- code the user will copy, shell commands, and software-engineering work in the workspace (reading, editing, running code);',
     '- explicitly text-only requests, or simple lists and short answers without a meaningful decision point.',
+    '- an analysis followed only by a closing Choice: that is prose plus one final decision, so write it in the reply with the normal UI tool; do not wrap it in a composition.',
   ];
   if (config.enableCatalog) {
     lines.push('', `Use \`${RENDER_TOOL}\` (native components) as the primary choice for structured data and UI:`);
@@ -56,10 +60,19 @@ export function guidanceText(config) {
     lines.push(`- Re-send the complete UI with ${RENDER_TOOL} only for a new UI, when most of it changes, or when ${PATCH_TOOL} reports the UI is unavailable.`);
   }
   if (config.enableWidget) lines.push(`- To change a widget, call ${WIDGET_TOOL} again with the complete updated widget.`);
+  if (compose) {
+    lines.push('', `Use \`${COMPOSE_TOOL}\` when one answer needs real prose AND UI moments between its paragraphs, and ${RENDER_TOOL} cannot express the order:`);
+    lines.push('- Technical selection or a complex decision: full written analysis, a comparison chart where it belongs, then risks/costs and a compact Choice at the end.');
+    lines.push('- Teaching or an interactive walkthrough: explain, demonstrate, then interpret the result the user just observed.');
+    lines.push('- A report with several sections, each needing its own table or chart, or prose that must continue after a live widget.');
+    lines.push(`- Blocks are ordered: markdown prose, catalog UI (same components as ${RENDER_TOOL}),${config.enableWidget ? ' widget (same sandbox as ui_render_widget),' : ''} repeated as the answer needs. Write the analysis in markdown blocks, never twice: prose explains, components show and operate.`);
+    lines.push('- Keep one composition per answer. Do not put every UI at the end, and do not write a closing summary after it: the composition is the answer.');
+    lines.push(`- Use ${RENDER_TOOL} instead when the answer is mostly one UI (dashboard, single chart, form, Choice); use plain text when no UI helps. An analysis that ends with a single decision belongs in the normal reply with a compact Choice, not in ${COMPOSE_TOOL}.`);
+  }
   lines.push('', 'Quality:');
   lines.push('- One UI call per answer is usually enough. Real data only: never invent numbers to fill a chart; if data is missing, say so or ask.');
   lines.push('- Keep UI component trees clean and concise (e.g. 4-8 milestones for Timeline, 4-8 rows for Table). Keep text props succinct and avoid excessively long paragraphs inside components.');
-  lines.push('- Text around dashboards and visualizations: at most one or two sentences; do not restate the UI.');
+  lines.push('- Dashboard or visualization-led answers: at most one or two sentences around the UI; do not restate it. When the answer is an analysis, a lesson or a report, write it in full in the reply or in the composition\'s markdown blocks; never shorten the reasoning to fit a card.');
   if (config.enableCatalog) lines.push('- For decision support, give the requested trade-off analysis and recommendation first, then a compact Choice for the next step; do not omit reasoning just to fit a UI card.');
   lines.push('- If a UI tool returns ok=false, fix the listed problems and call it again.');
   return lines.join('\n');

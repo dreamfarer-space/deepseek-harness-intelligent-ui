@@ -4,7 +4,7 @@
 //   api      real DeepSeek model + the plugin's real tools, no browser (scripts/eval/api-stage.mjs)
 //   browser  real DeepSeek model inside real DSH Web + Chrome (scripts/eval/browser-stage.mjs)
 //
-// Usage: node scripts/run-real-model-suite.mjs [all|A|B|C|D] [--stage all|mock,api,browser]
+// Usage: node scripts/run-real-model-suite.mjs [all|A|B|C|D|E] [--stage all|mock,api,browser]
 //          [--only B3,D2,R-chart] [--repeat N] [--record] [--out dir] [--report file.json]
 //   A category letter selects API cases and implies --stage api (the old behaviour).
 //   --rescore re-judges the last API run from its saved transcripts (<out>/api) with the
@@ -33,7 +33,7 @@ const STAGES = ['mock', 'api', 'browser']
 const HISTORY = [{ file: 'docs/history/2026-10-10-real-model-eval-report.json', note: 'historical snapshot from the v2 evaluator (API only). Its 15/15 is not a pass rate: B3 had no Chart; other cases cannot be rescored because arguments were not kept.' }]
 
 function options() {
-  if (![...API_GROUPS, 'all'].includes(category)) throw new Error('Category must be A, B, C, D or all')
+  if (![...API_GROUPS, 'all'].includes(category)) throw new Error(`Category must be ${API_GROUPS.join(', ')} or all`)
   const stageArg = argv.includes('--rescore') ? 'api' : arg('--stage', category === 'all' ? 'all' : 'api')
   const stages = stageArg === 'all' ? STAGES : stageArg.split(',')
   if (!stages.length || stages.some(s => !STAGES.includes(s))) throw new Error(`--stage must be all or a comma list of ${STAGES.join(', ')}`)

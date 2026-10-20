@@ -49,6 +49,29 @@ describe('portable renderer without a DSH Web session', () => {
     expect(host.textContent).not.toContain('Hello') // stale v1 must be ignored
   })
 
+  it('renders a composition artifact in block order, with inert prose and sandboxed widgets', () => {
+    act(() => renderer.render({ kind: 'composition', uiId: 'comp-1', version: 1, title: 'Route', definition: { blocks: [
+      { id: 'intro', type: 'markdown', text: ['## Plan', '', '<script>window.__xss=1</script>', '', '[bad](javascript:alert(1))'].join(String.fromCharCode(10)) },
+      { id: 'chart', type: 'catalog', title: 'Chart', root: 'r', components: [{ id: 'r', type: 'Chart', props: { kind: 'bar', labels: ['Q1'], series: [{ name: 'S', values: [1] }] } }] },
+      { id: 'more', type: 'markdown', text: 'After the chart.' },
+      { id: 'sim', type: 'widget', title: 'Sim', css: '#x{}', html: '<div id="x">sim</div>', jsExpressions: ['1'] },
+    ] } }))
+    const parts = [...host.querySelectorAll('.diui-compose > *')]
+    expect(parts.map(p => p.className)).toEqual(['diui-md', 'diui-render', 'diui-md', 'diui-remote-widget'])
+    expect(parts[0]!.querySelector('h2')!.textContent).toBe('Plan')
+    expect(parts[0]!.querySelector('script')).toBeNull()
+    expect(parts[0]!.textContent).not.toContain('window.__xss=1')
+    // A javascript: link renders as plain text, never as a link.
+    expect(parts[0]!.querySelector('a')).toBeNull()
+    expect(parts[0]!.textContent).toContain('bad')
+    expect(parts[1]!.querySelector('.diui-chart-svg')).not.toBeNull()
+    expect(parts[3]!.querySelector('iframe')!.getAttribute('sandbox')).toBe('allow-scripts allow-forms')
+    expect((window as unknown as { __xss?: number }).__xss).toBeUndefined()
+    // Older artifacts keep rendering exactly as before.
+    act(() => renderer.render(tree('Hello')))
+    expect(host.textContent).toContain('Hello')
+  })
+
   it('safely fails invalid catalog definitions and updates the theme', () => {
     act(() => renderer.render({ kind: 'declarative', uiId: 'invalid', version: 1,
       definition: { root: 'no-node', components: [] } }))

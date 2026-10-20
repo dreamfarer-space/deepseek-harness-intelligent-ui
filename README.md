@@ -185,6 +185,7 @@ The plugin injects a system-prompt section (`src/guidance.js`) that makes the mo
 
 - **Plain text** for greetings, short facts, explanations, code to copy, and workspace/coding work.
 - **`ui_render`** for structured answers: comparisons, data, dashboards, processes, formulas, functions to explore, choices, input collection.
+- **`ui_compose`** when one answer must interleave prose and UI: ordered markdown paragraphs, native components and sandboxed widgets in a single reply.
 - **`ui_render_widget`** when the user wants to explore, manipulate or watch something the catalog cannot draw: 3D, simulations, animations, games, custom tools.
 - **Local first:** anything computable in the browser (sliders, rotation, zoom, filtering, sorting, recomputing) must update instantly without a message to the model.
 
@@ -195,6 +196,27 @@ The plugin injects a system-prompt section (`src/guidance.js`) that makes the mo
 | `ui_render` | Structured answers | Native React components from a fixed catalog, rendered progressively as the JSON streams |
 | `ui_patch` | Changing a UI shown earlier | Component-level operations on that UI; untouched components keep their state ([details](#-updating-a-ui-in-place-ui_patch)) |
 | `ui_render_widget` | Custom visuals, 3D, simulations, mini-apps | HTML/CSS/JS in an opaque-origin sandboxed iframe: CSS first, HTML morphed in live, JS last, all in **one** iframe |
+| `ui_compose` | Analysis, teaching and sectioned reports where prose and UI alternate | An ordered block list — markdown prose, native component blocks, sandboxed widget blocks — rendered in the model's order ([details](#-composed-answers-ui_compose)) |
+
+## 🧩 Composed answers (`ui_compose`)
+
+Some answers cannot fit in one card: a technology decision needs the full argument, a comparison chart in the middle, and next steps at the end; a lesson needs explain → demonstrate → interpret what the user just observed. `ui_compose` produces one **ordered composition** in a single call:
+
+```text
+recommendation and preconditions (markdown)
+→ comparison and analysis (markdown)
+→ interactive comparison chart (catalog block)
+→ risks, costs and advice (markdown)
+→ "next step" Choice (catalog block)
+```
+
+- **Block kinds:** `markdown` (prose with headings, lists, tables, quotes and code), `catalog` (exactly the `ui_render` component tree) and `widget` (exactly the `ui_render_widget` sandbox arguments). Every block has a stable `id`; a refused composition returns `ok:false` with the exact block path.
+- **No second component protocol:** catalog blocks reuse `ui_render`'s validation and renderer, widget blocks reuse the same sandbox, CSP, bridge and action confirmation. Raw HTML in prose is dropped, never executed; links keep only http(s)/mailto, and remote images degrade to plain links instead of loading third-party content.
+- **Patchable:** each catalog block's `uiId` is `<composition call id>#<block id>`, so `ui_patch` updates just that block in place. The tool result lists these uiIds.
+- **Streaming:** arguments arrive as `title`, then `blocks`; each block is rendered as soon as its object closes, so prose appears while the next block is still generating and a half-written block is never drawn.
+- **Display and copy:** a finished composition is shown as one answer beneath the reply, and the inline copy collapses to a one-line pointer. The card header offers "Copy text", which copies the markdown blocks in order and writes UI positions as `[UI: title]` / `[Widget: title]`; DSH's own copy button stays with the host.
+- **When to use it:** dashboards, a single chart, forms and a lone Choice stay in `ui_render`; plain answers stay plain; "analysis + one closing Choice" belongs in the reply itself. Only interleaving UI between paragraphs calls for `ui_compose`.
+- **Configuration:** `enableCompose` (default `true`) controls registration; disabling `enableCatalog` or `enableWidget` rejects that block kind, and with both off the tool is not registered at all.
 
 ## 🧩 Component catalog (`ui_render`)
 
@@ -229,6 +251,7 @@ When the user asks to change a UI shown earlier ("make that bar chart a line cha
 - **State:** components keep their ids across versions, and interaction state is keyed by `uiId` + component id. Every component a patch does not replace keeps its table sort, selected tab, form input, submitted lock and Plot slider positions. A `replaceNode`d component starts fresh; to reset any component, give it a new id. Form fields added by a patch start at their defaults.
 - **Display:** while a patch streams or runs, its card is a one-line "Updating the UI…" status and the previous version stays live, so a half-applied patch is never drawn. On success the next version renders beneath the new reply and the older copy collapses to "Updated to version N". A refused, failed or stopped patch leaves the previous version untouched. The full snapshot travels in the durable result meta, so a reload shows the latest version.
 - **Widgets** (`ui_render_widget`) are not patched: the agent re-renders them, and they keep their `UI.state` when it does.
+- **Catalog blocks of a composition** are patched the same way, addressed as `<composition call id>#<block id>`; only that block changes, the prose and the other blocks stay.
 
 ## 🪟 Sandboxed widgets (`ui_render_widget`)
 
@@ -287,6 +310,7 @@ The bundle patch inserts the plugin row automatically. To change settings, add t
 |---|---|---|
 | `enableCatalog` | `true` | Register `ui_render` and `ui_patch` |
 | `enableWidget` | `true` | Register `ui_render_widget` |
+| `enableCompose` | `true` | Register `ui_compose` (composed answers; only when a UI capability is on) |
 | `injectGuidance` | `true` | Add the "when to use UI" system-prompt section |
 | `cdnAllowlist` | esm.sh, jsdelivr, unpkg | Origins widgets (and Math/Mermaid) may load resources from |
 | `allowNetwork` | `false` | Let widgets `fetch` and use WebSocket to those origins |

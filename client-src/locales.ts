@@ -106,6 +106,16 @@ export const zh = {
   'patch.superseded': '已更新为第 {version} 版，见后续回复',
   'patch.version': '第 {version} 版',
   'prompt.regeneratePatch': '对界面「{title}」的更新被中断了，请重新执行这次更新。',
+  'compose.title': '图文回答',
+  'compose.generating': '正在生成图文回答…',
+  'compose.blocks': '{count} 个内容块',
+  'compose.invalid': '图文回答未通过校验，模型会修正后重试',
+  'compose.failed': '图文回答调用失败',
+  'compose.malformed': '无法解析图文回答参数',
+  'compose.stopped': '生成已中断，以下为已完成的部分',
+  'compose.copy': '复制正文',
+  'compose.copied': '已复制',
+  'prompt.regenerateCompose': '图文回答「{title}」的生成被中断了，请重新生成完整的图文回答。',
 } satisfies Record<string, string>
 
 export type IntelligentUiKey = keyof typeof zh
@@ -214,4 +224,14 @@ export const en = {
   'patch.superseded': 'Updated to version {version}, shown further down',
   'patch.version': 'Version {version}',
   'prompt.regeneratePatch': 'Updating the UI "{title}" was interrupted. Please apply the update again.',
+  'compose.title': 'Answer',
+  'compose.generating': 'Composing the answer…',
+  'compose.blocks': '{count} blocks',
+  'compose.invalid': 'The composed answer failed validation; the model will fix it and retry',
+  'compose.failed': 'The composed answer failed',
+  'compose.malformed': 'Could not parse the composed answer',
+  'compose.stopped': 'Generation stopped — showing the finished part',
+  'compose.copy': 'Copy text',
+  'compose.copied': 'Copied',
+  'prompt.regenerateCompose': 'Generating the composed answer "{title}" was interrupted. Please generate the complete answer again.',
 } satisfies Record<IntelligentUiKey, string>

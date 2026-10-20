@@ -12,6 +12,7 @@
  * across restarts and confines patches to UIs of the same conversation.
  * @module deepseek-harness-intelligent-ui/catalog/patch
  */
+import { composeUiId, validateComposition } from '../compose/compose.js';
 import { CATALOG, LIMITS, validateTree } from './catalog.js';
 
 export const PATCH_OPS = Object.freeze(['setProps', 'replaceNode', 'insertChild', 'removeNode']);
@@ -243,17 +244,20 @@ export function applyPatch(ui, args) {
  * each settled `ui_patch` call in result order. Patches are deterministic, so
  * replaying them reproduces exactly the versions the user saw. Calls without a
  * result yet (including the one being executed) are ignored.
+ * Catalog blocks of `ui_compose` calls (`tools.compose`) join the same map under
+ * their derived `block:<id>` identity, so one patch protocol addresses both.
  * @param {readonly any[]} messages - `Session.deriveMessages()`.
- * @param {{ render: string, patch: string }} tools - tool names.
+ * @param {{ render: string, patch: string, compose?: string, config?: any }} tools - tool names.
  * @returns {Map<string, UiSnapshot>}
  */
 export function collectUis(messages, tools) {
   const calls = new Map();
   const uis = new Map();
+  const relevant = name => name === tools.render || name === tools.patch || (tools.compose !== undefined && name === tools.compose);
   for (const m of messages) {
     if (m?.role === 'assistant' && Array.isArray(m.content)) {
       for (const b of m.content) {
-        if (b?.type === 'tool-call' && (b.name === tools.render || b.name === tools.patch)) calls.set(b.id, b);
+        if (b?.type === 'tool-call' && relevant(b.name)) calls.set(b.id, b);
       }
       continue;
     }
@@ -263,6 +267,18 @@ export function collectUis(messages, tools) {
     calls.delete(m.toolCallId);
     let args;
     try { args = typeof call.arguments === 'string' ? JSON.parse(call.arguments) : call.arguments; } catch { continue; }
+    if (tools.compose !== undefined && call.name === tools.compose) {
+      // Revalidate the composition before trusting any of its blocks.
+      const composed = validateComposition(clone(args ?? null), tools.config ?? {});
+      if (composed.ok) {
+        for (const block of composed.blocks) {
+          if (block.type !== 'catalog') continue;
+          const uiId = composeUiId(call.id, block.id);
+          uis.set(uiId, snapshotOf(uiId, { title: block.title, root: block.root, components: block.components }));
+        }
+      }
+      continue;
+    }
     if (call.name === tools.render) {
       if (validateTree(clone(args ?? null)).ok) uis.set(call.id, snapshotOf(call.id, args));
       continue;
