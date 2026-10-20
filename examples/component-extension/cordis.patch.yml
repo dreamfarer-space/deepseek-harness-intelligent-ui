@@ -1,0 +1,3 @@
+- insert:
+    - id: example-git-components
+      name: '@example/intelligent-ui-git'

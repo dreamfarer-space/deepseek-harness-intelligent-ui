@@ -19,6 +19,10 @@ Generative, interactive UI for [DeepSeek Harness](https://github.com/deepseek-ai
 
 It ports the ideas of CopilotKit's [OpenIntelligentUI](https://github.com/CopilotKit/OpenIntelligentUI) (Open Generative UI + A2UI-style declarative components) onto DSH's own extension points. It needs no CopilotKit, LangGraph, or external router.
 
+### Third-party declarative components
+
+Trusted companion plugins can register versioned, namespaced components with shared Host/browser props validation, local React renderers and lifecycle controls. See the [extension API and runnable GitDiffViewer template](docs/component-extensions.md). Run `node examples/component-extension/serve.mjs` after building to try it.
+
 ## ✨ Highlights
 
 <table>

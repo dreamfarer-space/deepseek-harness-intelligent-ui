@@ -6,9 +6,11 @@ const files = new Set(report.files.map(f => f.path.replace(/\\/g, '/')))
 
 const required = [
   'package.json', 'README.md', 'README.zh-CN.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'CHANGELOG.md',
+  'src/catalog/extensions.js', 'src/catalog/extensions.d.ts', 'src/catalog/browser.d.ts', 'client/client.d.ts',
+  'examples/component-extension/manifest.js', 'examples/component-extension/serve.mjs', 'docs/component-extensions.md',
   'cordis.patch.yml', 'bin/cli.mjs', 'src/plugin.js', 'src/compat.js', 'client/client.js', 'renderer/renderer.js', 'locale/en.json', 'locale/zh.json',
 ]
-const forbidden = [/^client-src\//, /^tests\//, /^scripts\//, /^docs\//, /^node_modules\//, /\.tgz$/, /\.log$/, /^e2e-shots\//]
+const forbidden = [/^client-src\//, /^tests\//, /^scripts\//, /^docs\/(?!component-extensions\.md$)/, /^node_modules\//, /\.tgz$/, /\.log$/, /^e2e-shots\//]
 
 const missing = required.filter(f => !files.has(f))
 const unwanted = [...files].filter(f => forbidden.some(re => re.test(f)))
