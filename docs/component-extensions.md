@@ -29,7 +29,7 @@ Copy `examples/component-extension` to a directory outside the core checkout, re
 ```sh
 # In the copied template folder:
 cp package.template.json package.json
-npm install /absolute/path/to/deepseek-harness-intelligent-ui-0.2.6.tgz
+npm install /absolute/path/to/deepseek-harness-intelligent-ui-0.3.0.tgz
 npm run build
 # In DSH, with the same core tarball already installed:
 dsh plugin add /absolute/path/to/copied-template
