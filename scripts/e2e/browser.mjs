@@ -13,6 +13,7 @@ import { findChrome } from './dsh-web.mjs'
 
 const [url, outDir, mockLog] = process.argv.slice(2)
 const RECORD = process.argv.includes('--record')
+const SESSION_ONLY = process.env.E2E_SESSION_ONLY === '1'
 if (!url || !outDir || !mockLog) {
   console.error('usage: node scripts/e2e/browser.mjs <url> <out-dir> <mock-log> [--record]')
   process.exit(2)
@@ -154,6 +155,26 @@ async function scrollIntoView(selectorOrHandle) {
   await sleep(300)
 }
 
+async function checkNewSession() {
+  await send('E2E show session launcher')
+  await waitIdle()
+  const launcher = await waitFor(async () => (await page.evaluateHandle(() =>
+    [...document.querySelectorAll('.diui-tail .diui-button')].find(button =>
+      button.textContent === 'Start independent Agent' && !button.disabled))).asElement(), 15000)
+  if (launcher) {
+    await launcher.evaluate(button => { button.click(); button.click() })
+    const navigated = await waitFor(() => page.evaluate(() =>
+      document.body.innerText.includes('Independent Agent started automatically.') &&
+      !document.body.innerText.includes('Start independent Agent')), 20000)
+    const tasks = mock().filter(e => e.sessionTask)
+    check('12. native Button starts one independent Agent and navigates without copied history',
+      navigated && tasks.length === 1 && tasks[0].userMessageCount === 1, JSON.stringify(tasks))
+  } else {
+    check('12. native Button starts one independent Agent and navigates without copied history', false, 'launcher unavailable')
+  }
+  await shot('15-new-session.png')
+}
+
 // ================================================================================
 try {
 await page.goto(url, { waitUntil: 'networkidle2' })
@@ -173,6 +194,7 @@ for (let i = 0; i < 40; i++) {
 if (RECORD) await startRecording()
 await shot('0-home.png')
 
+if (!SESSION_ONLY) {
 // 1) Plain question → plain text, no UI.
 await caption('1 · A plain question gets a plain answer — no UI')
 const before = (await shells()).length
@@ -512,6 +534,9 @@ const dashAfterReload = await dashboards()
 check('11f. reload rebuilds the latest patched version only', dashAfterReload.live === 1 && /Version 2|第 2 版/.test(dashAfterReload.status) && dashAfterReload.tab === 'Forecast', JSON.stringify(dashAfterReload))
 await scrollIntoView(sphere.handle)
 await shot('14-reload.png')
+}
+// A native Button creates a fresh conversation and starts it without using the composer again.
+await checkNewSession()
 await caption('All checks done')
 await sleep(1200)
 

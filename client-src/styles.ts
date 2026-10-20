@@ -135,6 +135,18 @@ export const STYLES = `
 .diui-action{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
 .diui-note{font-size:12px;color:var(--ui-muted)}
 .diui-form{display:flex;flex-direction:column;gap:10px}
+.diui-choice{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:10px}
+.diui-choice-question{padding:0;font-weight:600;font-size:15px;margin-bottom:2px}
+.diui-choice-options{display:flex;flex-direction:column;gap:6px}
+.diui-choice-option{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--ui-border);border-radius:var(--ui-radius);cursor:pointer;transition:border-color .15s,background .15s}
+.diui-choice-option:hover{border-color:var(--ui-accent)}
+.diui-choice-option[data-selected]{border-color:var(--ui-accent);background:color-mix(in srgb,var(--ui-accent) 8%,var(--ui-bg))}
+.diui-choice:disabled .diui-choice-option{cursor:default}
+.diui-choice:disabled .diui-choice-option:not([data-selected]){opacity:.55}
+.diui-choice-option input{margin:3px 0 0;accent-color:var(--ui-accent);flex:none}
+.diui-choice-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.diui-choice-desc{font-size:12px;color:var(--ui-muted)}
+.diui-choice-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .diui-form-title{margin:0;font-size:15px}
 .diui-field{display:flex;flex-direction:column;gap:4px;font-size:13px}
 .diui-field[data-type=checkbox]{flex-direction:row-reverse;justify-content:flex-end;align-items:center;gap:8px}

@@ -3,6 +3,14 @@
 // one by keyword. They exercise every rendering path end to end, but they are
 // NOT evidence of how a real model routes requests.
 
+export const SESSION_LAUNCH = {
+  title: 'Independent Agent task',
+  root: 'launch',
+  components: [{ id: 'launch', type: 'Button', props: {
+    label: 'Start independent Agent', prompt: 'E2E independent Agent task', sessionTarget: 'new',
+  } }],
+}
+
 export const DASHBOARD = {
   title: 'Quarterly sales (sample data)',
   root: 'card',
