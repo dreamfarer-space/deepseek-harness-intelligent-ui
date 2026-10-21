@@ -20,7 +20,7 @@ const ok = (turn, name) => turn.calls.filter(c => c.ok && c.name === name).map(c
 export function shown(turn) {
   const compositions = ok(turn, COMPOSE)
   const trees = [...ok(turn, RENDER), ...compositions.flatMap(composedTrees)]
-  const widgets = [...ok(turn, WIDGET), ...compositions.flatMap(c => c.blocks.filter(b => b?.type === 'widget'))]
+  const widgets = [...ok(turn, WIDGET), ...compositions.flatMap(c => (c.blocks ?? []).filter(b => b?.type === 'widget'))]
   return {
     nodes: trees.flatMap(tree => renderedNodes(tree)),
     widgets,
@@ -150,13 +150,13 @@ export const ROUTING_SCENARIOS = [
       const before = touched(convo, t1).at(-1)
       const nodes = before ? renderedNodes(before) : []
       const table = nodes.find(n => n.type === 'Table')
-      const checks = scoreTurn(t1, RENDER, [['bar chart and table rendered', nodes.some(n => n.type === 'Chart' && n.props.kind === 'bar') && !!table]])
+      const checks = scoreTurn(t1, RENDER, [['bar chart and table rendered', nodes.some(n => n.type === 'Chart' && n.props?.kind === 'bar') && !!table]])
       if (!before || !table) return { turns: [t1], checks }
       const t2 = await convo.turn('只把柱状图改成折线图，表格和它的筛选保持不变。')
       const after = touched(convo, t2).find(ui => ui.uiId === before.uiId)
-      const kept = after && renderedNodes(after).find(n => n.id === table.id)
+      const kept = after && renderedNodes(after).find(n => n.type === 'Table' && n.id === table.id)
       checks.push(...scoreTurn(t2, PATCH, [
-        ['the chart is now a line chart', !!after && renderedNodes(after).some(n => n.type === 'Chart' && n.props.kind === 'line')],
+        ['the chart is now a line chart', !!after && renderedNodes(after).some(n => n.type === 'Chart' && n.props?.kind === 'line')],
         ['the table is untouched (same id and props, so its filter state survives)', !!kept && JSON.stringify(kept.props) === JSON.stringify(table.props)],
         ['patched the same UI in place', !!after && after.version > before.version],
       ]).map(([n, ...r]) => [`edit · ${n}`, ...r]))
