@@ -12,6 +12,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- [docs/presentation-routing.md](docs/presentation-routing.md) records the presentation-routing study for [#58](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/58): rule overlaps, four comparable projects, and a real-model A/B (DeepSeek V4.1 Flash, 3 runs × 39 cases) in which a rewritten decision-order guidance did not route better than the current one (114/117 vs. 111/117 routed correctly), so the current guidance is kept.
 - Real-model evaluation group F: paired presentation-routing cases for [#58](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/58). Each pair keeps the topic and changes only the task, so a prompt cannot score well by always or never drawing UI; the whole answer is judged (explanation, code, interaction, the user's own data), not just the tool name. Categories `no-ui`, `needs-ui` and `update` report the unnecessary-UI rate, the missed-UI rate and follow-up edits separately. API cases also record prompt and completion tokens.
 
 ## [0.2.8]

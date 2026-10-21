@@ -171,6 +171,8 @@ The plugin injects a system-prompt section ([`src/guidance.js`](src/guidance.js)
 - **`ui_render_widget`** for what the catalog cannot draw: 3D, simulations, animations, games, custom tools.
 - **Local first:** anything computable in the browser must update instantly without a message to the model.
 
+Why these rules were kept after a real-model A/B against a rewritten decision order, and how routing is measured: [docs/presentation-routing.md](docs/presentation-routing.md).
+
 `/ui <request>` forces a UI answer.
 
 | Tool | Use it for | Rendering |

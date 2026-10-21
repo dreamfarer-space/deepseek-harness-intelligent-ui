@@ -171,6 +171,8 @@ npx deepseek-harness-intelligent-ui doctor      # 只诊断，不做修改
 - **`ui_render_widget`**：组件目录画不出的东西，例如三维、模拟、动画、游戏、自定义工具。
 - **本地优先**：凡是能在浏览器里算出来的，都必须即时更新，不调用模型。
 
+这些规则为什么在与重写版决策顺序做真实模型 A/B 后被保留，以及路由如何评测，见 [docs/presentation-routing.md](docs/presentation-routing.md)。
+
 `/ui <需求>` 可强制以 UI 作答。
 
 | 工具 | 适用场景 | 渲染方式 |
