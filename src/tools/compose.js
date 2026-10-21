@@ -63,7 +63,7 @@ export function createComposeTool(config) {
               type: { type: 'string', enum: [...BLOCK_TYPES] },
               text: { type: 'string', description: 'markdown: the prose for this position.' },
               title: { type: 'string', description: 'catalog/widget: short title shown above the UI.' },
-              root: { type: 'string', description: 'catalog: id of the top-level component.' },
+              root: { type: 'string', description: 'catalog: REQUIRED id of the top-level component. Always send it, before components.' },
               components: {
                 type: 'array',
                 description: 'catalog: flat component list, parents before children (same shape as ui_render).',

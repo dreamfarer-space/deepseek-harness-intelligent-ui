@@ -48,6 +48,13 @@ describe('validateTree', () => {
     expect(validateTree(tree([{ id: 'x', type: 'Divider' }], 'root')).errors.join()).toMatch(/root: unknown id/)
   })
 
+  it('tells the model how to fix an omitted root field', () => {
+    const missing = validateTree({ components: [{ id: 'root', type: 'Text', props: { text: 'hi' } }] })
+    expect(missing.ok).toBe(false)
+    expect(missing.errors[0]).toMatch(/^root: missing. Add the top-level field "root" next to "components"/)
+    expect(validateTree({ root: 5, components: [{ id: 'r', type: 'Text', props: { text: 'hi' } }] }).errors[0]).toBe('root: expected the id of the top-level component')
+  })
+
   it('rejects children on leaf components and warns about orphans', () => {
     const r = validateTree(tree([
       { id: 'root', type: 'Text', props: { text: 'hi' }, children: ['x'] },
