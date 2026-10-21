@@ -22,6 +22,9 @@ defaults:
   run:
     shell: bash
 
+# macOS runners are scarce: pull requests and pushes to main run macOS on Node 24 and
+# DSH `latest` only. Nightly, manual and release runs (called with a tag ref) run every cell.
+
 jobs:
   test:
     name: test · ${{ matrix.os }} · node ${{ matrix.node }}
@@ -31,6 +34,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         node: ['22.13.0', '24']
+        exclude: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')) && '[]' || '[{"os":"macos-latest","node":"22.13.0"}]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
@@ -60,6 +64,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         # Keep in sync with TESTED_DSH_VERSIONS in src/compat.js (dist-tags resolve at run time).
         dsh: ['0.1.7-rc.2', '0.2.0-rc.1', 'latest', 'next', 'alpha']
+        exclude: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')) && '[]' || '[{"os":"macos-latest","dsh":"0.1.7-rc.2"},{"os":"macos-latest","dsh":"0.2.0-rc.1"},{"os":"macos-latest","dsh":"next"},{"os":"macos-latest","dsh":"alpha"}]') }}
     env:
       CI: 'true'
     steps:

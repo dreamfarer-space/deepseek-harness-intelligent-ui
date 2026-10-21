@@ -24,6 +24,8 @@ Every push and pull request, and a nightly run (`.github/workflows/ci.yml`), cov
 
   `latest`, `next` and `alpha` resolve at run time, so the nightly run catches new DSH releases. `next` and `alpha` cells are allowed to fail; they are an early warning, not a gate.
 
+  macOS runners are scarce, so pull requests and pushes to `main` run macOS only on Node 24 and DSH `latest`. The nightly run, manual runs and the Release workflow run every cell.
+
 Each release also installs the **published** package from npm on all three OSes (`.github/workflows/release.yml`).
 
 ### Local verification on Windows (2026-10-10, plugin 0.2.0 tarball)
