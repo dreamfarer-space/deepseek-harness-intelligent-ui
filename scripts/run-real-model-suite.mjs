@@ -4,7 +4,7 @@
 //   api      real DeepSeek model + the plugin's real tools, no browser (scripts/eval/api-stage.mjs)
 //   browser  real DeepSeek model inside real DSH Web + Chrome (scripts/eval/browser-stage.mjs)
 //
-// Usage: node scripts/run-real-model-suite.mjs [all|A|B|C|D|E] [--stage all|mock,api,browser]
+// Usage: node scripts/run-real-model-suite.mjs [all|A|B|C|D|E|F] [--stage all|mock,api,browser]
 //          [--only B3,D2,R-chart] [--repeat N] [--record] [--out dir] [--report file.json]
 //   A category letter selects API cases and implies --stage api (the old behaviour).
 //   --rescore re-judges the last API run from its saved transcripts (<out>/api) with the
@@ -51,7 +51,7 @@ function options() {
 
 /** p50/p95 of each stage's timing metrics. */
 function stageTiming(stage, cases) {
-  if (stage === 'api') return { apiCallMs: timing(cases.flatMap(c => c.timing?.apiCallsMs ?? [])), caseMs: timing(cases.map(c => c.timing?.caseMs)) }
+  if (stage === 'api') return { apiCallMs: timing(cases.flatMap(c => c.timing?.apiCallsMs ?? [])), caseMs: timing(cases.map(c => c.timing?.caseMs)), caseTokens: timing(cases.map(c => (c.tokens ? c.tokens.prompt + c.tokens.completion : undefined))) }
   return {
     firstPreviewMs: timing(cases.map(c => c.timing?.firstPreviewMs)),
     generationMs: timing(cases.map(c => c.timing?.generationMs)),

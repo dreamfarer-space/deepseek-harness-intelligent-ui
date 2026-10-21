@@ -102,7 +102,7 @@ export function toMarkdown(report) {
     if (!l || l.skipped) continue
     lines.push(`## ${title}`, '')
     const t = l.timing ?? {}
-    if (key === 'api') lines.push(`API time per model call: p50 ${ms(t.apiCallMs?.p50)} · p95 ${ms(t.apiCallMs?.p95)} · per case p50 ${ms(t.caseMs?.p50)} · p95 ${ms(t.caseMs?.p95)} (n=${t.caseMs?.n})`, '')
+    if (key === 'api') lines.push(`API time per model call: p50 ${ms(t.apiCallMs?.p50)} · p95 ${ms(t.apiCallMs?.p95)} · per case p50 ${ms(t.caseMs?.p50)} · p95 ${ms(t.caseMs?.p95)} (n=${t.caseMs?.n})${t.caseTokens?.n ? ` · tokens per case p50 ${t.caseTokens.p50} · p95 ${t.caseTokens.p95}` : ''}`, '')
     else lines.push(`First visible preview: p50 ${ms(t.firstPreviewMs?.p50)} · p95 ${ms(t.firstPreviewMs?.p95)} · complete generation: p50 ${ms(t.generationMs?.p50)} · p95 ${ms(t.generationMs?.p95)} · browser execution after the stream: p50 ${ms(t.browserExecMs?.p50)} · p95 ${ms(t.browserExecMs?.p95)}`, '')
     lines.push('| Category | Passed | Rate |', '| --- | --- | --- |')
     for (const [cat, s] of Object.entries(l.summary.byCategory)) lines.push(`| ${cat} | ${s.passed}/${s.total} | ${pct(s.successRate)} |`)

@@ -33,9 +33,16 @@ const tools = pluginTools.map(tool => ({
 /** Short hash of everything the model is shown besides the user turn: any change makes runs incomparable. */
 export const PROMPT_VERSION = createHash('sha256').update(JSON.stringify({ SYSTEM, tools })).digest('hex').slice(0, 12);
 
+/** Token counts of one completion, when the API reports them. */
+function usageOf(usage) {
+  const prompt = Number(usage?.prompt_tokens);
+  const completion = Number(usage?.completion_tokens);
+  return Number.isFinite(prompt) && Number.isFinite(completion) ? { prompt, completion } : null;
+}
+
 /**
- * One chat completion with timing and model identity.
- * @returns {Promise<{ message: any, model: string, fingerprint: string | null, ms: number }>}
+ * One chat completion with timing, model identity and token usage.
+ * @returns {Promise<{ message: any, model: string, fingerprint: string | null, ms: number, usage: { prompt: number, completion: number } | null }>}
  */
 export function callChatDetailed(messages, useTools = true) {
   const apiKey = getApiKey();
@@ -67,7 +74,7 @@ export function callChatDetailed(messages, useTools = true) {
           const json = JSON.parse(body);
           const message = json.choices?.[0]?.message;
           if (!message || message.role !== 'assistant') throw new Error('DeepSeek API returned no assistant message');
-          resolve({ message, model: json.model || MODEL, fingerprint: json.system_fingerprint ?? null, ms: Math.round(performance.now() - started) });
+          resolve({ message, model: json.model || MODEL, fingerprint: json.system_fingerprint ?? null, ms: Math.round(performance.now() - started), usage: usageOf(json.usage) });
         } catch (e) {
           reject(e);
         }

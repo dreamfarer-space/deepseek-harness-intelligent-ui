@@ -316,11 +316,12 @@ npm run eval:real -- --record && npm run eval:demo  # 录制并剪辑演示视�
 
 | 选项 | 作用 |
 | --- | --- |
-| `--stage mock,api,browser` | 只运行部分层（默认 `all`）；`A`/`B`/`C`/`D` 选择 API 类别 |
+| `--stage mock,api,browser` | 只运行部分层（默认 `all`）；`A`–`F` 选择 API 类别（`F`：成对的呈现方式决策用例，[#58](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/58)） |
 | `--only B3,R-chart` | 只运行这些用例 |
 | `--keep-other-layers` | 保留本次没有运行的层或用例，各自保留原来的日期 |
 | `--append` | 配合 `--only`：把重跑结果作为额外样本加入，绝不用一次侥幸成功覆盖失败 |
 | `--rescore` | 用当前断言、基于已保存的对话记录重新判定上一次 API 运行，不调用模型 |
+| `--report <file.json>` | 把报告写到其他文件，例如每个提示词版本一份，用来对比基线与候选提示词 |
 | `DEEPSEEK_EVAL_MODEL` | 模型 id（默认 `deepseek-flash`） |
 
 GitHub 上的 **Real-model eval** 工作流可按需手动触发，使用仓库密钥 `DEEPSEEK_API_KEY` 运行同一条命令；用 `deepseek-flash` 完整跑一遍约花费 ¥1.5。

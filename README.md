@@ -316,11 +316,12 @@ npm run eval:real -- --record && npm run eval:demo  # record and cut the demo vi
 
 | Option | Effect |
 | --- | --- |
-| `--stage mock,api,browser` | Run only some layers (`all` by default); `A`/`B`/`C`/`D` selects API categories |
+| `--stage mock,api,browser` | Run only some layers (`all` by default); `A`–`F` selects API categories (`F`: paired presentation-routing cases, [#58](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/58)) |
 | `--only B3,R-chart` | Run only these cases |
 | `--keep-other-layers` | Keep the layers or cases this run did not execute, each with its own date |
 | `--append` | With `--only`: add the rerun as extra samples; a failure is never replaced by a lucky retry |
 | `--rescore` | Re-judge the last API run from its saved transcripts with the current assertions, no model calls |
+| `--report <file.json>` | Write the report elsewhere, e.g. one file per prompt version to compare a baseline with a candidate |
 | `DEEPSEEK_EVAL_MODEL` | Model id (default `deepseek-flash`) |
 
 The **Real-model eval** workflow runs the same command on demand with the `DEEPSEEK_API_KEY` secret; a full run costs about ¥1.5 with `deepseek-flash`.

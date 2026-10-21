@@ -6,35 +6,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { outline } from '../../src/catalog/patch.js'
 import { Conversation } from './conversation.mjs'
+import { ROUTING_SCENARIOS } from './routing.mjs'
+import { COMPOSE, lastWidget, PATCH, RENDER, scoreTurn, touched, WIDGET } from './scoring.mjs'
 import { chartsOf, checkChartEdits, checkUpdatedTable, composeChecks, composedProse, composedTrees, compositionInterleaves, fillForecastForm, incorporatesSubmission, nativeChecks, renderedNodes, widgetChecks } from './assertions.mjs'
-
-const RENDER = 'ui_render'
-const WIDGET = 'ui_render_widget'
-const PATCH = 'ui_patch'
-const COMPOSE = 'ui_compose'
-
-/** UIs whose current version changed during `turn` (rendered or patched). */
-function touched(convo, turn) {
-  const ids = new Set(turn.calls.filter(c => c.ok && (c.name === RENDER || c.name === PATCH)).map(c => (c.name === RENDER ? c.id : c.args.uiId)))
-  return [...convo.uis().values()].filter(ui => ids.has(ui.uiId))
-}
-
-const lastWidget = turn => turn.calls.filter(c => c.ok && c.name === WIDGET).at(-1)?.args
-
-/** Score one turn: tool choice, first-attempt schema validity, then the case's own checks. */
-function scoreTurn(turn, expect, checks) {
-  const uiCalls = turn.calls.filter(c => c.name.startsWith('ui_'))
-  const accepted = [].concat(expect)
-  const okTools = uiCalls.filter(c => c.ok).map(c => c.name)
-  const toolOk = accepted.includes('none') ? uiCalls.length === 0 : okTools.some(n => accepted.includes(n))
-  const first = uiCalls[0]
-  return [
-    [`tool: ${accepted.join(' or ')}`, toolOk, uiCalls.map(c => `${c.name}${c.ok ? '' : ' (refused)'}`).join(' → ') || 'no tool'],
-    ...(first ? [['arguments valid on the first attempt', first.ok, first.ok ? '' : first.errors.slice(0, 3).join('; ')]] : []),
-    ...(turn.exhausted ? [['turn finished within the step limit', false, 'model kept calling tools']] : []),
-    ...checks,
-  ]
-}
 
 export const API_SCENARIOS = [
   ...[
@@ -182,9 +156,10 @@ export const API_SCENARIOS = [
       return { turns: [t1, t2, t3], checks }
     },
   },
+  ...ROUTING_SCENARIOS,
 ]
 
-export const API_GROUPS = ['A', 'B', 'C', 'D', 'E']
+export const API_GROUPS = ['A', 'B', 'C', 'D', 'E', 'F']
 
 /**
  * A chat that answers with the assistant messages of a saved transcript, in
@@ -223,7 +198,7 @@ export async function runApiStage({ chat, tools, groups = API_GROUPS, ids, repea
       if (replay && !replay.has(key)) continue
       const metas = []
       const source = replay ? replayChat(path.join(transcripts, `${key}.json`), replay.get(key)) : chat
-      const convo = new Conversation(async messages => { const r = await source(messages); metas.push({ ms: r.ms, model: r.model, fingerprint: r.fingerprint }); return r }, tools)
+      const convo = new Conversation(async messages => { const r = await source(messages); metas.push({ ms: r.ms, model: r.model, fingerprint: r.fingerprint, usage: r.usage ?? null }); return r }, tools)
       const record = { id: scenario.id, run, category: scenario.category, title: scenario.title, prompt: scenario.prompt }
       try {
         const { turns, checks } = await scenario.run(convo)
@@ -232,6 +207,7 @@ export async function runApiStage({ chat, tools, groups = API_GROUPS, ids, repea
         const calls = turns.flatMap(t => t.calls)
         const ui = calls.filter(c => c.name.startsWith('ui_'))
         const apiMs = turns.flatMap(t => t.api.map(a => a.ms))
+        const usage = turns.flatMap(t => t.api.map(a => a.usage)).filter(Boolean)
         Object.assign(record, {
           passed: failed.length === 0,
           reason: failed.length ? failed.map(c => c.name + (c.detail ? ` (${c.detail})` : '')).join('; ') : null,
@@ -242,6 +218,7 @@ export async function runApiStage({ chat, tools, groups = API_GROUPS, ids, repea
           fingerprint: [...new Set(turns.flatMap(t => t.api.map(a => a.fingerprint)).filter(Boolean))],
           turns: turns.length,
           modelCalls: apiMs.length,
+          ...(usage.length ? { tokens: { prompt: usage.reduce((n, u) => n + u.prompt, 0), completion: usage.reduce((n, u) => n + u.completion, 0) } } : {}),
           timing: { apiMs: apiMs.reduce((a, b) => a + b, 0), apiCallsMs: apiMs, caseMs: replay ? replay.get(key).timing.caseMs : Math.round(performance.now() - started) },
           uis: [...convo.uis().values()].map(ui => ({ title: ui.title, version: ui.version, components: outline(ui, 30) })),
           widgets: calls.filter(c => c.ok && c.name === WIDGET).map(c => ({ title: c.args.title, htmlChars: c.args.html.length, jsChars: (c.args.jsFunctions || '').length + (c.args.jsExpressions || []).join('').length })),
