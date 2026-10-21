@@ -316,11 +316,12 @@ npm run eval:real -- --record && npm run eval:demo  # 录制并剪辑演示视�
 
 | 选项 | 作用 |
 | --- | --- |
-| `--stage mock,api,browser` | 只运行部分层（默认 `all`）；`A`/`B`/`C`/`D` 选择 API 类别 |
+| `--stage mock,api,browser` | 只运行部分层（默认 `all`）；`A`–`F` 选择 API 类别（`F`：成对的呈现方式决策用例，[#58](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/58)） |
 | `--only B3,R-chart` | 只运行这些用例 |
 | `--keep-other-layers` | 保留本次没有运行的层或用例，各自保留原来的日期 |
 | `--append` | 配合 `--only`：把重跑结果作为额外样本加入，绝不用一次侥幸成功覆盖失败 |
 | `--rescore` | 用当前断言、基于已保存的对话记录重新判定上一次 API 运行，不调用模型 |
+| `--report <file.json>` | 把报告写到其他文件，例如每个提示词版本一份，用来对比基线与候选提示词 |
 | `DEEPSEEK_EVAL_MODEL` | 模型 id（默认 `deepseek-flash`） |
 
 GitHub 上的 **Real-model eval** 工作流可按需手动触发，使用仓库密钥 `DEEPSEEK_API_KEY` 运行同一条命令；用 `deepseek-flash` 完整跑一遍约花费 ¥1.5。
@@ -339,6 +340,7 @@ GitHub 上的 **Real-model eval** 工作流可按需手动触发，使用仓库�
 - **数学 Plot（C2）：** 三个滑块且都出现在表达式中，函数形状为 `exp(…)·sin/cos(…)`。
 - **Three.js 与组件（C1、C3、C4）：** 使用 `UI.three()` 或 `import("three")`，有动画、光照、启动/暂停和参数控件。
 - **多轮修改（D2、D3）：** 新增一列且每个值都正确、旧值保留；柱状 → 折线，再按准确数值加入第三个系列。
+- **呈现方式决策（F，尚未进入已记录的运行）：** 21 个成对用例，主题不变、只改变任务（解释 vs. 拖动参数、解释 Three.js vs. 对话内可旋转场景、可复制代码 vs. 修改仓库、Markdown 表格 vs. 用户数据的可搜索表格、写公式 vs. 推导中插入曲线、结尾 Choice vs. 每节一张图），另有必须保持已筛选表格不变的 patch、3D 回合之后的纯文本限制，以及没有数据源的实时数据请求。`no-ui` 失败表示不必要的 UI，`needs-ui` 失败表示漏掉了 UI。详见 [#58](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/58)。
 
 **浏览器阶段**（`scripts/eval/browser-stage.mjs`，11 个用例，每个都在新会话中）：纯文本不创建卡片；图表有图例、Q1–Q4 和本地悬停；数据表重新排序不调用模型；用真实鼠标键盘填写并提交表单；Plot 滑块重绘；Three.js 画布确有内容（像素统计）且可拖动，失败时尝试「让模型修复」；停止 → 预览 → 重新生成；两轮原位修改；Fast 3G；屏蔽 CDN；390 px 手机宽度。每个用例都记录控制台错误，每张截图都经过人工复核。
 

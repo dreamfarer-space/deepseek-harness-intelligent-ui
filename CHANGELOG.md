@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Real-model evaluation group F: paired presentation-routing cases for [#58](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/58). Each pair keeps the topic and changes only the task, so a prompt cannot score well by always or never drawing UI; the whole answer is judged (explanation, code, interaction, the user's own data), not just the tool name. Categories `no-ui`, `needs-ui` and `update` report the unnecessary-UI rate, the missed-UI rate and follow-up edits separately. API cases also record prompt and completion tokens.
+
 ## [0.2.8]
 
 ### Added

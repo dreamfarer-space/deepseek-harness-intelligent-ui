@@ -225,6 +225,113 @@ describe('API stage conversation', () => {
   })
 })
 
+describe('paired routing cases', () => {
+  const routing = API_SCENARIOS.filter(s => s.group === 'F')
+  const single = routing.filter(s => !['F8', 'F9'].includes(s.id))
+  const run = (id, turn) => API_SCENARIOS.find(s => s.id === id).run({ turn: async () => turn })
+  const failed = checks => checks.filter(([, ok, , info]) => !ok && !info).map(([name]) => name)
+  const ui = (name, args) => ({ name, ok: true, args })
+  const plot = tree('Plot', { functions: [{ expr: '1 - exp(-z*x)' }], params: [{ name: 'z', min: 0, max: 2, value: 0.5 }] })
+  const three = { title: 'axes', html: '<div class="ui-stage" id="stage"></div>', jsFunctions: 'async function init(){ const v = await UI.three("#stage") }', jsExpressions: ['init()'] }
+  // A reply that satisfies every text-side content check, so only the tool choice decides.
+  const prose = ['Hugo、Next.js 和 WordPress 的取舍，阻尼 damping，scene 场景、camera 相机、renderer 渲染器，ω 与 ζ，',
+    'sin/cos harmonics，mesh 与 material，正交 OrthographicCamera，实时数据无法获取，远处物体因透视距离变小。',
+    '\n\n| 维度 | REST | GraphQL |\n| --- | --- | --- |\n| 取数 | 多端点 | 单端点 |\n\n```js\nnew THREE.PerspectiveCamera(75, 1, 0.1, 100)\n```'].join('')
+
+  it('pairs every case with its opposite and keeps ids unique', () => {
+    expect(new Set(routing.map(s => s.id)).size).toBe(routing.length)
+    const pairs = Map.groupBy(single.filter(s => /[ab]$/.test(s.id)), s => s.id.slice(0, -1))
+    for (const [pair, cases] of pairs) {
+      expect(cases.map(c => c.id).sort(), pair).toEqual([`${pair}a`, `${pair}b`])
+      // F3 contrasts two deliveries outside the chat UI, F7 two arrangements of UI; every other pair straddles the line.
+      if (!['F3', 'F7'].includes(pair)) expect(new Set(cases.map(c => c.category)), pair).toEqual(new Set(['no-ui', 'needs-ui']))
+    }
+    expect(routing.every(s => ['no-ui', 'needs-ui', 'update'].includes(s.category))).toBe(true)
+  })
+
+  it('fails a policy that never draws UI on the needs-ui side and one that always does on the no-ui side', async () => {
+    for (const s of single) {
+      const never = failed((await run(s.id, { calls: [], text: prose, exhausted: false })).checks)
+      const always = failed((await run(s.id, { calls: [ui('ui_render', plot)], text: prose, exhausted: false })).checks)
+      if (s.category === 'no-ui') {
+        expect(never, s.id).toEqual([])
+        expect(always, s.id).toContain(s.id === 'F10' ? 'no chart, table or widget drawn without data' : 'tool: none')
+      } else {
+        expect(never.some(n => n.startsWith('tool:')), s.id).toBe(true)
+      }
+    }
+  })
+
+  it('judges the delivered interaction and data, not just the tool name', async () => {
+    expect(failed((await run('F1b', { calls: [ui('ui_render', plot)], text: '阻尼比 ζ 决定二阶系统阶跃响应是否振荡以及衰减快慢：ζ 越大越平稳但更慢，ζ 越小超调越大、越容易振荡。', exhausted: false })).checks)).toEqual([])
+    expect(failed((await run('F1b', { calls: [ui('ui_render', plot)], text: '', exhausted: false })).checks)).toEqual(['the explanation is there, not only the plot'])
+    expect(failed((await run('F2b', { calls: [ui('ui_render_widget', three)], text: '', exhausted: false })).checks)).toEqual([])
+    const canvasOnly = { ...three, jsFunctions: 'function init(){ UI.canvas("#stage", () => {}) }' }
+    expect(failed((await run('F2b', { calls: [ui('ui_render_widget', canvasOnly)], text: '', exhausted: false })).checks)).toEqual(['a 3D widget (Three.js or WebGL)'])
+
+    const cities = [['北京', 2189, 16411], ['上海', 2487, 6341], ['广州', 1882, 7434], ['深圳', 1768, 1997], ['重庆', 3191, 82402], ['成都', 2140, 14335],
+      ['杭州', 1252, 16850], ['武汉', 1377, 8569], ['西安', 1299, 10108], ['南京', 942, 6587], ['天津', 1364, 11966], ['苏州', 1291, 8657]]
+    const grid = rows => tree('Table', { columns: ['城市', '人口（万）', '面积'], rows, sortable: true, searchable: true })
+    expect(failed((await run('F4b', { calls: [ui('ui_render', grid(cities))], text: '', exhausted: false })).checks)).toEqual([])
+    expect(failed((await run('F4b', { calls: [ui('ui_render', grid(cities.map(([c, p, a]) => [c, p + 1, a])))], text: '', exhausted: false })).checks))
+      .toEqual(['the user\'s numbers, not invented ones'])
+  })
+
+  it('lets a missing-data answer offer next steps but not draw sample data', async () => {
+    const options = tree('Choice', { question: '怎么继续？', options: [{ id: 'a', label: '给我接入行情 API 的代码', prompt: '给我接入行情 API 的代码' }, { id: 'b', label: '解释分时图怎么看', prompt: '解释分时图怎么看' }] })
+    const text = '我无法获取今天的实时行情数据，不能编造点位。'
+    expect(failed((await run('F10', { calls: [ui('ui_render', options)], text, exhausted: false })).checks)).toEqual([])
+    expect(failed((await run('F10', { calls: [ui('ui_render', chart('line'))], text, exhausted: false })).checks)).toEqual(['no chart, table or widget drawn without data'])
+    expect(failed((await run('F10', { calls: [ui('ui_render_widget', three)], text, exhausted: false })).checks)).toEqual(['no chart, table or widget drawn without data'])
+  })
+
+  it('keeps a closing Choice in the reply and wants a chart after each section of a report', async () => {
+    const choice = tree('Choice', { question: '继续哪个？', options: [{ id: 'h', label: 'Hugo', prompt: '深入 Hugo' }, { id: 'n', label: 'Next.js', prompt: '深入 Next.js' }] })
+    const analysis = 'Hugo 构建快、Next.js 灵活、WordPress 生态大。'.repeat(8)
+    expect(failed((await run('F7a', { calls: [ui('ui_render', choice)], text: analysis, exhausted: false })).checks)).toEqual([])
+    const wrapped = { blocks: [{ id: 'a', type: 'markdown', text: analysis }, { id: 'c', type: 'catalog', ...choice }] }
+    expect(failed((await run('F7a', { calls: [ui('ui_compose', wrapped)], text: '', exhausted: false })).checks)).toContain('tool: ui_render')
+
+    const bar = id => ({ id, type: 'catalog', root: 'r', components: [{ id: 'r', type: 'Chart', props: { kind: 'bar', labels: ['Hugo', 'Next.js', 'WordPress'], series: [{ name: 'v', values: [1, 2, 3] }] } }] })
+    const md = id => ({ id, type: 'markdown', text: '分析。' })
+    const sectioned = { blocks: [md('m1'), bar('c1'), md('m2'), bar('c2'), md('m3'), bar('c3')] }
+    expect(failed((await run('F7b', { calls: [ui('ui_compose', sectioned)], text: '', exhausted: false })).checks)).toEqual([])
+    const stacked = { blocks: [md('m1'), md('m2'), md('m3'), bar('c1'), bar('c2'), bar('c3')] }
+    expect(failed((await run('F7b', { calls: [ui('ui_compose', stacked)], text: '', exhausted: false })).checks)).toEqual(['every UI block follows its own prose'])
+  })
+
+  it('wants the chart patched in place with the table untouched, and text after a restriction', async () => {
+    const dashboard = {
+      root: 'g', components: [
+        { id: 'g', type: 'Stack', children: ['ch', 'tb'] },
+        { id: 'ch', type: 'Chart', props: { kind: 'bar', labels: ['Q1', 'Q2', 'Q3', 'Q4'], series: [{ name: '线上', values: [120, 135, 150, 170] }, { name: '线下', values: [90, 95, 88, 100] }] } },
+        { id: 'tb', type: 'Table', props: { columns: ['门店', '区域', '销售额'], rows: [['A 店', '华东', 320], ['B 店', '华东', 280]], filterable: true } },
+      ],
+    }
+    const patched = scripted(
+      { tool_calls: [call('d1', dashboard)] }, { content: '看板如上。' },
+      { tool_calls: [call('p1', { uiId: 'd1', baseVersion: 1, ops: [{ op: 'setProps', id: 'ch', props: { kind: 'line' } }] }, 'ui_patch')] }, { content: '已改为折线图。' },
+    )
+    const [ok] = await runApiStage({ chat: patched, tools: pluginTools, ids: ['F8'], log: () => {} })
+    expect(ok.reason).toBeNull()
+    const line = { ...dashboard, components: dashboard.components.map(c => (c.id === 'ch' ? { ...c, props: { ...c.props, kind: 'line' } } : c)) }
+    const rerendered = scripted({ tool_calls: [call('d1', dashboard)] }, { content: '看板如上。' }, { tool_calls: [call('d2', line)] }, { content: '已改为折线图。' })
+    const [lost] = await runApiStage({ chat: rerendered, tools: pluginTools, ids: ['F8'], log: () => {} })
+    expect(lost.passed).toBe(false)
+    expect(lost.reason).toMatch(/edit · tool: ui_patch/)
+
+    const restricted = scripted({ tool_calls: [call('w1', three, 'ui_render_widget')] }, { content: '立方体如上。' }, { tool_calls: [call('w2', three, 'ui_render_widget')] }, { content: '远处物体透视后变小。' })
+    const [drew] = await runApiStage({ chat: restricted, tools: pluginTools, ids: ['F9'], log: () => {} })
+    expect(drew.reason).toMatch(/restricted turn · tool: none/)
+  })
+
+  it('records token usage when the API reports it', async () => {
+    const chat = vi.fn(async () => ({ message: { role: 'assistant', content: 'Euler: e^{iπ} + 1 = 0 links five constants.' }, model: 'deepseek-flash', fingerprint: null, ms: 5, usage: { prompt: 900, completion: 40 } }))
+    const [a1] = await runApiStage({ chat, tools: pluginTools, ids: ['A1'], log: () => {} })
+    expect(a1.tokens).toEqual({ prompt: 900, completion: 40 })
+  })
+})
+
 describe('report helpers', () => {
   it('computes nearest-rank percentiles and per-category success rates', () => {
     expect(percentile([5, 1, 3, 2, 4], 50)).toBe(3)

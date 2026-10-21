@@ -10,6 +10,8 @@ Built from these invocations (oldest first):
 - `node scripts/run-real-model-suite.mjs all --stage browser --record --keep-other-layers` · 2026-10-16 14:00 UTC — browser layer re-recorded for the demo video (all 11 cases, replacing the previous browser layer; cost ¥0.86). API and mock layers kept.
 
 > **New in assertions v4:** two `ui_compose` cases (E1 analysis with an interleaved chart, E2 teaching walkthrough). They have **not been run against the real model yet**; the tables below predate them and are kept as the recorded baseline, not as a claim about the new tool. Run `node scripts/run-real-model-suite.mjs E` to measure them.
+>
+> **New in assertions v6:** group F, 21 paired presentation-routing cases ([#58](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/58)). Each pair keeps the topic and changes the task (explain vs. explore in the chat, code to copy vs. a project change vs. an inline widget, a Markdown table vs. a searchable one, a closing Choice vs. a sectioned composition), plus an in-place edit that must leave a filtered table alone, a text-only restriction after a 3D turn, and a live-data request with no data source. Categories `no-ui` and `needs-ui` give the unnecessary-UI and missed-UI rates; `update` covers follow-ups. Cases now also record prompt/completion tokens. **Not run against the real model yet**; run `node scripts/run-real-model-suite.mjs F --repeat 3`.
 
 Three separately measured layers. A pass in one layer is not evidence for another:
 

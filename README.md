@@ -316,11 +316,12 @@ npm run eval:real -- --record && npm run eval:demo  # record and cut the demo vi
 
 | Option | Effect |
 | --- | --- |
-| `--stage mock,api,browser` | Run only some layers (`all` by default); `A`/`B`/`C`/`D` selects API categories |
+| `--stage mock,api,browser` | Run only some layers (`all` by default); `A`–`F` selects API categories (`F`: paired presentation-routing cases, [#58](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/58)) |
 | `--only B3,R-chart` | Run only these cases |
 | `--keep-other-layers` | Keep the layers or cases this run did not execute, each with its own date |
 | `--append` | With `--only`: add the rerun as extra samples; a failure is never replaced by a lucky retry |
 | `--rescore` | Re-judge the last API run from its saved transcripts with the current assertions, no model calls |
+| `--report <file.json>` | Write the report elsewhere, e.g. one file per prompt version to compare a baseline with a candidate |
 | `DEEPSEEK_EVAL_MODEL` | Model id (default `deepseek-flash`) |
 
 The **Real-model eval** workflow runs the same command on demand with the `DEEPSEEK_API_KEY` secret; a full run costs about ¥1.5 with `deepseek-flash`.
@@ -339,6 +340,7 @@ The **Real-model eval** workflow runs the same command on demand with the `DEEPS
 - **Math Plot (C2):** three sliders, every one used in the expression, an `exp(…)·sin/cos(…)` shape.
 - **Three.js and widgets (C1, C3, C4):** `UI.three()` or `import("three")`, animation, lights, start/pause and parameter controls.
 - **Multi-turn edits (D2, D3):** a new column with every value correct and old values kept; bar → line, then a third series with exact values.
+- **Presentation routing (F, not yet in the recorded run):** 21 cases in pairs that keep the topic and change only the task (explain vs. drag a parameter, explain Three.js vs. a rotatable scene here, code to copy vs. a repo change, Markdown table vs. a searchable grid of the user's rows, a formula vs. a derivation with a plot between the steps, a closing Choice vs. a chart after each section), plus a patch that must leave a filtered table untouched, a text-only restriction after a 3D turn and live data without a source. `no-ui` failures are unnecessary UI, `needs-ui` failures missed UI. Details: [#58](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/58).
 
 **Browser stage** (`scripts/eval/browser-stage.mjs`, 11 cases, each in a new conversation): plain text creates no card; chart legend, Q1–Q4 and local hover; table re-sorts without a model call; a form filled and submitted with real mouse and keyboard; Plot slider redraws; Three.js canvas drawn (pixel statistics) and draggable, with "Ask to fix" on failure; stop → preview → Regenerate; two in-place edits; Fast 3G; CDN blocked; 390 px phone width. Console errors are recorded per case, and every screenshot is reviewed by hand.
 
