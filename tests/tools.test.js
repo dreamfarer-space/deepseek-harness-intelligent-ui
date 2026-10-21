@@ -104,7 +104,8 @@ describe('config and guidance', () => {
     expect(text).not.toMatch(/Requests such as "3D", "Three\.js"/)
     expect(text).not.toMatch(/ALWAYS call/)
     expect(text).not.toMatch(/Always (use|prefer) `ui_render`/)
-    expect(text).toMatch(/Explaining a concept is prose; the same concept with something to drag, rotate or play is UI/)
+    expect(text).toMatch(/Explaining a concept is prose, however long or step-by-step; it becomes UI only when the user asks to see, drag, rotate or play something/)
+    expect(text).toMatch(/never draw sample or illustrative data in place of data you do not have/)
     expect(text).toMatch(/code to copy, or a change to files in the workspace is answered that way, never replaced by a UI/)
   })
 
