@@ -1,7 +1,7 @@
 # Intelligent UI GitHub bots
 
-Both bots run on GitHub Actions using AgentRouter and the official Codex CLI.
-The default model is `gpt-6.1-sol` with high reasoning effort.
+Both bots run on GitHub Actions through a text-only LLM endpoint.
+The default model is `gemini-3.8-flash-high`.
 
 - **AI Issue Labeler**: handles opened, edited and reopened issues, selecting up
   to three existing classification labels. Adds labels without removing human
@@ -10,19 +10,19 @@ The default model is `gpt-6.1-sol` with high reasoning effort.
   a Chinese advisory review with inline findings tied to added lines and the
   exact head commit. It never approves, requests changes or merges a PR.
 
-Configure `AGENTROUTER_API_KEY` as a repository Actions secret. Optional repository
-variables: `AGENTROUTER_BASE_URL`, `ISSUE_LABEL_MODEL`, `PR_REVIEW_MODEL`.
-The base URL defaults to `https://agentrouter.org/v1`.
+Configure `GEMINI_API_KEY` as a repository Actions secret. Optional repository
+variables: `GEMINI_BASE_URL`, `ISSUE_LABEL_MODEL`, `PR_REVIEW_MODEL`.
+The base URL defaults to `https://api.zemengzhou.com/v1`.
 
 To process existing items or retry a failed request: Actions → select the bot →
 Run workflow → select `main`, enter the item number. Dry run defaults to enabled;
 disable it to publish. A commit already reviewed by this bot is skipped.
 
 The workflows only execute trusted base-branch automation. They never install or
-execute PR code. PR file contents are read through GitHub's API; the model runs
-in an empty temporary directory with all tools disabled (verified against the
-outgoing request for the pinned CLI), isolated Codex config, no MCP configuration,
-and without the GitHub token. Only validated labels and
+execute PR code. PR file contents are read through GitHub's API. Inference is a
+single HTTPS Chat Completions request with JSON mode: there is no agent loop, no
+shell, no tool catalogue, and the GitHub token is never sent to the model service.
+Only validated labels and
 validated review locations can be published. Model output cannot choose API routes.
 Generated bundles, lock files and binary assets are omitted. Large source files and
 diffs may be truncated; omissions are listed in the review. This is a bounded

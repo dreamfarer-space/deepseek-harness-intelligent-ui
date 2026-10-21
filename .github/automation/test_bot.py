@@ -2,7 +2,7 @@
 import importlib.util
 import os
 from pathlib import Path
-from types import SimpleNamespace
+import json
 import unittest
 from unittest.mock import patch
 
@@ -110,21 +110,50 @@ class Boundaries(unittest.TestCase):
             bot.review_pr(gh, 1, False)
         self.assertEqual(gh.writes, [])
 
-    def test_model_process_has_no_github_credentials(self):
-        def run(args, **kwargs):
-            self.assertNotIn("GITHUB_TOKEN", kwargs["env"])
-            self.assertNotIn("UNRELATED_SECRET", kwargs["env"])
-            self.assertIn("features.shell_tool=false", args)
-            self.assertIn("--ignore-user-config", args)
-            self.assertEqual(kwargs["env"]["CODEX_GATEWAY_API_KEY"], "test-only-key")
-            Path(args[args.index("--output-last-message") + 1]).write_text('{"labels":[],"reason":""}', encoding="utf-8")
-            return SimpleNamespace(returncode=0, stdout="", stderr="")
-        with patch.dict(os.environ, {"AGENTROUTER_API_KEY": "test-only-key", "GITHUB_TOKEN": "test-only-github",
-                                     "UNRELATED_SECRET": "must-not-leak"}), patch.object(bot.subprocess, "run", side_effect=run):
-            self.assertEqual(bot.infer("classify", bot.LABEL_SCHEMA, "gpt-6.1-sol")["labels"], [])
+    def test_inference_payload_has_no_tools_and_no_github_token(self):
+        captured = {}
+
+        class FakeResponse:
+            def __init__(self, body):
+                self._body = body
+
+            def read(self):
+                return json.dumps(self._body).encode()
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        def fake_urlopen(request, timeout=None):
+            captured["url"] = request.full_url
+            captured["headers"] = dict(request.headers)
+            captured["payload"] = json.loads(request.data)
+            return FakeResponse({"choices": [{"message": {"content": '```json\n{"labels": [], "reason": "ok"}\n```'}}]})
+
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "test-only-key", "GITHUB_TOKEN": "test-only-github"}), \
+                patch.object(bot.urllib.request, "urlopen", side_effect=fake_urlopen):
+            result = bot.infer("classify", bot.LABEL_SCHEMA, "gemini-3.8-flash-high")
+
+        payload = captured["payload"]
+        self.assertNotIn("tools", payload)
+        self.assertEqual(payload["model"], "gemini-3.8-flash-high")
+        self.assertEqual(payload["response_format"], {"type": "json_object"})
+        serialized = json.dumps(payload) + json.dumps(captured["headers"])
+        self.assertNotIn("test-only-github", serialized)
+        self.assertTrue(captured["url"].endswith("/chat/completions"))
+        self.assertEqual(result, {"labels": [], "reason": "ok"})
+
+    def test_provider_failure_fails_closed(self):
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "test-only-key"}), \
+                patch.object(bot.urllib.request, "urlopen", side_effect=bot.urllib.error.URLError("down")), \
+                patch.object(bot.time, "sleep", lambda *_: None):
+            with self.assertRaises(bot.BotError):
+                bot.infer("classify", bot.LABEL_SCHEMA, "gemini-3.8-flash-high")
 
     def test_mentions_and_secrets_are_redacted(self):
-        with patch.dict(os.environ, {"AGENTROUTER_API_KEY": "test-only-key"}):
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "test-only-key"}):
             self.assertEqual(bot.clean("@someone test-only-key"), "＠someone [REDACTED]")
 
 
