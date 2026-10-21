@@ -93,4 +93,38 @@ describe('config and guidance', () => {
     expect(text).toMatch(/Dashboard or visualization-led answers: at most one or two sentences/)
   })
 
+  it('decides by task, then visual benefit, data, medium, arrangement and follow-ups', () => {
+    const text = guidanceText({ enableCatalog: true, enableWidget: true })
+    const steps = ['1. Task and explicit constraints', '2. Visual benefit', '3. Data and capability', '4. Simplest medium', '5. Arrangement', '6. Follow-ups'].map(s => text.indexOf(s))
+    expect(steps.every(i => i >= 0)).toBe(true)
+    expect(steps).toEqual([...steps].sort((a, b) => a - b))
+    expect(text).toMatch(/An earlier step wins over a later one, and a topic or keyword alone .* never decides it/)
+    // No rule that excludes UI by topic or forces it by keyword any more.
+    expect(text).not.toMatch(/conceptual explanations, principles, theories, and knowledge Q&A/)
+    expect(text).not.toMatch(/Requests such as "3D", "Three\.js"/)
+    expect(text).not.toMatch(/ALWAYS call/)
+    expect(text).not.toMatch(/Always (use|prefer) `ui_render`/)
+    expect(text).toMatch(/Explaining a concept is prose; the same concept with something to drag, rotate or play is UI/)
+    expect(text).toMatch(/code to copy, or a change to files in the workspace is answered that way, never replaced by a UI/)
+  })
+
+  it('pairs each example with its opposite and only names enabled tools', () => {
+    const full = guidanceText({ enableCatalog: true, enableWidget: true })
+    expect(full).toMatch(/"Fix the shader in our repo" → edit the files\. "Show a rotating globe here that I can drag" → a widget/)
+    expect(full).toMatch(/→ a composition/)
+    const catalogOnly = guidanceText({ enableCatalog: true, enableWidget: false, enableCompose: false })
+    expect(catalogOnly).not.toMatch(/a widget|composition|custom widget/)
+    expect(catalogOnly).toMatch(/4\. Simplest medium that works\. Native components \(`ui_render`\) whenever they can express it\./)
+    const widgetOnly = guidanceText({ enableCatalog: false, enableWidget: true, enableCompose: false })
+    expect(widgetOnly).not.toMatch(/Plot|native Table|ui_render`|ui_patch|composition/)
+    expect(widgetOnly).toMatch(/a widget with a slider/)
+  })
+
+  it('applies the same boundaries in the tool descriptions', () => {
+    expect(createRenderTool(config).description).toMatch(/Not when the user asked for text, Markdown or code to copy, or for changes to project files/)
+    expect(createWidgetTool(config).description).toMatch(/Only when the user wants to see or operate it in this chat/)
+    expect(createWidgetTool(config).description).toMatch(/ALWAYS use ui_render for those/)
+    expect(createWidgetTool(resolveConfig({ enableCatalog: false })).description).not.toMatch(/ui_render for those/)
+  })
+
 })

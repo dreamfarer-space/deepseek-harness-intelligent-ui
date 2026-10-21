@@ -164,12 +164,16 @@ npx deepseek-harness-intelligent-ui doctor      # diagnose only
 
 <img src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/readme/routing.svg" alt="The agent routes each prompt to plain text, ui_render or ui_render_widget; local interactions never call the model, explicit actions go back to the agent" width="100%">
 
-The plugin injects a system-prompt section ([`src/guidance.js`](src/guidance.js)) so the model routes each turn itself:
+The plugin injects a system-prompt section ([`src/guidance.js`](src/guidance.js)) so the model routes each turn itself, in one order where an earlier step wins and a topic or keyword alone never decides:
 
-- **Plain text** for greetings, short facts, explanations, code to copy, and workspace/coding work.
-- **`ui_render`** for structured answers: comparisons, data to explore, dashboards, processes, formulas, functions, code reviews, choices between alternatives, input collection.
-- **`ui_render_widget`** for what the catalog cannot draw: 3D, simulations, animations, games, custom tools.
-- **Local first:** anything computable in the browser must update instantly without a message to the model.
+1. **Task and explicit constraints:** text only, Markdown, code to copy and changes to workspace files are delivered in that form, never replaced by a UI in the chat.
+2. **Visual benefit:** UI only when seeing or operating it beats reading: data to compare, spatial relations, a parameter to drag, rows to filter, input to collect, a real decision. "Explain damping ratio" is prose; "let me drag the damping ratio" is a Plot.
+3. **Data and capability:** the user's data or explicit parameters, never invented numbers; only enabled tools.
+4. **Simplest medium:** **`ui_render`** native components whenever they can express it; **`ui_render_widget`** only for what the catalog cannot draw (3D, simulations, games, custom canvas).
+5. **Arrangement:** one UI → that tool; analysis ending in one decision → prose plus a Choice; prose between several UI moments → **`ui_compose`**.
+6. **Follow-ups:** change the existing UI with **`ui_patch`** and keep earlier constraints.
+
+**Local first:** anything computable in the browser must update instantly without a message to the model. Rationale, the comparison with four similar projects and how routing is measured: [docs/presentation-routing.md](docs/presentation-routing.md).
 
 `/ui <request>` forces a UI answer.
 

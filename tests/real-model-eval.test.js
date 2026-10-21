@@ -14,6 +14,7 @@ import { API_SCENARIOS, runApiStage } from '../scripts/eval/api-stage.mjs'
 import { ASSERTION_VERSION } from '../scripts/eval/assertions.mjs'
 import { assertNoSecrets, percentile, redact, summarize, timing, toMarkdown } from '../scripts/eval/report.mjs'
 import { imageDiff, imageStats } from '../scripts/eval/png.mjs'
+import { guidanceText } from '../src/guidance.js'
 
 const tree = (type, props) => ({ root: 'r', components: [{ id: 'r', type, props }] })
 const call = (id, args, name = 'ui_render') => ({ id, type: 'function', function: { name, arguments: JSON.stringify(args) } })
@@ -330,6 +331,14 @@ describe('paired routing cases', () => {
     const restricted = scripted({ tool_calls: [call('w1', three, 'ui_render_widget')] }, { content: '立方体如上。' }, { tool_calls: [call('w2', three, 'ui_render_widget')] }, { content: '远处物体透视后变小。' })
     const [drew] = await runApiStage({ chat: restricted, tools: pluginTools, ids: ['F9'], log: () => {} })
     expect(drew.reason).toMatch(/restricted turn · tool: none/)
+  })
+
+  it('keeps the evaluated prompts out of the guidance examples', () => {
+    const guidance = guidanceText(config)
+    for (const s of routing) {
+      const probe = s.prompt.replace(/s+/g, ' ').slice(0, 16)
+      expect(guidance.includes(probe), s.id).toBe(false)
+    }
   })
 
   it('records token usage when the API reports it', async () => {

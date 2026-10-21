@@ -164,12 +164,16 @@ npx deepseek-harness-intelligent-ui doctor      # 只诊断，不做修改
 
 <img src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/readme/routing.zh.svg" alt="Agent 把每次提问路由到纯文本、ui_render 或 ui_render_widget；本地交互不调用模型，显式操作才回到 Agent" width="100%">
 
-插件注入一段系统提示（[`src/guidance.js`](src/guidance.js)），让模型每一轮自行选择：
+插件注入一段系统提示（[`src/guidance.js`](src/guidance.js)），让模型每一轮自行选择。判断按固定顺序进行，前一步优先于后一步，仅凭主题或关键词不能决定呈现方式：
 
-- **普通文本**：寒暄、简短事实、解释说明、要复制的代码、工作区内的编程任务。
-- **`ui_render`**：结构化内容，例如对比、要探索的数据、看板、流程、公式、函数、代码评审、在几个方案中做选择、收集输入。
-- **`ui_render_widget`**：组件目录画不出的东西，例如三维、模拟、动画、游戏、自定义工具。
-- **本地优先**：凡是能在浏览器里算出来的，都必须即时更新，不调用模型。
+1. **任务与明确约束：** 用户要纯文本、Markdown、可复制的代码或修改工作区文件时，按要求交付，不用对话内 UI 代替。
+2. **视觉收益：** 只有看到或操作比阅读更有帮助时才用 UI：比较数据、空间关系、拖动参数、筛选行、收集输入、真实的决策点。“解释阻尼比”用正文；“让我拖动阻尼比”用 Plot。
+3. **数据与能力：** 使用用户给的数据或明确参数，不虚构数字；只用当前启用的工具。
+4. **最简单的可用媒介：** 原生组件 **`ui_render`** 能表达就用它；**`ui_render_widget`** 只用于组件目录画不出的内容（三维、模拟、游戏、自定义画布）。
+5. **编排：** 单个 UI 用对应工具；分析后只有一个决策点，用正文加 Choice；正文需要在多个 UI 之间展开，用 **`ui_compose`**。
+6. **后续修改：** 用 **`ui_patch`** 修改已有界面，并保留用户之前的限制。
+
+**本地优先**：凡是能在浏览器里算出来的，都必须即时更新，不调用模型。设计理由、与四个同类项目的对比以及评测方法见 [docs/presentation-routing.md](docs/presentation-routing.md)。
 
 `/ui <需求>` 可强制以 UI 作答。
 

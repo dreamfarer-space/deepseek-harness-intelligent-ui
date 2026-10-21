@@ -178,7 +178,7 @@ describe('compose guidance', () => {
   it('routes prose+UI answers to the composition and keeps dashboards terse', () => {
     const text = guidanceText({ enableCatalog: true, enableWidget: true })
     expect(text).toMatch(/ui_compose/)
-    expect(text).toMatch(/analysis followed only by a closing Choice/)
+    expect(text).toMatch(/An analysis that ends in one decision → write the analysis in the reply and add a compact Choice with ui_render; do not wrap it in a composition/)
     expect(text).toMatch(/never shorten the reasoning to fit a card/)
     expect(guidanceText({ enableCatalog: true, enableWidget: true, enableCompose: false })).not.toMatch(/ui_compose/)
     expect(uiPrompt('show x', { enableCatalog: true, enableWidget: true })).toMatch(/ui_compose/)

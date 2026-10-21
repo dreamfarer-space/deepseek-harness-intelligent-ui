@@ -23,7 +23,8 @@ export function createWidgetTool(config) {
     name: WIDGET_TOOL,
     description: [
       'Render a custom interactive widget (HTML + CSS + JS) live in a sandboxed iframe inside the chat — ONLY for 3D scenes (Three.js/WebGL), dynamic physics/math simulations, animations, games, or custom canvas mini-apps.',
-      'NEVER use this for standard charts (bar, line, area, multi-series), tables, forms, timelines, or dashboards — ALWAYS use ui_render for those instead.',
+      ...(config.enableCatalog === false ? [] : ['NEVER use this for standard charts (bar, line, area, multi-series), tables, forms, timelines, or dashboards — ALWAYS use ui_render for those instead.']),
+      'Only when the user wants to see or operate it in this chat: a request for code to copy or for changes to project files (even 3D, Three.js or a game) is answered with code or file edits, not a widget; a question about a concept is answered in prose.',
       'PARAMETER ORDER IS CRITICAL — emit the JSON keys in exactly this order, it is rendered while streaming:',
       '1. title (short) 2. initialHeight (px estimate) 3. placeholderMessages (2-4 short loading lines)',
       '4. css — ALL styles up front (no <style> in html) 5. html — body markup only (no <script>, <style>, <head>); give every control a unique id',

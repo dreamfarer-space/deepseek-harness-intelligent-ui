@@ -20,6 +20,7 @@ export function createRenderTool(config) {
     get description() { return [
       'Show the user an interactive UI (cards, tables, charts, KPI stats, tabs, timelines, function plots with live sliders, math formulas, Mermaid diagrams, buttons, forms) rendered natively in the chat.',
       'Use it when structured or visual presentation answers better than prose: comparisons, data, dashboards, processes, formulas, functions to explore, choices, input collection.',
+      'Not when the user asked for text, Markdown or code to copy, or for changes to project files; a definition, a few facts or a single formula read fine as prose.',
       'Sorting, tabs, chart hover and Plot sliders work locally. Host-registered dataRef shares data and local queries between Table/Chart. Only prompt Buttons and Form submissions send model messages; action Buttons call the host allowlist.',
       'Only reference dataRef scopes/ids and actionIds explicitly supplied by the host; never invent them. Unsupported hosts show an unavailable state. Send a FLAT list of components; containers reference children by id. The top-level `root` field is REQUIRED and holds the top component\'s id (e.g. {"root":"page","components":[{"id":"page",…}]}); naming a component "root" does not replace it.',
       'Button clicks and Form submissions arrive later as the user\'s next message — do not wait for them in this turn.',
