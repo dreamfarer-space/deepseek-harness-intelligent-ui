@@ -9,6 +9,7 @@ All notable changes to this project are documented here. The format follows
 ### Changed
 
 - Presentation guidance follows one decision order ([#58](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/58)): the task and the user's explicit constraints, then visual benefit, data and capability, the simplest medium, the arrangement, and follow-ups. An earlier step wins, and a topic or keyword alone (3D, Three.js, game, formula) no longer decides. This replaces the rule that sent every conceptual explanation to plain text (which overrode explicit requests for interaction), the keyword rule that forced a widget for any 3D/Three.js/game request (including code to copy and project changes), and the "always use ui_render" lines for every formula or table. Five "same topic, different task" pairs illustrate the order. The `ui_render`, `ui_render_widget` and `ui_compose` descriptions state the same boundaries, and sentences that name another tool appear only when it is enabled. See [docs/presentation-routing.md](docs/presentation-routing.md).
+
 ### Fixed
 
 - `ui_render` and `ui_compose` catalog blocks: the tool schema and description now say that the top-level `root` field is required, and a call without it gets an error that says how to fix it. In real-model runs DeepSeek models often named the first component `"root"` but left out the `root` field, so the first call was refused and had to be retried.
