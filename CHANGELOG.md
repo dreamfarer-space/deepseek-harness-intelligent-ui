@@ -6,6 +6,26 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.8]
+
+### Added
+
+- `ui_compose`: one answer whose ordered blocks interleave markdown prose with the existing declarative catalog and the existing sandboxed widget, for analysis, teaching and sectioned reports where UI must sit between paragraphs ([#48](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/pull/48)). Blocks reuse the existing validators, renderers and sandbox; each catalog block is patchable in place as `<composition uiId>#<block id>`, and block-level session identity keeps same-named components in different blocks independent. The finished composition is shown beneath the reply with a "Copy text" action, and the portable renderer accepts a `composition` artifact. New `enableCompose` setting (default on).
+
+- `Choice` single-choice card with "Continue in this session" / "Start new session", and Button `sessionTarget: "new"` to start an independent Agent session in the same workspace, so a decision can be confirmed without typing.
+
+### Changed
+
+- CI runs the full macOS matrix only nightly, on demand and for releases; pull requests and pushes to `main` cover every other cell ([#49](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/pull/49)).
+- Repository automation: new issues are classified with existing labels, and pull requests receive a Chinese static review bound to the reviewed commit ([#50](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/pull/50), [#51](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/pull/51), [#54](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/pull/54)). The bots run trusted default-branch code only, read PR content through the API, review in batches so no file is dropped, and never approve or merge.
+- The 0.2.7 changelog described `ui_compose` before it shipped; it is released for the first time here.
+
+### Fixed
+
+- Composition state is restored from history only when the receipt and capability checks passed, so a rejected composition cannot become a patchable UI after a reload.
+- Retrying a patched block reuses its original session instead of creating a second one, and widget runtime errors are surfaced in both the DSH client and the standalone renderer.
+- The option picker no longer draws a full-row focus ring, and choosing an option focuses the action instead of the row.
+
 ## [0.2.7]
 
 ### Added
@@ -158,7 +178,8 @@ All notable changes to this project are documented here. The format follows
   - The declarative component catalog (`ui_render`) and sandboxed streaming HTML widgets (`ui_render_widget`).
   - The `/ui` command and the guidance system-prompt section.
 
-[Unreleased]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.7...HEAD
+[Unreleased]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.8...HEAD
+[0.2.8]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.4...v0.2.5
