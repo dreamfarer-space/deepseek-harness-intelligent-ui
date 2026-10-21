@@ -252,10 +252,11 @@ describe('paired routing cases', () => {
   it('fails a policy that never draws UI on the needs-ui side and one that always does on the no-ui side', async () => {
     for (const s of single) {
       const never = failed((await run(s.id, { calls: [], text: prose, exhausted: false })).checks)
-      const always = failed((await run(s.id, { calls: [ui('ui_render', plot)], text: prose, exhausted: false })).checks)
+      const always = failed((await run(s.id, { calls: [ui('ui_render', plot), ui('ui_render_widget', three)], text: prose, exhausted: false })).checks)
       if (s.category === 'no-ui') {
         expect(never, s.id).toEqual([])
-        expect(always, s.id).toContain(s.id === 'F10' ? 'no chart, table or widget drawn without data' : 'tool: none')
+        const own = { F3b: 'no inline widget or composition in place of the project change', F10: 'no chart, table or widget drawn without data' }
+        expect(always, s.id).toContain(own[s.id] ?? 'tool: none')
       } else {
         expect(never.some(n => n.startsWith('tool:')), s.id).toBe(true)
       }
@@ -275,6 +276,12 @@ describe('paired routing cases', () => {
     expect(failed((await run('F4b', { calls: [ui('ui_render', grid(cities))], text: '', exhausted: false })).checks)).toEqual([])
     expect(failed((await run('F4b', { calls: [ui('ui_render', grid(cities.map(([c, p, a]) => [c, p + 1, a])))], text: '', exhausted: false })).checks))
       .toEqual(['the user\'s numbers, not invented ones'])
+  })
+
+  it('accepts a note about a repo change but not a widget standing in for it', async () => {
+    const note = tree('Alert', { tone: 'info', text: '这个会话没有文件工具，把 Viewer.tsx 贴给我即可改成 OrthographicCamera。' })
+    expect(failed((await run('F3b', { calls: [ui('ui_render', note)], text: '换成 OrthographicCamera 需要改相机和 resize 逻辑。', exhausted: false })).checks)).toEqual([])
+    expect(failed((await run('F3b', { calls: [ui('ui_render_widget', three)], text: '正交相机演示如上。', exhausted: false })).checks)).toEqual(['no inline widget or composition in place of the project change'])
   })
 
   it('lets a missing-data answer offer next steps but not draw sample data', async () => {

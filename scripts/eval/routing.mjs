@@ -94,10 +94,25 @@ export const ROUTING_SCENARIOS = [
   prose('F3a', 'Copyable Three.js setup code', '给我一段可以直接复制的 Three.js 初始化代码：创建场景、透视相机和渲染器，渲染一个旋转的立方体。', text => [
     ['a fenced code block with the camera setup', fenced(text) && /PerspectiveCamera/.test(text)],
   ]),
-  // The API stage has no workspace tools: this only checks that no inline UI stands in for the project change.
-  prose('F3b', 'Change a 3D component in the repo', '修改我仓库里 src/scene/Viewer.tsx 这个三维场景组件，把透视相机换成正交相机。', text => [
-    ['addresses the camera change', /OrthographicCamera|正交/i.test(text)],
-  ]),
+  // The API stage has no workspace tools, so the model can only explain the change or ask for the file.
+  // What must not happen is an inline widget or composition standing in for the project change (#58);
+  // a note or a question about how to proceed is not a substitute.
+  {
+    id: 'F3b', group: 'F', category: 'no-ui', title: 'Change a 3D component in the repo', prompt: '修改我仓库里 src/scene/Viewer.tsx 这个三维场景组件，把透视相机换成正交相机。',
+    async run(convo) {
+      const turn = await convo.turn(this.prompt)
+      const view = shown(turn)
+      return {
+        turns: [turn],
+        checks: [
+          ['no inline widget or composition in place of the project change', !view.widgets.length && !view.compositions.length, turn.calls.map(c => c.name).join(' → ') || 'no tool'],
+          ...(turn.calls[0] ? [['arguments valid on the first attempt', turn.calls[0].ok]] : []),
+          ...(turn.exhausted ? [['turn finished within the step limit', false]] : []),
+          ['addresses the camera change', /OrthographicCamera|正交/i.test(view.prose)],
+        ],
+      }
+    },
+  },
 
   // 4. Explicit format wins; exploration of the user's own rows needs the data grid.
   prose('F4a', 'Markdown comparison table', '用 Markdown 表格比较 REST 和 GraphQL 两种 API 方案，比较 4 个维度。', text => [['a Markdown table in the reply', markdownTable(text)]]),
