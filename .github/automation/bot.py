@@ -12,7 +12,7 @@ import urllib.request
 
 API = "https://api.github.com"
 REVIEW_MARKER = "<!-- intelligent-ui-pr-review:v2 -->"
-MAX_CONTEXT = 150_000
+MAX_CONTEXT = 60_000
 LABEL_SCHEMA = {
     "type": "object", "additionalProperties": False,
     "required": ["labels", "reason"],
@@ -131,7 +131,7 @@ def infer(prompt, schema, model):
             "User-Agent": "intelligent-ui-bots",
         })
         try:
-            with urllib.request.urlopen(req, timeout=180) as response:
+            with urllib.request.urlopen(req, timeout=240) as response:
                 body = json.loads(response.read())
             choices = body.get("choices") or []
             if not choices:
@@ -246,7 +246,7 @@ def review_pr(gh, number, dry_run):
     skipped = []
     eligible = [f for f in files if not generated(f["filename"]) and f.get("patch")]
     # Share the diff budget across every source file before adding full-file context.
-    patch_allowance = min(24000, max(1000, MAX_CONTEXT // max(1, len(eligible))))
+    patch_allowance = min(16000, max(1200, MAX_CONTEXT // max(1, len(eligible))))
     budget = MAX_CONTEXT
     for file in files:
         path = file["filename"]
