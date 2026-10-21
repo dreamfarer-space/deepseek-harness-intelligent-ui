@@ -336,7 +336,7 @@ describe('paired routing cases', () => {
   it('keeps the evaluated prompts out of the guidance examples', () => {
     const guidance = guidanceText(config)
     for (const s of routing) {
-      const probe = s.prompt.replace(/s+/g, ' ').slice(0, 16)
+      const probe = s.prompt.replace(/\s+/g, ' ').slice(0, 16)
       expect(guidance.includes(probe), s.id).toBe(false)
     }
   })
