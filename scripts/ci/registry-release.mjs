@@ -13,6 +13,9 @@ import semver from 'semver'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const registry = 'https://registry.npmjs.org'
+// Registry propagation can exceed five minutes right after a publish.
+const WAIT_ATTEMPTS = 30
+const WAIT_INTERVAL_MS = 20_000
 const digest = (data, algorithm = 'sha512', encoding = 'base64') => createHash(algorithm).update(data).digest(encoding)
 const run = (cmd, args, cwd = root) => execFileSync(cmd, args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
 
@@ -117,21 +120,23 @@ async function registryPackage(mode) {
       console.log(`Publishing ${spec}`)
       console.log(run('npm', ['publish', '--provenance', '--access', 'public', '--tag', semver.prerelease(pkg.version) ? 'next' : 'latest']))
     } else if (metadata) console.log(`${spec} exists; verifying contents and source before reuse`)
-    // A fresh version can take several minutes to appear (0.2.4 took ~4 min).
-    for (let attempt = 0; !metadata && attempt < 15; attempt++) {
-      console.log(`Waiting for ${spec} (${attempt + 1}/15)`)
-      await new Promise(resolve => setTimeout(resolve, 20_000))
+    // Registry propagation after `npm publish` is unbounded in practice: 0.2.4
+    // took ~4 min and 0.2.8 exceeded 5 min, failing the release after the package
+    // was already live. Wait up to 10 min before giving up.
+    for (let attempt = 0; !metadata && attempt < WAIT_ATTEMPTS; attempt++) {
+      console.log(`Waiting for ${spec} (${attempt + 1}/${WAIT_ATTEMPTS})`)
+      await new Promise(resolve => setTimeout(resolve, WAIT_INTERVAL_MS))
       metadata = lookup(spec)
     }
-    if (!metadata) throw new Error(`${spec} is not available on npm`)
+    if (!metadata) throw new Error(`${spec} is not available on npm after ${WAIT_ATTEMPTS} attempts`)
     // The tarball and attestations can lag behind the metadata (0.2.4's tarball
     // 404ed for minutes after the version was listed): retry 404s only.
     const settle = async (url, json) => {
       for (let attempt = 0; ; attempt++) {
         try { return await get(url, json) } catch (error) {
-          if (!/registry HTTP 404/.test(error.message) || attempt >= 14) throw error
-          console.log(`Waiting for ${url} (${attempt + 1}/15)`)
-          await new Promise(resolve => setTimeout(resolve, 20_000))
+          if (!/registry HTTP 404/.test(error.message) || attempt >= WAIT_ATTEMPTS - 1) throw error
+          console.log(`Waiting for ${url} (${attempt + 1}/${WAIT_ATTEMPTS})`)
+          await new Promise(resolve => setTimeout(resolve, WAIT_INTERVAL_MS))
         }
       }
     }
