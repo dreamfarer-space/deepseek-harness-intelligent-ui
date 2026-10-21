@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- `ui_render` and `ui_compose` catalog blocks: the tool schema and description now say that the top-level `root` field is required, and a call without it gets an error that says how to fix it. In real-model runs DeepSeek models often named the first component `"root"` but left out the `root` field, so the first call was refused and had to be retried.
+
 ### Added
 
 - Real-model evaluation group F: paired presentation-routing cases for [#58](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/58). Each pair keeps the topic and changes only the task, so a prompt cannot score well by always or never drawing UI; the whole answer is judged (explanation, code, interaction, the user's own data), not just the tool name. Categories `no-ui`, `needs-ui` and `update` report the unnecessary-UI rate, the missed-UI rate and follow-up edits separately. API cases also record prompt and completion tokens.

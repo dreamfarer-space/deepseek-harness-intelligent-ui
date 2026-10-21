@@ -675,7 +675,8 @@ export function validateTree(args) {
   if (!isPlainObject(args)) return { ok: false, errors: ['arguments: expected object'], warnings, types, count: 0 };
   const { root, components } = args;
   if (args.title !== undefined && typeof args.title !== 'string') errors.push('title: expected string');
-  if (typeof root !== 'string' || root === '') errors.push('root: expected the id of the top-level component');
+  if (root === undefined) errors.push('root: missing. Add the top-level field "root" next to "components", set to the id of the top component (a component named "root" does not replace it)');
+  else if (typeof root !== 'string' || root === '') errors.push('root: expected the id of the top-level component');
   if (!Array.isArray(components) || components.length === 0) {
     errors.push('components: expected a non-empty array');
     return { ok: false, errors, warnings, types, count: 0 };

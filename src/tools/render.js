@@ -21,7 +21,7 @@ export function createRenderTool(config) {
       'Show the user an interactive UI (cards, tables, charts, KPI stats, tabs, timelines, function plots with live sliders, math formulas, Mermaid diagrams, buttons, forms) rendered natively in the chat.',
       'Use it when structured or visual presentation answers better than prose: comparisons, data, dashboards, processes, formulas, functions to explore, choices, input collection.',
       'Sorting, tabs, chart hover and Plot sliders work locally. Host-registered dataRef shares data and local queries between Table/Chart. Only prompt Buttons and Form submissions send model messages; action Buttons call the host allowlist.',
-      'Only reference dataRef scopes/ids and actionIds explicitly supplied by the host; never invent them. Unsupported hosts show an unavailable state. Send a FLAT list of components; containers reference children by id; `root` is the top component id.',
+      'Only reference dataRef scopes/ids and actionIds explicitly supplied by the host; never invent them. Unsupported hosts show an unavailable state. Send a FLAT list of components; containers reference children by id. The top-level `root` field is REQUIRED and holds the top component\'s id (e.g. {"root":"page","components":[{"id":"page",…}]}); naming a component "root" does not replace it.',
       'Button clicks and Form submissions arrive later as the user\'s next message — do not wait for them in this turn.',
       `A dashboard or single-UI answer is mostly the UI: after calling, add at most one short sentence and do not repeat the UI content. If the user asked for a full analysis, lesson or report, write that prose in the reply${config.enableCompose !== false ? ' (or use ui_compose to interleave it)' : ''}; never cut the reasoning short to fit the card.`,
       'Components:',
@@ -31,7 +31,7 @@ export function createRenderTool(config) {
       type: 'object',
       properties: {
         title: { type: 'string', description: 'Optional card title shown above the UI.' },
-        root: { type: 'string', description: 'id of the top-level component.' },
+        root: { type: 'string', description: 'REQUIRED: id of the top-level component. Always send it, before components.' },
         components: {
           type: 'array',
           description: 'All components, parents before children is recommended (renders progressively while streaming).',
