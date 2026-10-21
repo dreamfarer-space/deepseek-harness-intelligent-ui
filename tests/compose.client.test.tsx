@@ -91,6 +91,34 @@ describe('ComposeView', () => {
     expect(host.querySelector('iframe')!.dataset.mode).toBe('preview')
   })
 
+  it.each(['preparing', 'interrupted'])('skips invalid markdown text during %s without losing valid blocks', async phase => {
+    const send = vi.fn(async () => {})
+    const raw = JSON.stringify({ blocks: [
+      ...BLOCKS.slice(0, 2),
+      { id: 'bad', type: 'markdown', text: 42 },
+    ] }).slice(0, -2) + ','
+    expect(readBlocks(raw, true).map(block => block.id)).toEqual(['intro', 'chart'])
+    if (phase === 'preparing') {
+      render(<ComposeView {...base(send)} phase="preparing" block={{ phase: 'preparing', callId: 'comp-1' }}
+        useToolCallArgumentsPartial={() => raw} />)
+      await act(async () => { await new Promise(resolve => setTimeout(resolve, 150)) })
+    } else {
+      render(<ComposeView {...base(send)} phase="result" block={{
+        ...settled(), call: { name: 'ui_compose', argsRaw: raw }, isError: true,
+        error: { name: 'Interrupted', code: 'interrupted' },
+      }} />)
+    }
+    expect(host.querySelectorAll('.diui-md')).toHaveLength(1)
+    expect(host.textContent).toContain('Recommendation')
+    expect(host.querySelector('.diui-chart-svg')).not.toBeNull()
+    if (phase === 'interrupted') {
+      await act(async () => { [...host.querySelectorAll('button')].find(button => button.textContent === en['action.regenerate'])!.click() })
+      expect(send).toHaveBeenCalledOnce()
+    } else {
+      expect(send).not.toHaveBeenCalled()
+    }
+  })
+
   it('never executes raw HTML or dangerous links from the prose', () => {
     const hostile = { title: 'T', blocks: [{ id: 'x', type: 'markdown', text: [
       '<script>window.__xss=1</script>', '',

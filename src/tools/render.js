@@ -23,7 +23,7 @@ export function createRenderTool(config) {
       'Sorting, tabs, chart hover and Plot sliders work locally. Host-registered dataRef shares data and local queries between Table/Chart. Only prompt Buttons and Form submissions send model messages; action Buttons call the host allowlist.',
       'Only reference dataRef scopes/ids and actionIds explicitly supplied by the host; never invent them. Unsupported hosts show an unavailable state. Send a FLAT list of components; containers reference children by id; `root` is the top component id.',
       'Button clicks and Form submissions arrive later as the user\'s next message — do not wait for them in this turn.',
-      'A dashboard or single-UI answer is mostly the UI: after calling, add at most one short sentence and do not repeat the UI content. If the user asked for a full analysis, lesson or report, write that prose in the reply (or use ui_compose to interleave it); never cut the reasoning short to fit the card.',
+      `A dashboard or single-UI answer is mostly the UI: after calling, add at most one short sentence and do not repeat the UI content. If the user asked for a full analysis, lesson or report, write that prose in the reply${config.enableCompose !== false ? ' (or use ui_compose to interleave it)' : ''}; never cut the reasoning short to fit the card.`,
       'Components:',
       catalogReference(),
     ].join('\n'); },

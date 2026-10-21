@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.7]
+
 ### Added
 
 - `ui_compose`: one answer whose ordered blocks interleave markdown prose with the existing declarative catalog and the existing sandboxed widget, for analysis, teaching and sectioned reports where UI must sit between paragraphs. Blocks reuse the existing validators, renderers and sandbox; each catalog block is patchable in place as `<composition uiId>#<block id>`. New `enableCompose` setting (default on). The finished composition is shown beneath the reply with a "Copy text" action, and the portable renderer accepts a `composition` artifact. Guidance now routes prose-heavy answers here while keeping dashboards terse.
@@ -19,6 +21,13 @@ All notable changes to this project are documented here. The format follows
 - `Chart`: keyboard focus with arrow/Home/End/Escape stepping through categories, tap-to-inspect on touch screens, and `exportable` data export. Bound `dataRef` tables and charts can export too. Charts are laid out at the card's real width, so axis labels stay legible on phones and fewer x labels are shown when space is short.
 - Browser E2E checks 13a–13g for the new components (filters, CSV contents and formula neutralisation, scatter hover, heatmap keyboard, CodeDiff as text, no model calls); `E2E_DATA_ONLY=1` runs only them.
 - `docs/component-roadmap.md`: what #17 shipped, and design proposals for `Map` and `Calendar`.
+- Per-feature demo videos in the README (Choice, data grid, Scatter/Heatmap, CodeDiff/FileTree/JsonView), recorded live in the DSH desktop app with DeepSeek models through magpie. `npm run demo:features` re-records them: `scripts/demo/record-features.mjs` drives the desktop app over the DevTools protocol and `scripts/demo/camera.mjs` renders a camera that follows the cursor, holds between actions and fast-forwards model waits.
+
+### Changed
+
+- The guidance points the model at the new components (Choice for picking between alternatives, data-grid options for explorable tables, Scatter, Heatmap, CodeDiff, FileTree, JsonView) instead of prose, Tabs or custom widget JavaScript. With DeepSeek-V4.1-Flash in the DSH desktop app, a price/rating question produced a Scatter and a function comparison a CodeDiff on the first try.
+- Interaction state that guards a side effect (starting a new session) is written durably: if browser storage is unavailable the action fails before creating anything, so a retry after reload cannot start the task twice.
+- The README was reorganized: stale sections removed, an Extending section and a documentation index added, and the feature tour videos embedded.
 
 ### Fixed
 
@@ -149,7 +158,8 @@ All notable changes to this project are documented here. The format follows
   - The declarative component catalog (`ui_render`) and sandboxed streaming HTML widgets (`ui_render_widget`).
   - The `/ui` command and the guidance system-prompt section.
 
-[Unreleased]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.6...HEAD
+[Unreleased]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.7...HEAD
+[0.2.7]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.3...v0.2.4

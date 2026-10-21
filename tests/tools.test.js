@@ -78,6 +78,11 @@ describe('config and guidance', () => {
     expect(widgetOnly).not.toContain('catalog blocks')
     expect(uiPrompt('show x', { enableCatalog: false, enableWidget: true })).toMatch(/using ui_render_widget or ui_compose;/)
     expect(uiPrompt('show x', { enableCatalog: false, enableWidget: true, enableCompose: false })).toMatch(/using ui_render_widget;/)
+    const disabled = resolveConfig({ enableCompose: false })
+    expect(createRenderTool(disabled).description).not.toContain('ui_compose')
+    expect(createWidgetTool(disabled).description).not.toContain('ui_compose')
+    expect(createRenderTool(config).description).toContain('ui_compose')
+    expect(createWidgetTool(config).description).toContain('ui_compose')
   })
 
   it('keeps the analysis-scenario guidance without a fixed sentence limit', () => {

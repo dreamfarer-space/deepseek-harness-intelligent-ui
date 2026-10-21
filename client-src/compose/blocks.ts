@@ -35,6 +35,7 @@ export function isComposeBlock(value: unknown): value is ComposeBlock {
   return !!value && typeof value === 'object'
     && typeof (value as ComposeBlock).id === 'string'
     && BLOCK_TYPES.includes((value as ComposeBlock).type)
+    && ((value as ComposeBlock).type !== 'markdown' || typeof (value as ComposeBlock).text === 'string')
 }
 
 /** Ordered blocks of a composition, from complete arguments or from the finished prefix. */
