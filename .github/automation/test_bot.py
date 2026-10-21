@@ -33,7 +33,7 @@ class GitHubStub:
         if route == "pulls/1":
             self.pr_reads += 1
             return {"title": "Fix button", "body": "", "state": "open", "draft": False,
-                    "changed_files": 1,
+                    "changed_files": len(getattr(self, "files", [0])),
                     "base": {"sha": "c" * 40 if self.stale_base and self.pr_reads > 1 else "d" * 40, "ref": "main"},
                     "head": {"sha": "b" * 40 if self.stale_pr and self.pr_reads > 1 else "a" * 40}}
         if route.startswith("contents/"):
@@ -46,8 +46,8 @@ class GitHubStub:
         if route == "pulls/1/reviews":
             return []
         if route == "pulls/1/files":
-            return [{"filename": "src/button.js", "status": "modified",
-                     "patch": "@@ -1,2 +1,3 @@\n context\n-old\n+new\n+extra"}]
+            return getattr(self, "files", [{"filename": "src/button.js", "status": "modified",
+                                            "patch": "@@ -1,2 +1,3 @@\n context\n-old\n+new\n+extra"}])
         raise AssertionError(route)
 
 
@@ -87,14 +87,15 @@ class Boundaries(unittest.TestCase):
         self.assertEqual(payload["commit_id"], "a" * 40)
         self.assertEqual(payload["comments"][0]["line"], 2)
 
-    def test_invalid_review_line_never_publishes(self):
+    def test_offset_review_line_is_dropped_not_published(self):
         gh = GitHubStub()
         with patch.object(bot, "infer", return_value={"summary": "问题", "findings": [
             {"path": "src/button.js", "line": 999, "priority": "P1", "title": "x", "body": "x"}
         ]}):
-            with self.assertRaises(bot.BotError):
-                bot.review_pr(gh, 1, False)
-        self.assertEqual(gh.writes, [])
+            bot.review_pr(gh, 1, False)
+        payload = gh.writes[0][2]
+        self.assertEqual(payload["event"], "COMMENT")
+        self.assertEqual(payload["comments"], [])
 
     def test_stale_review_never_publishes(self):
         gh = GitHubStub()
@@ -155,6 +156,30 @@ class Boundaries(unittest.TestCase):
     def test_mentions_and_secrets_are_redacted(self):
         with patch.dict(os.environ, {"GEMINI_API_KEY": "test-only-key"}):
             self.assertEqual(bot.clean("@someone test-only-key"), "＠someone [REDACTED]")
+    def test_missing_credential_skips_without_failing(self):
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "", "GITHUB_TOKEN": "x",
+                                     "GITHUB_REPOSITORY": "o/r", "BOT_MODE": "pr",
+                                     "TARGET_NUMBER": "1", "DRY_RUN": "false"}, clear=False):
+            bot.main()
+
+    def test_large_pr_is_split_into_batches_without_dropping_files(self):
+        gh = GitHubStub()
+        gh.files = [{"filename": f"src/mod{i}.js", "status": "modified",
+                     "patch": "@@ -1 +1 @@\n-a\n+" + "b" * 400} for i in range(12)]
+        seen, batches = set(), []
+
+        def fake_infer(prompt, schema, model):
+            payload = json.loads(prompt[prompt.index('{"title"'):])
+            batches.append(1)
+            seen.update(f["path"] for f in payload["files"])
+            return {"summary": f"批次 {len(batches)}", "findings": []}
+
+        with patch.object(bot, "BATCH_CHARS", 1000), patch.object(bot, "infer", side_effect=fake_infer):
+            bot.review_pr(gh, 1, True)
+        self.assertGreater(len(batches), 1)
+        self.assertEqual(len(seen), 12)
+        self.assertEqual(gh.writes, [])
+
 
 
 if __name__ == "__main__":
