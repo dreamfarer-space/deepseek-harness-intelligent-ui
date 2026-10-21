@@ -1,3 +1,4 @@
+import http from 'node:http';
 import https from 'node:https';
 import { createHash } from 'node:crypto';
 import { createRenderTool } from '../src/tools/render.js';
@@ -55,7 +56,9 @@ export function callChatDetailed(messages, useTools = true) {
   const started = performance.now();
   return new Promise((resolve, reject) => {
     const data = JSON.stringify(payload);
-    const req = https.request(ENDPOINT, {
+    // A local OpenAI-compatible gateway (http://127.0.0.1:…) is allowed for evaluation runs.
+    const client = new URL(ENDPOINT).protocol === 'http:' ? http : https;
+    const req = client.request(ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
