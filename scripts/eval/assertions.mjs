@@ -3,7 +3,7 @@ import { validateWidget } from '../../src/tools/widget.js';
 import { validateComposition } from '../../src/compose/compose.js';
 
 /** Bump whenever a check changes: reports with different versions are not comparable. */
-export const ASSERTION_VERSION = 6;
+export const ASSERTION_VERSION = 7;
 
 /** Validate every call before constructing a follow-up tool-result history. */
 export function checkedCalls(message, config) {
