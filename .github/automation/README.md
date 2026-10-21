@@ -31,3 +31,5 @@ static review, not test execution or a guarantee that every defect is found.
 Provider failures fail the Actions run rather than fabricate a review. Transient
 rate limits receive one delayed retry. Check the Actions run and provider account
 availability if a run fails; no alternate model is selected automatically.
+
+<!-- bot smoke test -->
