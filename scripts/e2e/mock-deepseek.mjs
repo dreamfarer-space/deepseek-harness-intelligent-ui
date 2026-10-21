@@ -6,7 +6,7 @@
 import { createServer } from 'node:http'
 import { appendFileSync, existsSync } from 'node:fs'
 import { definition as EXTENSION } from '../../examples/component-extension/manifest.js'
-import { chartPatch, DASHBOARD, explainSphere, forecast, MATH, SLOW, SPHERE, SESSION_LAUNCH, DATA_TOOLS } from './scenarios.mjs'
+import { chartPatch, COMPOSE, composePatch, DASHBOARD, explainSphere, forecast, MATH, SLOW, SPHERE, SESSION_LAUNCH, DATA_TOOLS } from './scenarios.mjs'
 
 const PORT = Number(process.argv[2] || 3199)
 const LOG = process.argv[3]
@@ -66,12 +66,14 @@ const textOf = content => typeof content === 'string' ? content : (content || []
 function decide(lastText, tools) {
   if (!tools.includes('ui_render')) return 'no-ui-tools'
   if (lastText.startsWith('E2E data tools')) return 'data-tools'
+  if (lastText.startsWith('E2E compose answer')) return 'compose'
   if (lastText.startsWith('E2E show session launcher')) return 'session-launch'
   if (lastText.startsWith('E2E independent Agent task')) return 'session-task'
   if (/GitDiffViewer/.test(lastText)) return 'extension'
   if (/Form "Request a forecast" submitted/.test(lastText)) return 'forecast'
   if (/Explain the surface/.test(lastText)) return 'explain-sphere'
   if (/interrupted\. Please generate/.test(lastText)) return 'regenerate'
+  if (/line chart/i.test(lastText) && /compose/i.test(lastText)) return 'compose-patch'
   if (/line chart/i.test(lastText)) return 'patch'
   if (/2Rz|sphere/i.test(lastText)) return 'sphere'
   if (/dashboard|sales/i.test(lastText)) return 'dashboard'
@@ -81,6 +83,7 @@ function decide(lastText, tools) {
 }
 
 const AFTER = {
+  ui_compose: 'The analysis above is shown in order; pick a route when you are ready.',
   ui_render: 'The dashboard above is interactive — sort the table, switch tabs, or request a forecast.',
   ui_render_widget: 'Drag to rotate, scroll to zoom, and move the R slider; the surface updates instantly.',
   ui_patch: 'The revenue chart is now a line chart; everything else is as you left it.',
@@ -89,6 +92,13 @@ const AFTER = {
 /** The dashboard's uiId: the id of the ui_render call that showed it. */
 const dashboardId = messages => messages.flatMap(m => Array.isArray(m.content) ? m.content : [])
   .find(c => c.type === 'tool_use' && c.name === 'ui_render' && c.input?.title === DASHBOARD.title)?.id
+
+/** The composition call id and its chart block's uiId. */
+const composeIds = messages => {
+  const call = messages.flatMap(m => Array.isArray(m.content) ? m.content : [])
+    .find(c => c.type === 'tool_use' && c.name === 'ui_compose' && c.input?.title === COMPOSE.title)
+  return call ? { callId: call.id, blockId: `${call.id}#compare` } : undefined
+}
 
 createServer((req, res) => {
   let body = ''
@@ -112,6 +122,11 @@ createServer((req, res) => {
     const model = b.model
     switch (decision) {
       case 'data-tools': return sse(res, toolEvents(model, 'ui_render', DATA_TOOLS, 36), 20)
+      case 'compose': return sse(res, toolEvents(model, 'ui_compose', COMPOSE, 30), 25)
+      case 'compose-patch': {
+        const ids = composeIds(b.messages)
+        return ids ? sse(res, toolEvents(model, 'ui_patch', composePatch(ids.blockId), 24), 25) : sse(res, textEvents(model, 'The composition is no longer available.'), 20)
+      }
       case 'session-launch': return sse(res, toolEvents(model, 'ui_render', SESSION_LAUNCH, 36), 20)
       case 'session-task': return sse(res, textEvents(model, 'Independent Agent started automatically.'), 20)
       case 'extension': return sse(res, toolEvents(model, 'ui_render', EXTENSION, 36), 30)

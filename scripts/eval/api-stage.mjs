@@ -6,11 +6,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { outline } from '../../src/catalog/patch.js'
 import { Conversation } from './conversation.mjs'
-import { chartsOf, checkChartEdits, checkUpdatedTable, fillForecastForm, incorporatesSubmission, nativeChecks, renderedNodes, widgetChecks } from './assertions.mjs'
+import { chartsOf, checkChartEdits, checkUpdatedTable, composeChecks, composedProse, composedTrees, compositionInterleaves, fillForecastForm, incorporatesSubmission, nativeChecks, renderedNodes, widgetChecks } from './assertions.mjs'
 
 const RENDER = 'ui_render'
 const WIDGET = 'ui_render_widget'
 const PATCH = 'ui_patch'
+const COMPOSE = 'ui_compose'
 
 /** UIs whose current version changed during `turn` (rendered or patched). */
 function touched(convo, turn) {
@@ -98,6 +99,35 @@ export const API_SCENARIOS = [
     },
   },
   {
+    id: 'E1', group: 'E', category: 'compose', title: 'Analysis with an interleaved chart',
+    prompt: '帮我做一个技术选型分析：单人开发者、预算有限、需要离线可用，在本地 SQLite、Supabase 和自建后端之间选择。请先给出完整分析，中间放一个成本对比图表，最后给出下一步选项。',
+    async run(convo) {
+      const turn = await convo.turn(this.prompt)
+      const call = turn.calls.filter(c => c.ok && c.name === COMPOSE).at(-1)
+      const checks = call ? composeChecks('E1', call.args) : [['an interleaved analysis was rendered', false]]
+      return { turns: [turn], checks: scoreTurn(turn, COMPOSE, checks) }
+    },
+  },
+  {
+    id: 'E2', group: 'E', category: 'compose', title: 'Teaching walkthrough',
+    prompt: '用图文结合的方式教我理解阻尼振动：先解释原理，再给我一个可以拖动参数观察的曲线，最后解释不同阻尼比下的现象差异。',
+    async run(convo) {
+      const turn = await convo.turn(this.prompt)
+      const call = turn.calls.filter(c => c.ok && c.name === COMPOSE).at(-1)
+      if (!call) return { turns: [turn], checks: scoreTurn(turn, COMPOSE, [['an interleaved explanation was rendered', false]]) }
+      const trees = composedTrees(call.args)
+      const plots = trees.flatMap(tree => renderedNodes(tree)).filter(n => n.type === 'Plot')
+      const prose = composedProse(call.args)
+      const checks = [
+        ['prose explains the principle (before the interactive part)', /阻尼|damping|衰减/i.test(prose) && prose.trim().length > 80, `${prose.trim().length} chars`],
+        ['an interactive Plot with parameter sliders', plots.some(p => (p.props?.params ?? []).length >= 2)],
+        ['prose interprets the result after the UI', /欠阻尼|过阻尼|临界|underdamped|overdamped|critical/i.test(prose)],
+        ['the prose surrounds the UI rather than following it', compositionInterleaves(call.args)],
+      ]
+      return { turns: [turn], checks: scoreTurn(turn, COMPOSE, checks) }
+    },
+  },
+  {
     id: 'D1', group: 'D', category: 'form', title: 'Form submit → follow-up', prompt: '请帮我生成一个销售预测配置表单，包含预测区域、预测季度数、预测情景（乐观/基准/保守）。',
     async run(convo) {
       const t1 = await convo.turn(this.prompt)
@@ -154,7 +184,7 @@ export const API_SCENARIOS = [
   },
 ]
 
-export const API_GROUPS = ['A', 'B', 'C', 'D']
+export const API_GROUPS = ['A', 'B', 'C', 'D', 'E']
 
 /**
  * A chat that answers with the assistant messages of a saved transcript, in

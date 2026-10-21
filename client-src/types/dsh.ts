@@ -44,7 +44,7 @@ export type Translate = (key: IntelligentUiKey, vars?: Record<string, string | n
 export interface IntelligentUiInjected {
   /** Queue one user message in this session. */
   sendPrompt: (text: string) => Promise<void>
-  /** Explicit native Button action; never exposed to the Widget bridge. */
+  /** Explicit native Button/Form/Choice submission; never exposed to the Widget bridge. */
   sendNewSessionPrompt?: (text: string, uiId: string, nodeId: string) => Promise<void>
   /** The session this surface belongs to. */
   sessionId?: string

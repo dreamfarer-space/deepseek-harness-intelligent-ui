@@ -1,4 +1,4 @@
-import { getUiState, setUiState } from './state.ts'
+import { getPersistentUiState, setPersistentUiState } from './state.ts'
 import type { SessionsFace, WorkspacesFace, UiWorkspaceFace } from './types/dsh.ts'
 
 interface Launch {
@@ -28,13 +28,11 @@ export function createNewSessionSender(
           typeof uiWorkspace?.openSession !== 'function') {
         throw new Error('This DSH host does not support creating and opening Agent sessions')
       }
-      let state = getUiState<Launch>(uiId, key)
-      // Durable: a launch whose identity could be lost on reload must not start,
-      // or a retry after the reload would create and run a second session.
+      let state: Launch | undefined
+      try { state = getPersistentUiState<Launch>(uiId, key) }
+      catch { throw new Error('Could not read the new session recovery state; check browser storage and retry') }
       const save = () => {
-        if (!setUiState(uiId, key, { ...state }, { durable: true })) {
-          throw new Error('Browser storage is unavailable, so a retry after reload could start the task twice; enable site storage and try again')
-        }
+        if (!setPersistentUiState(uiId, key, { ...state })) throw new Error('Could not persist the new session recovery state; check browser storage and retry')
       }
       if (!state) {
         const snapshot = workspaces?.list?.getSnapshot()
@@ -46,10 +44,10 @@ export function createNewSessionSender(
         if (!workspaceId && !cwd) throw new Error('Cannot determine the source session workspace')
         state = { sessionId: crypto.randomUUID(), text, created: false, accepted: false,
           ...(workspaceId ? { workspaceId } : { cwd }) }
-        // Persist before create: an uncertain response retries the same identity.
-        save()
       }
       if (state.text !== text) throw new Error(`This button already targets session ${state.sessionId} with a different prompt`)
+      // Verify persistence on every attempt, including retries loaded from memory.
+      save()
       try {
         if (!state.created) {
           let id: string

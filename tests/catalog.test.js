@@ -105,3 +105,46 @@ describe('catalogReference', () => {
     expect(ref).toMatch(/Card \(children\)/)
   })
 })
+
+describe('Choice validation', () => {
+  const options = [
+    { id: 'local', label: 'Local first', prompt: 'Discuss local storage; do not code.' },
+    { id: 'cloud', label: 'Managed cloud', description: 'Less infrastructure.', prompt: 'Discuss cloud storage; do not code.' },
+  ]
+  const validate = (props = {}) => validateProps('Choice', { question: 'Choose a route', options, ...props })
+
+  it('accepts 2-8 options', () => {
+    expect(validate({ recommended: 'local', submitLabel: 'Continue discussion' })).toEqual([])
+    expect(validate({ options: Array.from({ length: 6 }, (_, i) => ({ ...options[0], id: String(i) })) })).toEqual([])
+    expect(validate({ options: options.map(({ id, ...option }) => option) })).toEqual([])
+    expect(validate({ options: [{ ...options[0], id: '  ' }, options[1]] }).join()).toMatch(/must not be blank/)
+  })
+
+  it('rejects too few or too many options, duplicate ids and an unknown recommendation', () => {
+    expect(validate({ options: options.slice(0, 1) }).join()).toMatch(/at least 2/)
+    expect(validate({ options: Array.from({ length: 9 }, (_, i) => ({ ...options[0], id: String(i) })) }).length).toBeGreaterThan(0)
+    expect(validate({ options: [options[0], options[0]] }).join()).toMatch(/duplicate option id/)
+    expect(validate({ recommended: 'missing' }).join()).toMatch(/must reference an option id/)
+  })
+
+  it.each(['question', 'submitLabel'])('rejects a blank %s', key => {
+    expect(validate({ [key]: '   ' }).join()).toMatch(/must not be blank/)
+  })
+
+  it.each(['label', 'prompt'])('rejects blank and missing option %s', key => {
+    expect(validate({ options: [{ ...options[0], [key]: '  ' }, options[1]] }).join()).toMatch(/must not be blank/)
+    const first = { ...options[0] }
+    delete first[key]
+    expect(validate({ options: [first, options[1]] }).join()).toMatch(/required/)
+  })
+
+  it('rejects malformed options, invalid targets and registered actions', () => {
+    expect(validate({ options: [null, 42] }).length).toBeGreaterThan(0)
+    expect(validate({ sessionTarget: 'new' })).toEqual([])
+    expect(validate({ sessionTarget: 'current' })).toEqual([])
+    expect(validate({ sessionTarget: 'other' }).join()).toMatch(/expected one of/)
+    expect(validate({ options: [{ ...options[0], sessionTarget: 'new' }, options[1]] }).join()).toMatch(/unknown prop/)
+    expect(validate({ action: { actionId: 'run' } }).join()).toMatch(/unknown prop/)
+    expect(validate({ options: [{ ...options[0], prompt: 'x'.repeat(20001) }, options[1]] }).length).toBeGreaterThan(0)
+  })
+})

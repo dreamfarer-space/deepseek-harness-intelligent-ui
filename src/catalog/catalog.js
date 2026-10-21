@@ -294,30 +294,32 @@ export const CATALOG = Object.freeze({
     },
   },
   Choice: {
-    description: 'Single-choice question card: radio options plus "Continue in this session" and "Start new session" buttons. The picked option prompt is sent on click; a new session inherits the workspace but NOT this conversation, so every option prompt must be self-contained.',
+    description: 'Single-choice decision card with 2-8 options. Selection is local; the primary action continues in the current session and an optional secondary action starts a new session. Set sessionTarget only for an explicitly chosen fixed destination. Give options stable ids; recommended marks an id without selecting it. Every prompt must preserve user constraints and be self-contained for a new session. New-session retries retain the first confirmed task. No registered actions.',
     children: false,
     props: {
-      question: { type: 'string', required: true },
+      question: { type: 'string', required: true, max: 300 },
+      submitLabel: { type: 'string', max: 200 },
+      sessionTarget: { type: 'enum', values: ['current', 'new'] },
+      recommended: { type: 'string', max: 100 },
       options: {
         type: 'array', required: true, max: LIMITS.choiceOptions,
-        items: {
-          type: 'object',
-          props: {
-            label: { type: 'string', required: true },
-            description: { type: 'string' },
-            prompt: { type: 'string', required: true },
-          },
-        },
+        items: { type: 'object', props: {
+          id: { type: 'string', max: 100 },
+          label: { type: 'string', required: true, max: 200 },
+          description: { type: 'string', max: 1200 },
+          prompt: { type: 'string', required: true, max: LIMITS.text },
+        } },
       },
     },
   },
   Form: {
-    description: 'Input form. On submit the values are sent back to you as the user\'s next message (prefixed by `prompt` when given).',
+    description: 'Input form. Submit sends all field values prefixed by prompt. sessionTarget defaults to current; new creates an independent session in the same workspace and submits automatically. For new, prompt must contain complete task context and user constraints; conversation history is not copied.',
     children: false,
     props: {
       title: { type: 'string' },
       submitLabel: { type: 'string' },
       prompt: { type: 'string' },
+      sessionTarget: { type: 'enum', values: ['current', 'new'] },
       fields: {
         type: 'array', required: true, max: LIMITS.formFields,
         items: {
@@ -509,7 +511,25 @@ function checkSemantics(type, props, path, errors) {
   }
   if (type === 'Button' && ((props.prompt === undefined) === (props.action === undefined))) errors.push(`${path}: needs exactly one of prompt or action`);
   if (type === 'Button' && props.sessionTarget !== undefined && props.action !== undefined) errors.push(`${path}.sessionTarget: only supported with prompt`);
-  if (type === 'Choice' && Array.isArray(props.options) && props.options.length < 2) errors.push(`${path}.options: needs at least 2 options`);
+  if (type === 'Form' && props.sessionTarget === 'new' && (typeof props.prompt !== 'string' || !props.prompt.trim())) errors.push(`${path}.prompt: new session needs a non-empty task prompt`);
+  if (type === 'Choice') {
+    for (const name of ['question', 'submitLabel']) {
+      if (typeof props[name] === 'string' && !props[name].trim()) errors.push(`${path}.${name}: must not be blank`);
+    }
+    if (Array.isArray(props.options)) {
+      if (props.options.length < 2) errors.push(`${path}.options: needs at least 2 options`);
+      const ids = new Set();
+      props.options.forEach((option, i) => {
+        if (!isPlainObject(option)) return;
+        for (const name of ['id', 'label', 'prompt']) {
+          if (typeof option[name] === 'string' && !option[name].trim()) errors.push(`${path}.options[${i}].${name}: must not be blank`);
+        }
+        if (option.id !== undefined && ids.has(option.id)) errors.push(`${path}.options[${i}].id: duplicate option id`);
+        if (option.id !== undefined) ids.add(option.id);
+      });
+      if (props.recommended !== undefined && !ids.has(props.recommended)) errors.push(`${path}.recommended: must reference an option id`);
+    }
+  }
 
   if (type === 'Chart' && Array.isArray(props.labels) && Array.isArray(props.series)) {
     props.series.forEach((s, i) => {

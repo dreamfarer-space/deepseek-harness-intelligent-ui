@@ -4,9 +4,9 @@ import { contextOf, type ControlledEnv, type DataRef } from '../controlled.ts'
 import { componentEntry, validateProps, validateComponentVersion } from '../../src/catalog/catalog.js'
 import { subscribeCatalog } from '../../src/catalog/extensions.js'
 import { ExtensionBoundary, ExtensionSurface, extensionRenderer } from './extensions.tsx'
-import { formatFormSubmission } from '../bridge.ts'
+import { BridgeGuard, formatFormSubmission } from '../bridge.ts'
 import type { WidgetPolicy } from '../policy.ts'
-import { useUiState } from '../state.ts'
+import { getUiState, setPersistentUiState, useUiState } from '../state.ts'
 import type { Translate } from '../types/dsh.ts'
 import { Chart, formatNumber, type ChartProps } from './Chart.tsx'
 import { Inline } from './inline.tsx'
@@ -164,7 +164,7 @@ function Component({ node, env, children }: { node: UiNode; env: RenderEnv; chil
       if (p.action) return <ControlledButton label={p.label} action={p.action} env={env} />
       return <ActionButton label={p.label} prompt={p.prompt} variant={p.variant} sessionTarget={p.sessionTarget} env={env} nodeId={node.id} />
     case 'Choice':
-      return <Choice props={p} env={env} nodeId={node.id} />
+      return <Choice props={p as ChoiceProps} env={env} nodeId={node.id} />
     case 'Form':
       return <Form props={p} env={env} nodeId={node.id} />
     case 'Timeline':
@@ -240,7 +240,7 @@ function Tabs(props: { labels: string[]; children: ReactNode[]; env: RenderEnv; 
   )
 }
 
-function useSend(env: RenderEnv): [(text: string) => Promise<boolean>, boolean, string | undefined] {
+function useSend(env: RenderEnv, newSession = false): [(text: string) => Promise<boolean>, boolean, string | undefined] {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<string | undefined>(undefined)
   // A ref, not state: a second click in the same frame must already see the send in flight.
@@ -252,7 +252,7 @@ function useSend(env: RenderEnv): [(text: string) => Promise<boolean>, boolean, 
     setNote(env.t('bridge.sending'))
     try {
       await env.send(text)
-      setNote(env.t('bridge.sent'))
+      setNote(env.t(newSession ? 'session.started' : 'bridge.sent'))
       return true
     } catch (err) {
       setNote(env.t('bridge.failed', { reason: err instanceof Error ? err.message : String(err) }))
@@ -265,15 +265,38 @@ function useSend(env: RenderEnv): [(text: string) => Promise<boolean>, boolean, 
   return [send, busy, note]
 }
 
-function ActionButton(props: { label: string; prompt: string; variant?: string; sessionTarget?: 'current' | 'new'; env: RenderEnv; nodeId: string }) {
-  const isNew = props.sessionTarget === 'new'
+type SessionTarget = 'current' | 'new'
+
+/** New-session forms/choices keep the first confirmed payload across retries and patches. */
+function useSessionSend(env: RenderEnv, nodeId: string, target?: SessionTarget, freeze = false, launchNodeId = nodeId) {
+  const key = `${nodeId}:launchPrompt`
+  const [launchText] = useUiState<string | { text: string; nodeId: string } | undefined>(env.callId, key, undefined)
+  const isNew = target === 'new' || (freeze && launchText !== undefined)
+  const [send, busy, note] = useSend({
+    ...env,
+    send: async text => {
+      const frozen = freeze ? getUiState<string | { text: string; nodeId: string }>(env.callId ?? '', key) : undefined
+      if (target !== 'new' && frozen === undefined) return env.send(text)
+      if (!env.sendNewSession) throw new Error(env.t('session.unavailable'))
+      // Validate before freezing; the surface still applies its own admission/rate guard.
+      const payload = new BridgeGuard({ policy: env.policy, armDelayMs: 0, minIntervalMs: 0 }).admitPrompt((typeof frozen === 'string' ? frozen : frozen?.text) ?? text)
+      const actionId = typeof frozen === 'string' ? nodeId : frozen?.nodeId ?? launchNodeId
+      if (freeze && !setPersistentUiState(env.callId ?? '', key, { text: payload, nodeId: actionId })) {
+        throw new Error(env.t('session.recoveryUnavailable'))
+      }
+      await env.sendNewSession(payload, actionId)
+    },
+  }, isNew)
+  return { send, busy, note, isNew, frozen: freeze && launchText !== undefined }
+}
+
+function targetLabel(label: string, env: RenderEnv, isNew: boolean) {
+  return `${label} · ${env.t(isNew ? 'session.targetNew' : 'session.targetCurrent')}`
+}
+
+function ActionButton(props: { label: string; prompt: string; variant?: string; sessionTarget?: SessionTarget; env: RenderEnv; nodeId: string }) {
   const [done, setDone] = useUiState(props.env.callId, `${props.nodeId}:sessionStarted`, false)
-  const [send, busy, note] = useSend(isNew ? {
-    ...props.env,
-    send: text => props.env.sendNewSession
-      ? props.env.sendNewSession(text, props.nodeId)
-      : Promise.reject(new Error(props.env.t('session.unavailable'))),
-  } : props.env)
+  const { send, busy, note, isNew } = useSessionSend(props.env, props.nodeId, props.sessionTarget)
   const click = async () => {
     if (isNew && done) return
     if (await send(props.prompt) && isNew) setDone(true)
@@ -288,55 +311,78 @@ function ActionButton(props: { label: string; prompt: string; variant?: string; 
   )
 }
 
-interface ChoiceOption { label: string; description?: string; prompt: string }
+interface ChoiceOption { id?: string; label: string; description?: string; prompt: string }
+interface ChoiceProps {
+  question: string
+  options: ChoiceOption[]
+  recommended?: string
+  submitLabel?: string
+  sessionTarget?: SessionTarget
+}
 
-/** Pick one option, then continue here or hand it to a fresh session. Locks once either succeeds. */
-function Choice({ props, env, nodeId }: { props: Record<string, any>; env: RenderEnv; nodeId: string }) {
-  const options = props.options as ChoiceOption[]
-  // Surfaces without the native session action (portable renderer, streaming preview) offer only this session.
-  const canStartNew = !!env.sendNewSession
-  const [picked, setPicked] = useUiState<number | null>(env.callId, `${nodeId}:picked`, null)
-  const [done, setDone] = useUiState<'current' | 'new' | null>(env.callId, `${nodeId}:done`, null)
+function Choice({ props, env, nodeId }: { props: ChoiceProps; env: RenderEnv; nodeId: string }) {
+  // Numeric selections and launch ids preserve existing id-less Choice cards.
+  const [picked, setPicked] = useUiState<string | number | null>(env.callId, `${nodeId}:picked`, null)
+  const [done, setDone] = useUiState<SessionTarget | null>(env.callId, `${nodeId}:done`, null)
+  const index = props.options.findIndex((option, i) => typeof picked === 'string' ? option.id === picked : i === picked)
+  const option = props.options[index]
   const [sendHere, busyHere, noteHere] = useSend(env)
-  // Each option is its own launch: a failed launch is resumed by retrying the same option.
-  const [sendNew, busyNew, noteNew] = useSend({
-    ...env,
-    send: text => env.sendNewSession!(text, `${nodeId}#${picked}`),
-  })
-  const [last, setLast] = useState<'current' | 'new' | null>(null)
-  const name = useId()
-  const option = picked === null ? undefined : options[picked]
-  const busy = busyHere || busyNew
-  const locked = done !== null || busy || env.streaming
-  const go = async (target: 'current' | 'new') => {
-    if (!option || done) return
+  const { send: sendNew, busy: busyNew, note: noteNew, frozen } =
+    useSessionSend(env, nodeId, 'new', true, `${nodeId}#${option?.id ?? index}`)
+  const [last, setLast] = useState<SessionTarget | null>(null)
+  const inFlight = useRef(false)
+  const uid = useId()
+  const locked = done !== null || busyHere || busyNew || env.streaming || !!env.stopped
+  const primaryTarget: SessionTarget = frozen || props.sessionTarget === 'new' ? 'new' : 'current'
+  const go = async (target: SessionTarget) => {
+    if (inFlight.current || locked || (!option && !frozen)) return
+    if (target === 'current' && getUiState(env.callId ?? '', `${nodeId}:launchPrompt`) !== undefined) return
+    inFlight.current = true
     setLast(target)
-    if (await (target === 'new' ? sendNew : sendHere)(option.prompt)) setDone(target)
+    try {
+      if (await (target === 'new' ? sendNew : sendHere)(option?.prompt ?? '')) setDone(target)
+    } finally { inFlight.current = false }
   }
-  const note = done === 'new' ? env.t('session.started') : done === 'current' ? env.t('choice.sent')
-    : last === 'new' ? noteNew : last === 'current' ? noteHere : undefined
+  const label = done ? env.t(done === 'new' ? 'session.started' : 'choice.sent')
+    : frozen ? targetLabel(env.t('session.retry'), env, true)
+    : props.sessionTarget ? targetLabel(props.submitLabel ?? env.t('choice.continue'), env, primaryTarget === 'new')
+    : props.submitLabel ? targetLabel(props.submitLabel, env, false) : env.t('choice.continue')
+  const note = done ? env.t(done === 'new' ? 'session.started' : 'choice.sent')
+    : last === 'new' ? noteNew : noteHere
   return (
-    <fieldset className="diui-choice" disabled={done !== null}>
-      <legend className="diui-choice-question"><Inline text={props.question} /></legend>
-      <div className="diui-choice-options" role="radiogroup">
-        {options.map((o, i) => (
-          <label key={i} className="diui-choice-option" data-selected={picked === i || undefined}>
-            <input type="radio" name={name} checked={picked === i} disabled={locked} onChange={() => setPicked(i)} />
-            <span className="diui-choice-text">
-              <span className="diui-choice-label"><Inline text={o.label} /></span>
-              {o.description && <span className="diui-choice-desc"><Inline text={o.description} /></span>}
-            </span>
-          </label>
-        ))}
-      </div>
+    <form className="diui-choice" onSubmit={event => { event.preventDefault(); void go(primaryTarget) }}>
+      <fieldset disabled={locked || frozen} aria-describedby={`${uid}-hint`}>
+        <legend className="diui-choice-question">{props.question}</legend>
+        <div className="diui-choice-options" role="radiogroup">
+          {props.options.map((item, i) => (
+            <label key={item.id ?? i} className="diui-choice-option" data-selected={i === index || undefined}>
+              <input type="radio" name={`${uid}-choice`} value={item.id ?? i} checked={i === index}
+                aria-describedby={item.description ? `${uid}-${i}-description` : undefined}
+                onChange={() => setPicked(item.id ?? i)} />
+              <span className="diui-choice-text">
+                <span className="diui-choice-label">{item.label}
+                  {item.id !== undefined && item.id === props.recommended &&
+                    <span className="diui-choice-recommended">{env.t('choice.recommended')}</span>}
+                </span>
+                {item.description && <span className="diui-choice-desc" id={`${uid}-${i}-description`}>{item.description}</span>}
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
       <div className="diui-choice-actions">
-        <button type="button" className="diui-button" data-variant="primary" disabled={!option || locked} aria-busy={busyHere || undefined} onClick={() => { void go('current') }}>{env.t('choice.continue')}</button>
-        {canStartNew && <button type="button" className="diui-button" data-variant="secondary" disabled={!option || locked} aria-busy={busyNew || undefined} onClick={() => { void go('new') }}>{env.t('choice.newSession')}</button>}
-        {note && <span className="diui-note" role="status">{note}</span>}
+        <button type="submit" className="diui-button diui-choice-submit" data-variant="primary"
+          disabled={locked || (!option && !frozen)} aria-busy={busyHere || busyNew || undefined}>{label}</button>
+        {!props.sessionTarget && !frozen && env.sendNewSession &&
+          <button type="button" className="diui-button" data-variant="secondary" disabled={locked || !option}
+            aria-busy={busyNew || undefined} onClick={() => { void go('new') }}>{env.t('choice.newSession')}</button>}
+        <span className="diui-note" role="status" aria-live="polite">{note}</span>
       </div>
-    </fieldset>
+      <span className="diui-choice-hint" id={`${uid}-hint`}>{env.t(frozen ? 'session.retryHint' : 'choice.hint')}</span>
+    </form>
   )
 }
+
 
 interface FieldSpec { name: string; label: string; type: string; options?: string[]; required?: boolean; placeholder?: string; default?: Cell; min?: number; max?: number; step?: number }
 
@@ -352,13 +398,14 @@ function Form({ props, env, nodeId }: { props: Record<string, any>; env: RenderE
   const [stored, setValues] = useUiState<Record<string, unknown>>(env.callId, `${nodeId}:values`, () => Object.fromEntries(fields.map(f => [f.name, initialValue(f)])))
   // Fields a patch added start from their defaults; the user's input in the others is kept.
   const values = useMemo(() => ({ ...Object.fromEntries(fields.map(f => [f.name, initialValue(f)])), ...stored }), [fields, stored])
-  const [send, busy, note] = useSend(env)
+  const { send, busy, note, isNew, frozen } = useSessionSend(env, nodeId, props.sessionTarget, true)
   // Submitted forms stay locked across remounts and reloads.
   const [done, setDone] = useUiState(env.callId, `${nodeId}:submitted`, false)
   const uid = useId()
   const set = (name: string, v: unknown) => setValues(prev => ({ ...prev, [name]: v }))
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (busy || done || env.streaming || env.stopped) return
     const out: Record<string, unknown> = {}
     for (const f of fields) {
       const v = values[f.name]
@@ -372,7 +419,7 @@ function Form({ props, env, nodeId }: { props: Record<string, any>; env: RenderE
       {fields.map((f) => {
         const id = `${uid}-${f.name}`
         const v = values[f.name]
-        const common = { id, name: f.name, required: f.required, disabled: done || env.streaming }
+        const common = { id, name: f.name, required: f.required, disabled: busy || done || frozen || env.streaming || !!env.stopped }
         let input: ReactNode
         switch (f.type) {
           case 'textarea':
@@ -418,9 +465,12 @@ function Form({ props, env, nodeId }: { props: Record<string, any>; env: RenderE
         )
       })}
       <div className="diui-form-actions">
-        <button type="submit" className="diui-button" data-variant="primary" disabled={busy || done || env.streaming} aria-busy={busy || undefined}>{props.submitLabel ?? env.t('form.submit')}</button>
-        {(note ?? (done ? env.t('form.submitted') : undefined)) && <span className="diui-note" role="status">{note ?? env.t('form.submitted')}</span>}
+        <button type="submit" className="diui-button" data-variant="primary" disabled={busy || done || env.streaming || !!env.stopped} aria-busy={busy || undefined}>
+          {done ? env.t(isNew ? 'session.started' : 'form.submitted') : targetLabel(frozen ? env.t('session.retry') : props.submitLabel ?? env.t('form.submit'), env, isNew)}
+        </button>
+        {(note ?? (done ? env.t(isNew ? 'session.started' : 'form.submitted') : undefined)) && <span className="diui-note" role="status">{note ?? env.t(isNew ? 'session.started' : 'form.submitted')}</span>}
       </div>
+      {frozen && !done && <span className="diui-note">{env.t('session.retryHint')}</span>}
     </form>
   )
 }

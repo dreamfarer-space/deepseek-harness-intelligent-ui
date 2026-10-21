@@ -39,7 +39,7 @@ async function mount(config = {}, { systemPrompt = true } = {}) {
 describe('plugin mount', () => {
   it('registers the UI tools, /ui and the guidance section', async () => {
     const { tools, commands, sections } = await mount()
-    expect([...tools.keys()].sort()).toEqual(['ui_patch', 'ui_render', 'ui_render_widget'])
+    expect([...tools.keys()].sort()).toEqual(['ui_compose', 'ui_patch', 'ui_render', 'ui_render_widget'])
     expect([...commands.keys()]).toEqual(['ui'])
     expect([...sections.keys()]).toEqual(['intelligent-ui:guidance'])
     expect(sections.get('intelligent-ui:guidance').text).toMatch(/# Intelligent UI/)
@@ -47,14 +47,19 @@ describe('plugin mount', () => {
 
   it('honors feature flags', async () => {
     const { tools, commands, sections } = await mount({ enableWidget: false, injectGuidance: false })
-    expect([...tools.keys()]).toEqual(['ui_render', 'ui_patch'])
+    expect([...tools.keys()]).toEqual(['ui_render', 'ui_patch', 'ui_compose'])
     expect([...commands.keys()]).toEqual(['ui'])
     expect(sections.size).toBe(0)
   })
 
+  it('does not offer composing without a UI capability, or when disabled', async () => {
+    expect([...(await mount({ enableCatalog: false, enableWidget: false })).tools.keys()]).toEqual([])
+    expect([...(await mount({ enableCompose: false })).tools.keys()].sort()).toEqual(['ui_patch', 'ui_render', 'ui_render_widget'])
+  })
+
   it('still loads without a systemPrompt service', async () => {
     const { tools } = await mount({}, { systemPrompt: false })
-    expect(tools.size).toBe(3)
+    expect(tools.size).toBe(4)
   })
 
   it('/ui hands the request to the conversation model', async () => {

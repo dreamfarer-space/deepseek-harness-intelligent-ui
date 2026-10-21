@@ -8,6 +8,8 @@ import type { IntelligentUiInjected, ToolResultNode, ToolViewProps, Translate } 
 import { WidgetView } from './widget/WidgetView.tsx'
 import { WIDGET_TOOL } from '../src/tools/widget.js'
 import { PATCH_TOOL } from '../src/tools/patch.js'
+import { COMPOSE_TOOL } from '../src/compose/constants.js'
+import { ComposeView } from './compose/ComposeView.tsx'
 
 type TailProps = TurnTailOwner & IntelligentUiInjected & { t: Translate }
 
@@ -42,7 +44,10 @@ function TailItem(props: { block: ToolResultNode; t: Translate } & IntelligentUi
   // Claim the call before paint so the inline copy collapses in the same frame.
   useLayoutEffect(() => presented.add(block.callId), [block.callId])
   const toolName = block.call?.name ?? ''
-  const View = toolName === WIDGET_TOOL ? WidgetView : toolName === PATCH_TOOL ? PatchView : RenderView
+  const View = toolName === WIDGET_TOOL ? WidgetView
+    : toolName === PATCH_TOOL ? PatchView
+    : toolName === COMPOSE_TOOL ? ComposeView
+    : RenderView
   return <View phase="result" block={block} callId={block.callId} toolName={toolName} t={props.t} sendPrompt={props.sendPrompt} sendNewSessionPrompt={props.sendNewSessionPrompt} sessionId={props.sessionId} controlled={props.controlled} />
 }
 

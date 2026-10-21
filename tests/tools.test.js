@@ -69,9 +69,28 @@ describe('config and guidance', () => {
   })
 
   it('only mentions enabled tools', () => {
-    expect(guidanceText({ enableCatalog: true, enableWidget: false })).toMatch(RENDER_TOOL)
-    expect(guidanceText({ enableCatalog: true, enableWidget: false })).not.toMatch(WIDGET_TOOL)
+    const catalogOnly = guidanceText({ enableCatalog: true, enableWidget: false })
+    expect(catalogOnly).toMatch(RENDER_TOOL)
+    expect(catalogOnly).not.toMatch(WIDGET_TOOL)
     expect(guidanceText({ enableCatalog: false, enableWidget: false })).toBe('')
-    expect(uiPrompt('show x', { enableCatalog: false, enableWidget: true })).toMatch(/using ui_render_widget;/)
+    const widgetOnly = guidanceText({ enableCatalog: false, enableWidget: true })
+    expect(widgetOnly).not.toMatch(/Use `ui_render` for dashboards/)
+    expect(widgetOnly).not.toContain('catalog blocks')
+    expect(uiPrompt('show x', { enableCatalog: false, enableWidget: true })).toMatch(/using ui_render_widget or ui_compose;/)
+    expect(uiPrompt('show x', { enableCatalog: false, enableWidget: true, enableCompose: false })).toMatch(/using ui_render_widget;/)
+    const disabled = resolveConfig({ enableCompose: false })
+    expect(createRenderTool(disabled).description).not.toContain('ui_compose')
+    expect(createWidgetTool(disabled).description).not.toContain('ui_compose')
+    expect(createRenderTool(config).description).toContain('ui_compose')
+    expect(createWidgetTool(config).description).toContain('ui_compose')
   })
+
+  it('keeps the analysis-scenario guidance without a fixed sentence limit', () => {
+    const text = guidanceText({ enableCatalog: true, enableWidget: true })
+    expect(text).toMatch(/ui_compose/)
+    expect(text).toMatch(/never shorten the reasoning to fit a card/)
+    expect(text).not.toMatch(/at most one or two sentences; do not restate the UI/)
+    expect(text).toMatch(/Dashboard or visualization-led answers: at most one or two sentences/)
+  })
+
 })

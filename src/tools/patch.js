@@ -10,6 +10,7 @@
 import { componentTypes } from '../catalog/catalog.js';
 import { applyPatch, collectUis, outline, PATCH_LIMITS, PATCH_OPS } from '../catalog/patch.js';
 import { clientPolicy } from '../config.js';
+import { COMPOSE_TOOL } from '../compose/constants.js';
 import { RENDER_TOOL } from './render.js';
 
 export const PATCH_TOOL = 'ui_patch';
@@ -29,11 +30,16 @@ const nodeSchema = () => ({
 /**
  * The UIs of the calling conversation, or an explanation why there are none.
  * @param {any} exec - ToolRunContext.
+ * @param {ReturnType<import('../config.js').resolveConfig>} config
  */
-function conversationUis(exec) {
+function conversationUis(exec, config) {
   const session = exec?.agent?.session;
   if (!session || typeof session.deriveMessages !== 'function') return undefined;
-  return collectUis(session.deriveMessages(), { render: RENDER_TOOL, patch: PATCH_TOOL });
+  return collectUis(session.deriveMessages(), {
+    render: RENDER_TOOL,
+    patch: PATCH_TOOL,
+    ...(config.enableCompose !== false ? { compose: COMPOSE_TOOL, config } : {}),
+  });
 }
 
 /**
@@ -44,7 +50,7 @@ export function createPatchTool(config) {
   return {
     name: PATCH_TOOL,
     description: [
-      `Change a UI that ${RENDER_TOOL} (or an earlier ${PATCH_TOOL}) already showed in THIS conversation, in place, without re-sending the whole UI.`,
+      `Change a UI that ${RENDER_TOOL}, ${COMPOSE_TOOL} (a catalog block's uiId is "<composition call id>#<block id>") or an earlier ${PATCH_TOOL} already showed in THIS conversation, in place, without re-sending the whole UI.`,
       'Address it by its uiId and the version you are changing (both are in the tool result that showed it); address components by their ids.',
       'Components you do not touch keep their content and the user\'s state (table sort, selected tab, form input, slider positions).',
       'Operations, applied in order and all-or-nothing:',
@@ -119,7 +125,7 @@ export function createPatchTool(config) {
       if (typeof args !== 'object' || args === null || typeof args.uiId !== 'string' || args.uiId === '') {
         return refuse(['uiId: expected the uiId of a UI shown earlier in this conversation']);
       }
-      const uis = conversationUis(exec);
+      const uis = conversationUis(exec, config);
       if (!uis) return refuse([`${PATCH_TOOL} is only available inside a conversation; call ${RENDER_TOOL} with the complete UI`], 'unavailable');
       const ui = uis.get(args.uiId);
       if (!ui) {

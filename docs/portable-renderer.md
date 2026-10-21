@@ -8,10 +8,13 @@ The bundle defines `DshIntelligentUiRenderer.mount(element, host)`:
 
 - `host.sendPrompt(text): Promise<void>`: called only for catalog actions or an iframe Widget bridge action. The embedding client **must** validate scope, rate, length and delivery state before dispatching into its existing authenticated Session Prompt API. A rejection must reject the Promise.
 - `host.onHeight(height)`: optional content height in CSS pixels.
-- `mount().render(artifact)`: accepts `{kind,uiId,version,title?,definition,policy?}` where the definition is the complete accepted `ui_render` argument object, the complete `ui_patch` snapshot, or the accepted `ui_render_widget` argument object.
+- `mount().render(artifact)`: accepts `{kind,uiId,version,title?,definition,policy?}` where the definition is the complete accepted `ui_render` argument object, the complete `ui_patch` snapshot, the accepted `ui_render_widget` argument object, or — for `kind: "composition"` — the accepted `ui_compose` argument object (`{title?, blocks}`). Older artifact kinds keep working unchanged.
+- Composed blocks render in order: `markdown` through the same GFM renderer (raw HTML stays inert text, only http(s)/mailto links), `catalog` through the catalog renderer, and `widget` through the same opaque-origin frame. `projectNativeUiEvents` reports `kind: "composition"`; a `ui_patch` on `<composition uiId>#<block id>` replaces only that catalog block and bumps the composition's version.
 - `mount().setTheme('light'|'dark')` and `mount().dispose()`.
 
-`uiId` is the original ui_render call ID (or widget call ID); `version` starts at 1 and is monotonically increasing. The caller must keep Host+Session+uiId isolation, validate success and reject stale/conflicting patches **before** passing data to render(). The renderer does not reconstruct from a text summary.
+`uiId` is the original ui_render call ID (or widget/composition call ID); `version` starts at 1 and is monotonically increasing. A composed answer's catalog blocks are addressed as `<composition uiId>#<block id>`. The caller must keep Host+Session+uiId isolation, validate success and reject stale/conflicting patches **before** passing data to render(). The renderer does not reconstruct from a text summary.
+
+Catalog blocks have independent patch versions, each starting at 1. Every accepted block patch increments the composition artifact version by one; that artifact revision is not a block's `baseVersion`.
 
 ## Security and packaging
 

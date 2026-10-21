@@ -8,9 +8,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import https from 'node:https'
 import { deflateSync } from 'node:zlib'
 import { callChat, getApiKey, config, pluginTools, PROMPT_VERSION } from '../scripts/test-real-model.mjs'
-import { checkedCalls, checkChartEdits, checkNativeCase, checkUpdatedTable, fillForecastForm, incorporatesSubmission, nativeChecks, widgetChecks } from '../scripts/eval/assertions.mjs'
+import { checkedCalls, checkChartEdits, checkNativeCase, checkUpdatedTable, composeChecks, composedProse, compositionInterleaves, fillForecastForm, incorporatesSubmission, nativeChecks, widgetChecks } from '../scripts/eval/assertions.mjs'
 import { Conversation } from '../scripts/eval/conversation.mjs'
-import { runApiStage } from '../scripts/eval/api-stage.mjs'
+import { API_SCENARIOS, runApiStage } from '../scripts/eval/api-stage.mjs'
+import { ASSERTION_VERSION } from '../scripts/eval/assertions.mjs'
 import { assertNoSecrets, percentile, redact, summarize, timing, toMarkdown } from '../scripts/eval/report.mjs'
 import { imageDiff, imageStats } from '../scripts/eval/png.mjs'
 
@@ -129,16 +130,45 @@ describe('real-model evaluation assertions', () => {
     expect(checkChartEdits(chart(), altered, { kind: 'line' }).map(([, ok]) => ok)).toEqual([true, false])
   })
 
+  it('scores composed answers on their catalog blocks and on how prose surrounds them', () => {
+    const blocks = [
+      { id: 'intro', type: 'markdown', text: 'Trade-offs first. 阻尼 解释。' },
+      { id: 'chart', type: 'catalog', root: 'c', components: [{ id: 'c', type: 'Chart', props: { kind: 'bar', labels: ['Local', 'Supabase', 'Custom'], series: [{ name: 'Cost', values: [0, 25, 60] }] } }] },
+      { id: 'outro', type: 'markdown', text: 'Next steps.' },
+      { id: 'choice', type: 'catalog', root: 'p', components: [{ id: 'p', type: 'Choice', props: { question: 'Which?', options: [{ id: 'a', label: 'A', prompt: 'a' }, { id: 'b', label: 'B', prompt: 'b' }] } }] },
+    ]
+    const checks = composeChecks('E1', { blocks })
+    expect(checks.every(([, ok]) => ok)).toBe(true)
+    expect(compositionInterleaves({ blocks })).toBe(true)
+    expect(compositionInterleaves({ blocks: [blocks[0], blocks[1]] })).toBe(false)
+    expect(compositionInterleaves({ blocks: [blocks[1], blocks[0]] })).toBe(false)
+    expect(composedProse({ blocks })).toBe(blocks[0].text + String.fromCharCode(10, 10) + blocks[2].text)
+    expect(composeChecks('E1', { blocks: [{ id: 'only', type: 'catalog', root: 'c', components: blocks[1].components }] }).find(([n]) => /prose before/.test(n))[1]).toBe(false)
+    // Composition calls are accepted by the history checker once their blocks validate.
+    expect(() => checkedCalls({ tool_calls: [call('comp', { blocks }, 'ui_render')] }, config)).toThrow(/validateTree failed/)
+    expect(() => checkedCalls({ tool_calls: [call('comp', { blocks }, 'ui_compose')] }, config)).not.toThrow()
+    expect(() => checkedCalls({ tool_calls: [call('comp', { blocks: [{ id: 'x', type: 'markdown', text: '' }] }, 'ui_compose')] }, config)).toThrow(/validateComposition/)
+  })
+
   it('refuses malformed tool calls', () => {
     expect(() => checkedCalls({ tool_calls: [call('one', table()), call('one', table())] }, config)).toThrow(/unique/)
     expect(() => checkedCalls({ tool_calls: [call('bad', { root: 'absent', components: [] })] }, config)).toThrow(/validateTree/)
     expect(() => checkedCalls({ tool_calls: [call('bad', {}, 'unknown')] }, config)).toThrow(/Unexpected tool/)
   })
+
+  it('rejects tail-only UI in the interleaved analysis and teaching scenarios', async () => {
+    const turn = { calls: [{ name: 'ui_render', ok: true, args: table() }],
+      text: '阻尼衰减与欠阻尼现象。'.repeat(30), exhausted: false }
+    for (const id of ['E1', 'E2']) {
+      const { checks } = await API_SCENARIOS.find(s => s.id === id).run({ turn: async () => turn })
+      expect(checks.find(([name]) => name === 'tool: ui_compose')[1]).toBe(false)
+    }
+  })
 })
 
 describe('API stage conversation', () => {
-  it('offers the plugin\'s three tools and a stable prompt version', () => {
-    expect(pluginTools.map(t => t.name)).toEqual(['ui_render', 'ui_patch', 'ui_render_widget'])
+  it('offers the plugin\'s four tools and a stable prompt version', () => {
+    expect(pluginTools.map(t => t.name)).toEqual(['ui_render', 'ui_patch', 'ui_render_widget', 'ui_compose'])
     expect(PROMPT_VERSION).toMatch(/^[0-9a-f]{12}$/)
   })
 
@@ -226,7 +256,7 @@ describe('report helpers', () => {
   it('renders separate layers and the historical snapshot in Markdown', () => {
     const md = toMarkdown({
       command: 'node scripts/run-real-model-suite.mjs', generatedAt: '2026-10-15T00:00:00Z',
-      model: { requested: 'deepseek-flash', reported: ['deepseek-flash'] }, versions: { assertions: 3, prompt: 'abc' }, environment: {},
+      model: { requested: 'deepseek-flash', reported: ['deepseek-flash'] }, versions: { assertions: ASSERTION_VERSION, prompt: 'abc' }, environment: {},
       layers: {
         mockE2E: { testedAt: '2026-10-14T00:00:00Z', summary: summarize([{ category: 'mock', passed: true }]) },
         api: { summary: summarize([{ category: 'chart-table', passed: false }]), timing: { apiCallMs: timing([1]), caseMs: timing([1]) }, cases: [{ id: 'B3', title: 'Chart', category: 'chart-table', passed: false, reason: 'bar Chart rendered', tool: { actual: ['ui_render'] }, schema: { firstAttemptValid: true }, timing: { apiMs: 1 } }] },
@@ -322,7 +352,7 @@ describe('real-model API client and command', () => {
         const text = readFileSync(report, 'utf8')
         expect(text).not.toContain('offline-test-key-123')
         const saved = JSON.parse(text)
-        expect(saved).toMatchObject({ reportVersion: 3, model: { requested: 'deepseek-flash', reported: ['deepseek-flash'], fingerprints: ['fp_x'] }, versions: { assertions: 3, prompt: PROMPT_VERSION } })
+        expect(saved).toMatchObject({ reportVersion: 3, model: { requested: 'deepseek-flash', reported: ['deepseek-flash'], fingerprints: ['fp_x'] }, versions: { assertions: ASSERTION_VERSION, prompt: PROMPT_VERSION } })
         expect(saved.layers.api.summary).toMatchObject(summary)
         expect(saved.layers.api.cases.some(c => c.id === 'stale')).toBe(false)
         expect(saved.layers.browser).toBeUndefined()

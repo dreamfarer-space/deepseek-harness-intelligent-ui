@@ -1,12 +1,14 @@
 /**
  * DeepSeek Harness Intelligent UI — Host half.
  *
- * Registers the generative-UI tools (`ui_render`, `ui_patch`, `ui_render_widget`), the
- * `/ui` command and an optional system-prompt section. The browser half
- * (`./client`) renders each tool call in the `tool.call.toolview` slot.
+ * Registers the generative-UI tools (`ui_render`, `ui_patch`, `ui_render_widget`,
+ * `ui_compose`), the `/ui` command and an optional system-prompt section. The
+ * browser half (`./client`) renders each tool call in the `tool.call.toolview` slot.
  * @module deepseek-harness-intelligent-ui
  */
 import { Config as ConfigSchema, resolveConfig } from './config.js';
+import { composeEnabled } from './compose/compose.js';
+import { createComposeTool } from './tools/compose.js';
 import { createRenderTool } from './tools/render.js';
 import { createPatchTool } from './tools/patch.js';
 import { createWidgetTool } from './tools/widget.js';
@@ -30,6 +32,8 @@ export function apply(ctx, rawConfig) {
     ctx.tools.register(createPatchTool(config));
   }
   if (config.enableWidget) ctx.tools.register(createWidgetTool(config));
+  // Composing needs something to compose; without a UI capability it is not offered.
+  if (composeEnabled(config)) ctx.tools.register(createComposeTool(config));
   registerCommands(ctx.commands, config);
 
   const text = config.injectGuidance ? guidanceText(config) : '';

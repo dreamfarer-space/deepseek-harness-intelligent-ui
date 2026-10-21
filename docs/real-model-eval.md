@@ -9,6 +9,8 @@ Built from these invocations (oldest first):
 - `node scripts/run-real-model-suite.mjs all --stage browser --only R-three --keep-other-layers` · 2026-10-16 08:41 UTC — a second R-three sample, added as run #2 next to the failed run #1 (merged once by hand with the --append logic, which was added right after)
 - `node scripts/run-real-model-suite.mjs all --stage browser --record --keep-other-layers` · 2026-10-16 14:00 UTC — browser layer re-recorded for the demo video (all 11 cases, replacing the previous browser layer; cost ¥0.86). API and mock layers kept.
 
+> **New in assertions v4:** two `ui_compose` cases (E1 analysis with an interleaved chart, E2 teaching walkthrough). They have **not been run against the real model yet**; the tables below predate them and are kept as the recorded baseline, not as a claim about the new tool. Run `node scripts/run-real-model-suite.mjs E` to measure them.
+
 Three separately measured layers. A pass in one layer is not evidence for another:
 
 | Layer | What it proves | Result |

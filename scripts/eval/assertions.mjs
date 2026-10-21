@@ -1,8 +1,9 @@
 import { validateTree } from '../../src/catalog/catalog.js';
 import { validateWidget } from '../../src/tools/widget.js';
+import { validateComposition } from '../../src/compose/compose.js';
 
 /** Bump whenever a check changes: reports with different versions are not comparable. */
-export const ASSERTION_VERSION = 3;
+export const ASSERTION_VERSION = 5;
 
 /** Validate every call before constructing a follow-up tool-result history. */
 export function checkedCalls(message, config) {
@@ -20,9 +21,17 @@ export function checkedCalls(message, config) {
     } else if (name === 'ui_render_widget') {
       const errors = validateWidget(args, config);
       if (errors.length) throw new Error(`validateWidget failed: ${errors.join('; ')}`);
+    } else if (name === 'ui_compose') {
+      const validation = validateComposition(args, config);
+      if (!validation.ok) throw new Error(`validateComposition failed: ${validation.errors.join('; ')}`);
     } else throw new Error(`Unexpected tool: ${name}`);
     return { call, args, name };
   });
+}
+
+/** Catalog trees a composed answer shows, in block order (prose and widgets are not components). */
+export function composedTrees(args) {
+  return (Array.isArray(args?.blocks) ? args.blocks : []).filter(b => b && b.type === 'catalog').map(b => ({ root: b.root, components: b.components }));
 }
 
 /** Orphan components are valid schema but never rendered; do not score them. */
@@ -74,6 +83,13 @@ const NATIVE = {
       const years = (String(p.code).match(/(?<!\d)(?:19|20)\d\d(?!\d)/g) || []).map(Number)
       return new Set(years).size >= 4 && years.every((y, i) => i === 0 || y >= years[i - 1])
     })]],
+  E1: has => [
+    ['cost comparison chart with the three routes', has('Chart', p => p.kind === 'bar' && p.labels.length >= 3)],
+    ['a next-step Choice', has('Choice', p => p.options.length >= 2)],
+  ],
+  E2: has => [
+    ['an interactive Plot with at least two parameter sliders', has('Plot', p => (p.params ?? []).length >= 2)],
+  ],
   C2: has => {
     const plots = []
     has('Plot', p => { plots.push(p); return true })
@@ -98,6 +114,33 @@ export function nativeChecks(id, args) {
     try { return !!predicate(n.props || {}); } catch { return false; }
   });
   return (NATIVE[id]?.(has) ?? []).map(([name, ok]) => [name, !!ok]);
+}
+
+/**
+ * Checks for a composed answer: the case's own components must appear in the
+ * catalog blocks, and a multi-part answer must actually interleave prose with UI.
+ */
+export function composeChecks(id, args) {
+  const blocks = Array.isArray(args?.blocks) ? args.blocks : [];
+  const has = (type, predicate = () => true) => composedTrees(args).some(tree => renderedNodes(tree).some(n => {
+    if (n.type !== type) return false;
+    try { return !!predicate(n.props || {}); } catch { return false; }
+  }));
+  const checks = (NATIVE[id]?.(has) ?? []).map(([name, ok]) => [name, !!ok]);
+  return [...checks, ['composition has prose before and after its UI', compositionInterleaves({ blocks })]];
+}
+
+/** Prose exists, and at least one UI block has prose both before and after it. */
+export function compositionInterleaves(args) {
+  const blocks = Array.isArray(args?.blocks) ? args.blocks : [];
+  const prose = block => block?.type === 'markdown' && typeof block.text === 'string' && block.text.trim() !== '';
+  return blocks.some((block, i) => (block?.type === 'catalog' || block?.type === 'widget')
+    && blocks.slice(0, i).some(prose) && blocks.slice(i + 1).some(prose));
+}
+
+/** The markdown text of a composed answer, in order. */
+export function composedProse(args) {
+  return (Array.isArray(args?.blocks) ? args.blocks : []).filter(b => b?.type === 'markdown').map(b => b.text).join(String.fromCharCode(10, 10));
 }
 
 export function checkNativeCase(id, args) {
