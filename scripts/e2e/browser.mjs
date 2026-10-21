@@ -272,18 +272,29 @@ async function checkCompose() {
     compose && compose.state === 'ready' && compose.order.join() === 'diui-md,diui-render,diui-md,diui-render,diui-md'
       && compose.headings.join() === '推荐结论,为什么先本地' && compose.table && compose.chart && compose.choice === 2 && compose.live === 1,
     JSON.stringify(compose))
-  check('14b. composing made exactly one model call', mock().length === callsBefore + 1, `calls ${callsBefore} → ${mock().length} (the composition is the answer; no closing text)`)
+  // The host resumes the model after the tool result, even when the composition
+  // contains the whole answer. Count the tool round-trip, not just tool calls.
+  const composeCalls = mock().slice(callsBefore)
+  check('14b. composing completes one tool round-trip',
+    composeCalls.length === 2 && composeCalls[0].decision === 'compose' && composeCalls[1].decision === 'after-tool',
+    composeCalls.map(call => call.decision).join(' → '))
 
   // The prose continues after the UI; selecting a Choice in a catalog block stays local until confirmation.
+  const callsBeforeSelection = mock().length
   const firstOption = await page.evaluateHandle(() => [...document.querySelectorAll('.diui-compose input[type=radio]')][1])
   await firstOption.asElement().click()
   await sleep(200)
-  check('14c. a Choice inside a composition selects locally without sending', mock().length === callsBefore + 1, `calls ${mock().length}`)
+  check('14c. a Choice inside a composition selects locally without sending', mock().length === callsBeforeSelection,
+    `calls ${callsBeforeSelection} → ${mock().length}`)
   const submit = await page.evaluateHandle(() => [...document.querySelectorAll('.diui-compose .diui-choice-submit')][0])
+  const callsBeforeConfirm = mock().length
   await submit.asElement().click()
   await waitIdle()
-  const followed = mock().slice(callsBefore).at(-1)
-  check('14d. confirming the Choice sends its prompt once, in this session', /继续讨论 Supabase 方案/.test(followed?.lastText ?? ''), followed?.lastText?.slice(0, 120))
+  const confirmCalls = mock().slice(callsBeforeConfirm)
+  const followed = confirmCalls[0]
+  check('14d. confirming the Choice sends its prompt once, in this session',
+    confirmCalls.length === 1 && /继续讨论 Supabase 方案/.test(followed?.lastText ?? ''),
+    `calls ${callsBeforeConfirm} → ${mock().length}; ${followed?.lastText?.slice(0, 120) ?? ''}`)
 
   // A later ui_patch addresses the block's derived uiId and replaces only that block.
   await send('Switch the compose line chart to a line chart')
