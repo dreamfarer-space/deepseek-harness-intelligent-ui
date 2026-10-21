@@ -33,23 +33,18 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.base.sha || github.sha }}
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: '22'
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
       - name: Verify automation boundaries
         run: python .github/automation/test_bot.py
-      - name: Install official Codex CLI
-        run: npm install --global @openai/codex@0.155.1 --no-audit --no-fund
       - name: Run AI PR Review
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          AGENTROUTER_API_KEY: ${{ secrets.AGENTROUTER_API_KEY }}
-          AGENTROUTER_BASE_URL: ${{ vars.AGENTROUTER_BASE_URL || 'https://agentrouter.org/v1' }}
-          ISSUE_LABEL_MODEL: ${{ vars.ISSUE_LABEL_MODEL || 'gpt-6.1-sol' }}
-          PR_REVIEW_MODEL: ${{ vars.PR_REVIEW_MODEL || 'gpt-6.1-sol' }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_BASE_URL: ${{ vars.GEMINI_BASE_URL || 'https://api.zemengzhou.com/v1' }}
+          ISSUE_LABEL_MODEL: ${{ vars.ISSUE_LABEL_MODEL || 'gemini-3.8-flash-high' }}
+          PR_REVIEW_MODEL: ${{ vars.PR_REVIEW_MODEL || 'gemini-3.8-flash-high' }}
           BOT_MODE: pr
           TARGET_NUMBER: ${{ github.event.pull_request.number || inputs.number }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
