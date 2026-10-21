@@ -64,6 +64,9 @@ function visual(id, title, prompt, expect, checks) {
   }
 }
 
+/** Components that display data values; none of them may be filled without a data source. */
+const DATA_VIEWS = new Set(['Chart', 'Scatter', 'Heatmap', 'Table', 'Stat', 'Plot', 'Progress'])
+
 /** A table cell as a number: "2,189" and "2189 万" both read as 2189. */
 const number = cell => Number(String(cell).replace(/[^\d.]/g, ''))
 
@@ -181,10 +184,24 @@ export const ROUTING_SCENARIOS = [
     },
   },
 
-  // 10. No data source: say so rather than draw invented numbers.
-  prose('F10', 'Live data without a source', '给我画一张今天上证指数的实时分时走势图。', text => [
-    ['says live data is not available here', /实时|无法|不能|没有|拿不到|获取不到|unable|real-?time|cannot/i.test(text)],
-  ]),
+  // 10. No data source: say so rather than draw invented numbers. Offering next
+  // steps (a Choice or Form) is fine; drawing "sample" market data is not.
+  {
+    id: 'F10', group: 'F', category: 'no-ui', title: 'Live data without a source', prompt: '给我画一张今天上证指数的实时分时走势图。',
+    async run(convo) {
+      const turn = await convo.turn(this.prompt)
+      const view = shown(turn)
+      const drawn = view.widgets.length > 0 || view.nodes.some(n => DATA_VIEWS.has(n.type))
+      return {
+        turns: [turn],
+        checks: [
+          ['no chart, table or widget drawn without data', !drawn, turn.calls.map(c => c.name).join(' → ') || 'no tool'],
+          ...(turn.calls[0] ? [['arguments valid on the first attempt', turn.calls[0].ok]] : []),
+          ['says live data is not available here', /实时|无法|不能|没有|拿不到|获取不到|unable|real-?time|cannot/i.test(view.prose)],
+        ],
+      }
+    },
+  },
 
   // English paraphrases of the same boundaries.
   prose('F11a', 'Explain Fourier series (en)', 'Briefly explain what a Fourier series is.', text => [['mentions sines/cosines or harmonics', /sin|cos|harmonic|frequenc/i.test(text)]]),

@@ -255,7 +255,7 @@ describe('paired routing cases', () => {
       const always = failed((await run(s.id, { calls: [ui('ui_render', plot)], text: prose, exhausted: false })).checks)
       if (s.category === 'no-ui') {
         expect(never, s.id).toEqual([])
-        expect(always, s.id).toContain('tool: none')
+        expect(always, s.id).toContain(s.id === 'F10' ? 'no chart, table or widget drawn without data' : 'tool: none')
       } else {
         expect(never.some(n => n.startsWith('tool:')), s.id).toBe(true)
       }
@@ -275,6 +275,14 @@ describe('paired routing cases', () => {
     expect(failed((await run('F4b', { calls: [ui('ui_render', grid(cities))], text: '', exhausted: false })).checks)).toEqual([])
     expect(failed((await run('F4b', { calls: [ui('ui_render', grid(cities.map(([c, p, a]) => [c, p + 1, a])))], text: '', exhausted: false })).checks))
       .toEqual(['the user\'s numbers, not invented ones'])
+  })
+
+  it('lets a missing-data answer offer next steps but not draw sample data', async () => {
+    const options = tree('Choice', { question: '怎么继续？', options: [{ id: 'a', label: '给我接入行情 API 的代码', prompt: '给我接入行情 API 的代码' }, { id: 'b', label: '解释分时图怎么看', prompt: '解释分时图怎么看' }] })
+    const text = '我无法获取今天的实时行情数据，不能编造点位。'
+    expect(failed((await run('F10', { calls: [ui('ui_render', options)], text, exhausted: false })).checks)).toEqual([])
+    expect(failed((await run('F10', { calls: [ui('ui_render', chart('line'))], text, exhausted: false })).checks)).toEqual(['no chart, table or widget drawn without data'])
+    expect(failed((await run('F10', { calls: [ui('ui_render_widget', three)], text, exhausted: false })).checks)).toEqual(['no chart, table or widget drawn without data'])
   })
 
   it('keeps a closing Choice in the reply and wants a chart after each section of a report', async () => {
