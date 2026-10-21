@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   bot:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/fix/bot-provider-diagnostics')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

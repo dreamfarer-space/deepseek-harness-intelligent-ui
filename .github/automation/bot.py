@@ -165,7 +165,11 @@ def infer(prompt, schema, model, effort=None):
                 except (json.JSONDecodeError, OSError):
                     raise BotError("AgentRouter returned invalid JSON") from None
             log = (run.stdout + run.stderr).lower()
-            transient = any(x in log for x in ("429", "rate limit", "503", "502"))
+            errors = [line for line in run.stderr.splitlines()
+                      if line.startswith(("Error:", "ERROR:", "error:"))]
+            if errors:
+                print(json.dumps({"provider_error": clean(" ".join(errors), 1600)}, ensure_ascii=False))
+            transient = any(x in log for x in ("429", "rate limit", "503", "502", "stream disconnected", "stream closed"))
             if transient and attempt == 0:
                 print("Model temporarily unavailable; retrying once in 20 seconds.")
                 time.sleep(20)
