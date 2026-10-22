@@ -1,6 +1,6 @@
 {
   "name": "deepseek-harness-intelligent-ui",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "DeepSeek Harness Intelligent UI: generative, interactive UI in the chat (declarative component catalog + sandboxed streaming HTML widgets), inspired by CopilotKit OpenIntelligentUI.",
   "keywords": [
     "deepseek-harness",
