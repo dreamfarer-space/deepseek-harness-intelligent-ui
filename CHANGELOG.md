@@ -6,14 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.9]
+
 ### Fixed
 
-- `ui_render` and `ui_compose` catalog blocks: the tool schema and description now say that the top-level `root` field is required, and a call without it gets an error that says how to fix it. In real-model runs DeepSeek models often named the first component `"root"` but left out the `root` field, so the first call was refused and had to be retried.
+- `ui_render` and `ui_compose` catalog blocks: the tool schema and description now say that the top-level `root` field is required, and a call without it gets an error that says how to fix it. In real-model runs DeepSeek models often named the first component `"root"` but left out the `root` field, so the first call was refused and had to be retried ([#62](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/pull/62)).
+- Release publication verification: wait up to 10 minutes (30 attempts) for npm registry propagation to avoid false-alarm verification failures ([#56](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/pull/56)).
+- Evaluation routing: guard against missing chart properties and empty block lists, accept local OpenAI-compatible HTTP endpoints via `DEEPSEEK_EVAL_ENDPOINT`, and judge delivery on inline widgets instead of workspace tool calls ([#59](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/pull/59), [#61](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/pull/61)).
 
 ### Added
 
-- [docs/presentation-routing.md](docs/presentation-routing.md) records the presentation-routing study for [#58](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/58): rule overlaps, four comparable projects, and a real-model A/B (DeepSeek V4.1 Flash, 3 runs × 39 cases) in which a rewritten decision-order guidance did not route better than the current one (114/117 vs. 111/117 routed correctly), so the current guidance is kept.
-- Real-model evaluation group F: paired presentation-routing cases for [#58](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/58). Each pair keeps the topic and changes only the task, so a prompt cannot score well by always or never drawing UI; the whole answer is judged (explanation, code, interaction, the user's own data), not just the tool name. Categories `no-ui`, `needs-ui` and `update` report the unnecessary-UI rate, the missed-UI rate and follow-up edits separately. API cases also record prompt and completion tokens.
+- [docs/presentation-routing.md](docs/presentation-routing.md) records the presentation-routing study for [#58](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/58): rule overlaps, four comparable projects, and a real-model A/B (DeepSeek V4.1 Flash, 3 runs × 39 cases) in which a rewritten decision-order guidance did not route better than the current one (114/117 vs. 111/117 routed correctly), so the current guidance is kept ([#64](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/pull/64)).
+- Real-model evaluation group F: paired presentation-routing cases for [#58](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/issues/58). Each pair keeps the topic and changes only the task, so a prompt cannot score well by always or never drawing UI; the whole answer is judged (explanation, code, interaction, the user's own data), not just the tool name. Categories `no-ui`, `needs-ui` and `update` report the unnecessary-UI rate, the missed-UI rate and follow-up edits separately. API cases also record prompt and completion tokens ([#59](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/pull/59)).
+- Storefront screenshots manifest: `screenshots.json` declares the showcase screenshots and order for plugin markets like `dshmarket`.
+- [CONTRIBUTING.md](CONTRIBUTING.md) guide covering development setup, the committed-bundle rule, test layout, required CI checks, translations, PR automation, and release integrity rules ([#57](https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/pull/57)).
 
 ## [0.2.8]
 
@@ -187,7 +193,8 @@ All notable changes to this project are documented here. The format follows
   - The declarative component catalog (`ui_render`) and sandboxed streaming HTML widgets (`ui_render_widget`).
   - The `/ui` command and the guidance system-prompt section.
 
-[Unreleased]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.8...HEAD
+[Unreleased]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.9...HEAD
+[0.2.9]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.5...v0.2.6
