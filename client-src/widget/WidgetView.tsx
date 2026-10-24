@@ -119,6 +119,7 @@ export function WidgetView(props: ToolViewProps) {
               initialHeight={args.initialHeight}
               policy={policy}
               title={title}
+              strayedMessage={t('widget.leftSandbox')}
               generation={generation}
               sendPrompt={props.sendPrompt}
               onSending={setSending}
