@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { contextOf, type ControlledEnv, type ActionRequest } from '../controlled.ts'
 import { BridgeError, BridgeGuard, readFrameMessage } from '../bridge.ts'
 import type { WidgetPolicy } from '../policy.ts'
@@ -28,6 +28,8 @@ export interface WidgetFrameProps extends ControlledEnv {
   initialHeight?: number
   policy: WidgetPolicy
   title: string
+  /** Shown instead of the frame after the widget navigates out of its sandbox. */
+  strayedMessage?: string
   sendPrompt: (text: string) => Promise<void>
   /** Persist control values / UI.state / height for this callId (default true). */
   persist?: boolean
@@ -58,10 +60,24 @@ export function WidgetFrame(props: WidgetFrameProps) {
   const actionFlight = useRef(false)
   const actionEpoch = useRef(0)
   const [actionStatus, setActionStatus] = useState('')
+  /** The widget navigated its frame away; the card must say so. */
+  const [strayedNotice, setStrayedNotice] = useState(false)
   const ready = useRef(false)
   /** Whether the frame has received (or was built with) the final code. */
   const finalized = useRef(false)
   const errors = useRef<string[]>([])
+  /**
+   * Set once the frame has finished loading its own `srcdoc`. A second `load`
+   * means the widget navigated the frame away (`location.href = …`), which no
+   * CSP directive can block. The host then stops posting: the `WindowProxy`
+   * survives navigation, so every later message would carry host data into the
+   * foreign document. See docs/widget-csp-audit.md.
+   */
+  const strayed = useRef(false)
+  /** The last element the load listener was attached to, so a rebuild re-attaches. */
+  const watched = useRef<HTMLIFrameElement | null>(null)
+  /** Whether the mount load of the *current* element has been seen. */
+  const ownLoad = useRef(false)
   // Policies arrive as fresh objects (defaults while running, result meta once
   // settled); key by value so an equal policy never rebuilds the document.
   const resourceKey = JSON.stringify(props.resourceLibraries)
@@ -70,6 +86,16 @@ export function WidgetFrame(props: WidgetFrameProps) {
   const guard = useMemo(() => new BridgeGuard({ policy }), [policy])
   const live = useRef(props)
   live.current = props
+
+  // Clear the containment notice whenever the document is rebuilt (new css,
+  // policy or an explicit reload): the new frame gets a fresh lifecycle.
+  // Declared before `srcDoc` so it runs in the same commit, and it is keyed on
+  // the same inputs so it can never lag behind the document it belongs to.
+  useEffect(() => {
+    strayed.current = false
+    ownLoad.current = false
+    setStrayedNotice(false)
+  }, [tok, props.css, policy, props.generation, resourceKey])
 
   // Built once per frame lifetime: later html/code/theme changes travel by
   // postMessage so widget state survives. Only a different css or policy, or
@@ -98,6 +124,9 @@ export function WidgetFrame(props: WidgetFrameProps) {
   }, [tok, props.css, policy, props.generation, resourceKey])
 
   const post = (msg: Record<string, unknown>) => {
+    // Never address a document that replaced the widget's own: it is opaque to
+    // us, but contentWindow still forwards whatever the host sends it.
+    if (strayed.current) return
     ref.current?.contentWindow?.postMessage({ ...msg, __diui: tok }, '*')
   }
 
@@ -116,6 +145,54 @@ export function WidgetFrame(props: WidgetFrameProps) {
     post({ type: 'theme', css: themeCss(next), scheme: schemeOf(next) })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [tok])
+
+  // Detect the widget navigating its own frame. The element keeps the same
+  // WindowProxy, but the document behind it is now foreign, and neither CSP
+  // (`navigate-to` never shipped) nor the sandbox blocks that hop — so the host
+  // has to notice and stop posting, or it keeps feeding host data to whatever
+  // page the widget chose.
+  //
+  // The signal is the frame's second `load`. Streaming morphs, theme updates and
+  // ordinary DOM work never navigate, so they fire none. `document.open()`/
+  // `write()` also fires one, but the widget contract has no use for it (the
+  // bootstrap owns the document and morphs its `#ui-root`), and a rewrite that
+  // replaces the bootstrap also destroys the `message` listener the bridge runs
+  // on — so treating it as a stray document is correct, not merely strict.
+  //
+  // A callback ref, not an effect keyed on `srcDoc`: a rebuilt document (new
+  // css, policy or an explicit reload) is a *new* element, so the guard has to
+  // start over on it rather than stay armed from the previous one.
+  const contain = () => {
+    if (strayed.current) return
+    strayed.current = true
+    ready.current = false
+    finalized.current = false
+    errors.current = []
+    setStrayedNotice(true)
+    setAction(undefined)
+    pendingAction.current = false
+    actionFlight.current = false
+    live.current.onErrors?.([])
+  }
+
+  const onFrameLoad = () => {
+    if (strayed.current) return
+    if (!ownLoad.current) { ownLoad.current = true; return }
+    contain()
+  }
+  const onFrameLoadRef = useRef(onFrameLoad)
+  onFrameLoadRef.current = onFrameLoad
+  const stableLoad = useCallback(() => onFrameLoadRef.current(), [])
+  const attachFrame = useCallback((frame: HTMLIFrameElement | null) => {
+    if (watched.current) watched.current.removeEventListener('load', stableLoad)
+    watched.current = frame
+    ref.current = frame
+    if (!frame) return
+    // A fresh element means a fresh document lifecycle.
+    strayed.current = false
+    ownLoad.current = false
+    frame.addEventListener('load', stableLoad)
+  }, [stableLoad])
 
   // Stream preview html; switch to the final widget in place.
   useEffect(() => {
@@ -231,16 +308,20 @@ export function WidgetFrame(props: WidgetFrameProps) {
       <button type="button" className="diui-button" onClick={e => { void finishAction(e.nativeEvent, false) }}>Cancel</button>
     </div>}
     {actionStatus && <span role="status">{actionStatus}</span>}
-    <iframe
-      ref={ref}
-      className="diui-frame"
-      title={props.title}
-      sandbox="allow-scripts allow-forms"
-      referrerPolicy="no-referrer"
-      srcDoc={srcDoc}
-      style={{ height }}
-      data-mode={props.mode}
-    />
+    {strayedNotice
+      // Unmounting the element destroys the foreign document too, so nothing
+      // keeps running or receiving in place of the widget.
+      ? <div className="diui-card" role="alert" data-widget-strayed="true">{props.strayedMessage ?? 'The widget navigated to another page and was removed'}</div>
+      : <iframe
+        ref={attachFrame}
+        className="diui-frame"
+        title={props.title}
+        sandbox="allow-scripts allow-forms"
+        referrerPolicy="no-referrer"
+        srcDoc={srcDoc}
+        style={{ height }}
+        data-mode={props.mode}
+      />}
   </>)
 }
 

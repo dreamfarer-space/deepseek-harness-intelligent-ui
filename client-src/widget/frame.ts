@@ -54,6 +54,16 @@ export function safeOrigins(list: readonly string[]): string[] {
   return [...new Set(out)]
 }
 
+/**
+ * CSP for one frame.
+ *
+ * `connect-src` is the only directive that follows `allowNetwork`: the resource
+ * directives always carry the CDN allowlist, because widgets load libraries,
+ * fonts and images from it. CSP constrains origins, never paths, so an
+ * allowlisted origin can still see widget data in a resource URL; an empty
+ * `cdn` is what forbids external requests entirely. The per-channel matrix,
+ * including why each grant is needed, is in docs/widget-csp-audit.md.
+ */
 export function contentSecurityPolicy(policy: WidgetPolicy): string {
   const cdn = offlinePack ? '' : safeOrigins(policy.cdn).join(' ')
   const connect = policy.allowNetwork && cdn ? cdn : "'none'"
@@ -65,6 +75,9 @@ export function contentSecurityPolicy(policy: WidgetPolicy): string {
     `font-src data: ${cdn}`.trim(),
     `media-src data: blob: ${cdn}`.trim(),
     `connect-src ${connect}`,
+    // canvas-confetti (an advertised import) runs its default path in a
+    // blob: Worker; a blob worker inherits this document's CSP and opaque
+    // origin, so it adds no reach (verified in scripts/security/audit.mjs).
     'worker-src blob:',
     "form-action 'none'",
     "base-uri 'none'",

@@ -256,7 +256,9 @@ Fields follow the OpenIntelligentUI streaming contract, **in this order**: `titl
 <img src="https://raw.githubusercontent.com/dreamfarer-space/deepseek-harness-intelligent-ui/main/docs/assets/readme/security.svg" alt="Widgets run in an opaque-origin sandboxed iframe under a strict CSP; access to the host page is blocked and only token-checked postMessage calls reach the rate-limited bridge" width="100%">
 
 - **Widget isolation:** `<iframe sandbox="allow-scripts allow-forms">` with `srcdoc` and **no** `allow-same-origin`. The E2E verifies in a browser that `parent.document`, `localStorage` and `document.cookie` throw `SecurityError`, `fetch` is blocked, and `window.origin === "null"`.
-- **CSP:** `default-src 'none'`; scripts, styles, fonts and images only from `cdnAllowlist`; `connect-src 'none'` unless `allowNetwork`; `form-action 'none'`; `base-uri 'none'`.
+- **CSP:** `default-src 'none'`; scripts, styles, fonts and images only from `cdnAllowlist`; `connect-src 'none'` unless `allowNetwork`; `form-action 'none'`; `base-uri 'none'`. A per-widget sandbox boundary audit with the measured matrix is in [docs/widget-csp-audit.md](docs/widget-csp-audit.md) and runs as `npm run e2e:security`.
+- **What `allowNetwork=false` does and does not stop:** it blocks `fetch`, XHR, WebSocket, `EventSource`, `sendBeacon` and `<a ping>`. It does **not** stop `<img>`, `<script src>`, `<link rel=stylesheet>`, `@font-face` or `<video>` from requesting an **allowlisted** origin, and CSP only constrains the origin, never the path — so an allowlisted CDN can still see widget data in a resource URL. Set `cdnAllowlist: []` for a hard egress boundary; the offline bundle already does.
+- **Navigation:** a widget that navigates its own frame away from its document is stopped and removed, because the host would otherwise keep posting into the foreign document. The iframe sandbox already blocks top-level navigation, `window.open` and downloads.
 - **Messages:** accepted only from the frame's own `contentWindow` with a per-frame random token and a valid shape; forged messages are dropped (verified in E2E).
 - **`sendPrompt` limits:** refused for 1 s after mount, at most one per 2 s, capped at `sendPromptMaxChars`, queued as a normal user message.
 - **`openLink`:** https only, optionally restricted to `openLinkAllowedOrigins`.
@@ -279,7 +281,7 @@ The bundle patch inserts the plugin row automatically. To change settings, add t
 | `enableWidget` | `true` | Register `ui_render_widget` |
 | `injectGuidance` | `true` | Add the "when to use UI" system-prompt section |
 | `cdnAllowlist` | esm.sh, jsdelivr, unpkg | Origins widgets (and Math/Mermaid) may load resources from |
-| `allowNetwork` | `false` | Let widgets `fetch` and use WebSocket to those origins |
+| `allowNetwork` | `false` | Let widgets `fetch` and use WebSocket to those origins. Off still allows resource elements to reach them; use an empty `cdnAllowlist` for no external requests at all |
 | `maxWidgetHeight` | `2400` | Maximum frame height (px) |
 | `maxWidgetBytes` | `400000` | Reject larger widgets |
 | `sendPromptMaxChars` | `4000` | Longest message a widget, button, form or choice may send |
