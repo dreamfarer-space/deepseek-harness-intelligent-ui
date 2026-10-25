@@ -33,8 +33,11 @@ directives is what decides reachability:
 So `allowNetwork=false` means *no script-readable network access*. It does not
 mean "no bytes leave the frame": any element whose directive carries a CDN
 origin can still issue a request to that origin, and the URL is fully
-attacker-chosen, path and query included. This is inherent to CSP — a source
-list constrains the origin, never the path.
+attacker-chosen, path and query included. This implementation's `safeOrigins()`
+emits origin-only sources. CSP itself supports path components, but ignores
+queries and skips path matching after redirects. A permitted path prefix can
+also carry data in its suffix. Neither an origin nor a path allowlist is a
+complete data-loss boundary.
 
 Measured, with `cdn: ['https://cdn.audit.test']` and `allowNetwork: false`:
 
@@ -47,10 +50,11 @@ Measured, with `cdn: ['https://cdn.audit.test']` and `allowNetwork: false`:
 Consequences worth documenting rather than "fixing": an allowlisted CDN sees
 whatever a widget puts in a resource URL. The origin allowlist is a
 *reputation* boundary (these hosts already receive widget traffic), not a
-*data-loss* boundary. Operators who need a hard egress boundary must set
+*data-loss* boundary. Operators who want to block external resource requests can set
 `cdnAllowlist: []` (the offline bundle already forces this); with an empty
 allowlist every resource directive collapses to `data:`/`blob:`/`'none'` and
-the frame cannot reach the network at all.
+external resource loads are blocked. Self-navigation remains possible and can
+send data in its initial navigation URL; this is not a hard egress boundary.
 
 ## The finding: self-navigation is not contained
 
@@ -69,7 +73,7 @@ That is an unrestricted one-way exfiltration channel — no CDN allowlist, no
 strictest configuration.
 
 It is worse than a single request, because the `WindowProxy` survives the
-navigation and the host keeps posting into it. `WidgetFrame.post()` uses
+navigation. Before this fix, `WidgetFrame.post()` used
 `contentWindow.postMessage(msg, '*')`, and after the widget navigates away that
 `contentWindow` is the foreign document:
 
@@ -87,24 +91,44 @@ Verified non-issues in this area: the frame token does not have to be guessed
 because the host volunteers the data; `postMessage(…, 'null')` is rejected by
 the browser as an invalid target origin, so an opaque origin *cannot* be a
 precise target; and the host cannot inspect the frame (every cross-origin read
-throws `SecurityError`), so `postMessage` plus the `load` event are the only
-signals available.
+throws `SecurityError`), so the host must rely on the message channel and iframe lifecycle events.
 
-### Why a liveness handshake was not used
+### Document-bound channel and delayed-load limit
 
-The obvious refinement — after a second `load`, ask the frame to prove it is
-still the widget's document — does not work. `document.open()`/`write()`
-replaces the document **and destroys the `window` `message` listener** the
-bootstrap registered, so a legitimately rewritten frame cannot answer either;
-a handshake would strand it and gain nothing over the load signal alone.
-Measured: after a rewrite the frame still has `window.Bridge` and `window.UI`
-but receives no further host messages at all.
+The bootstrap creates a `MessageChannel` and transfers its host endpoint in a
+single `connect` message before generated code runs. The host checks source,
+fresh document token and the single transferred port, accepts it only once,
+and sends **all** later data on that port. It never sends a credential, port,
+HTML, theme or RPC result back through the window. Frame messages also use the
+port; token-bearing window messages cannot invoke host RPCs.
 
-That fact also settles the compatibility question below: a widget that rewrites
-its document has already lost the bridge, so there is no working widget to
-protect in that state.
+This direction of transfer matters: sending a host-created port after `ready`
+would still race navigation of the same `WindowProxy`. The frame-created port
+belongs to the original document; navigation cannot make the replacement
+inherit it. The bootstrap closes it on `pagehide`. Host cleanup also closes it
+on rebuild, unmount or containment. Pending RPC completions capture their source
+port and cannot reply through a newer document's port.
+
+A later iframe `load` still removes the foreign UI and displays the notice.
+**It is not a timely security boundary:** an unfinished HTML response or image
+can defer `load` indefinitely, and navigation before the initial srcdoc load
+may consume the first-load allowance. A foreign page can therefore remain
+visible until a later load; the document-bound channel prevents it receiving
+additional host data during that interval. This does not prevent the original
+widget from sending data it already holds in a navigation URL or an allowed
+resource URL.
+
+A post-load liveness ping cannot solve a never-fired load event. It is not used
+as the data boundary. `document.open()`/`write()` replacement is also removed
+on its later load; there is no supported widget contract for replacing the
+bootstrap's document.
 
 ## Why the rest of the CSP is right
+
+`data:` in image, font and media sources supports inline visualizations,
+embedded fonts and media without remote hosts. Image/media `blob:` supports
+locally generated canvas captures and audio/video object URLs. These grants
+permit local resource bytes; they do not add remote origins.
 
 - `default-src 'none'` closes `frame-src`, `object-src`, `manifest-src`,
   `child-src` and prefetch. Confirmed blocked.
@@ -134,23 +158,23 @@ protect in that state.
 
 ## Plan
 
-Ordered, smallest first; only the first item changes behaviour.
-
-1. **Contain self-navigation (fix).** In `WidgetFrame`, treat the first `load`
-   after mount as the frame's own and any later one as "the widget replaced its
-   document". On that signal the host stops posting and unmounts the frame, so
-   the foreign document is destroyed instead of being fed. There is no CSP
-   change to make — `navigate-to` does not exist.
-   Compatibility: every operation the widget contract actually performs
-   (Idiomorph morphs, streaming html, theme updates, DOM work) stays on one
-   document and fires no `load`, so it is unaffected. `document.open()`/`write()`
-   *is* contained, correctly: a rewrite destroys the bootstrap's `message`
-   listener, so that widget could never talk to the host again anyway.
+1. **Bind communication to the original document.** Use the transferred
+   `MessagePort` for all traffic. Rotate credentials on every document rebuild,
+   including reloads and policy-only changes that previously emitted identical
+   srcdoc. Reset lifecycle in `useLayoutEffect` before any new load task. Reject
+   duplicate handshakes and old-port messages; async replies retain their
+   original port. A later load removes foreign UI, subject to the delay above.
+   Streaming morphs, finalization, theme updates and ordinary DOM work stay on
+   one document and keep the same channel.
 2. **Keep `worker-src blob:` and record why** (canvas-confetti needs it; it adds
    no reach). No other grant can be removed without changing the product.
 3. **Automate the matrix.** `scripts/security/audit.mjs` asserts every row of
-   the table above plus the navigation containment, and runs in CI next to the
-   other browser suites.
+   resource/network matrix. `scripts/security/containment.mjs` bundles the real
+   React `WidgetFrame` and tests normal streaming, finalization, theme, three
+   rebuild types, document rewriting and a foreign document holding an image
+   open. It checks no host data arrives while load is delayed, verifies its
+   receiver with a positive control, then releases the image and asserts removal.
+   The suites run in CI next to the other browser checks.
 4. **Document the boundary.** This file, plus the security sections of both
    READMEs, so `allowNetwork=false` is not read as "no external resource
    requests".
@@ -167,7 +191,7 @@ Ordered, smallest first; only the first item changes behaviour.
   same-origin-looking phishing page inside the chat.
 - Not a same-origin break: the foreign document cannot read host storage, and
   the opaque origin still denies everything the frame previously could not do.
-- Compatibility: the fix only reacts to a document the widget replaced. All
+- Compatibility: the channel bootstrap is internal; public Bridge/UI APIs stay unchanged. All
   existing E2E scenarios, theme updates, streaming morphs and state persistence
   stay on the same-document path and are unaffected, and no CSP directive
   changed, so CDN loading behaves exactly as before.
@@ -184,3 +208,14 @@ npm run e2e:security     # Chrome required, like the other browser suites
 
 The script prints one line per channel and fails on any mismatch with the table
 above.
+
+The suite is not proof that all external egress is blocked. The self-navigation
+request and allowlisted resource URL cases deliberately demonstrate remaining
+egress. The top-level-navigation check asserts both the actual attempted
+request list and unchanged host URL, rather than an unconditional pass.
+
+Current validation for the review fix: 402 unit tests, 36/36 Chrome security
+checks, the real-browser controlled action regressions, typecheck, release
+checks and package-content checks. The browser checks exercise the production
+component plus the exact `buildFrameDocument()` output, rather than copying its
+guard. This records local validation, not completion of the full CI matrix.

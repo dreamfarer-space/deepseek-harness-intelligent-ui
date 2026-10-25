@@ -9,7 +9,7 @@ import { build } from 'esbuild'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 
 /** Same two build-time aliases the client bundle uses, but online mode. */
-function fixtures() {
+export function fixtures() {
   return {
     name: 'audit-aliases',
     setup(b) {
@@ -44,4 +44,14 @@ export async function loadFrameModule() {
   })
   const code = result.outputFiles[0].contents
   return import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'))
+}
+
+/** Bundle WidgetFrame itself for the browser regression, with production aliases. */
+export async function buildWidgetHarness() {
+  const result = await build({
+    entryPoints: [resolve(root, 'scripts/security/widget-harness.tsx')],
+    bundle: true, write: false, platform: 'browser', format: 'iife', jsx: 'automatic',
+    plugins: [fixtures()], logLevel: 'silent',
+  })
+  return result.outputFiles[0].text
 }

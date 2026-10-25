@@ -1,3 +1,4 @@
+import { fromFrame } from './fixtures/widget-channel.ts'
 // @vitest-environment jsdom
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
@@ -69,11 +70,11 @@ describe('controlled UI integration', () => {
     expect(el.querySelector('[aria-label="Requested action"]')).toBeNull()
     await act(async () => window.dispatchEvent(new MessageEvent('message', { source: frame.contentWindow, data: { ...rpc, __diui: 'wrong' } })))
     expect(el.querySelector('[aria-label="Requested action"]')).toBeNull()
-    await act(async () => window.dispatchEvent(new MessageEvent('message', { source: frame.contentWindow, data: rpc })))
+    await act(async () => fromFrame(frame, rpc))
     expect(el.textContent).toContain('Run action'); expect(run).not.toHaveBeenCalled()
     await act(async () => [...el.querySelectorAll('button')].find(b => b.textContent === 'Run action')!.click())
     expect(el.textContent).toContain('trusted user click'); expect(run).not.toHaveBeenCalled()
-    act(() => window.dispatchEvent(new MessageEvent('message', { source: frame.contentWindow, data: { __diui: JSON.parse(tok), type: 'state', state: { private: data } } })))
+    act(() => fromFrame(frame, { type: 'state', state: { private: data } }))
     expect(localStorage.length).toBe(0)
   })
   it('rejects widget bridge actions on mount, timer and synthetic clicks while preserving prompt/link APIs', async () => {
@@ -83,6 +84,7 @@ describe('controlled UI integration', () => {
     const dom = new JSDOM('<button id="go">Go</button>', { runScripts: 'outside-only', url: 'https://example.test' })
     try {
       dom.window.ResizeObserver = class { observe() {} disconnect() {} } as any
+      dom.window.MessageChannel = class { port1 = { postMessage() {}, addEventListener() {}, start() {}, close() {} }; port2 = {} } as any
       dom.window.eval(bootstrap)
       const bridge = (dom.window as any).Bridge
       expect(typeof bridge.sendPrompt).toBe('function'); expect(typeof bridge.openLink).toBe('function'); expect(typeof bridge.readData).toBe('function')

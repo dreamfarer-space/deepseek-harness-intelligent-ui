@@ -1,11 +1,9 @@
+import { channelFor, connectFrame, frameToken, fromFrame } from './fixtures/widget-channel.ts'
 // @vitest-environment jsdom
 // Containment of a widget that navigates its own frame (#19).
 //
-// A CSP cannot stop a frame navigating itself (`navigate-to` never shipped) and
-// the sandbox only withholds top-level navigation, so the host has to react to
-// the resulting `load`. These tests drive the component's listener directly:
-// jsdom does not perform real navigations, but it does fire `load` on the frame
-// element — the same signal WidgetFrame relies on in a browser.
+// jsdom drives the component's transferred endpoint and load listener.
+// Real document navigation and MessagePort teardown run in e2e:security.
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -19,7 +17,6 @@ beforeEach(() => { localStorage.clear(); el = document.createElement('div'); doc
 afterEach(() => { act(() => root.unmount()); el.remove() })
 
 const frameOf = () => el.querySelector('iframe')
-const tokenOf = (frame: HTMLIFrameElement) => JSON.parse(/var TOKEN = ("[^"]+")/.exec(frame.srcdoc)![1]!)
 const strayedNotice = () => el.querySelector('[data-widget-strayed]')
 
 /**
@@ -45,17 +42,16 @@ describe('widget frame containment', () => {
     // host posts html into it. That is exactly what the guard must not disturb.
     renderWidget({ mode: 'preview' })
     const frame = frameOf()!
-    const tok = tokenOf(frame)
     await settleMount()
     expect(strayedNotice()).toBeNull()
 
-    const spy = vi.spyOn(frame.contentWindow!, 'postMessage')
+    const spy = channelFor(frame).postMessage
     await act(async () => {
-      window.dispatchEvent(new MessageEvent('message', { source: frame.contentWindow, data: { __diui: tok, type: 'ready', final: false } }))
+      fromFrame(frame, { type: 'ready', final: false })
     })
     expect(spy).toHaveBeenCalled()
     const [msg] = spy.mock.calls.at(-1)!
-    expect(msg).toMatchObject({ type: 'html', __diui: tok })
+    expect(msg).toMatchObject({ type: 'html', __diui: frameToken(frame) })
     expect(frameOf()).toBe(frame)
     expect(frame.isConnected).toBe(true)
   })
@@ -81,7 +77,7 @@ describe('widget frame containment', () => {
     renderWidget()
     const frame = frameOf()!
     await settleMount()
-    const spy = vi.spyOn(frame.contentWindow!, 'postMessage')
+    const spy = channelFor(frame).postMessage
     strayLoad()
 
     // Containment is enforced by removing the element: the foreign document is
@@ -129,21 +125,72 @@ describe('widget frame containment', () => {
     expect(strayedNotice()).toBeNull()
   })
 
-  it('survives repeated host messages (the streaming and theme paths)', async () => {
+  it('survives real streaming and theme sends through its bound port', async () => {
     renderWidget({ mode: 'preview' })
     const frame = frameOf()!
-    const tok = tokenOf(frame)
     await settleMount()
-
-    // A streamed preview sends many `html` messages; a re-theme sends `theme`.
-    // Neither replaces the document, so neither may strand the frame.
-    await act(async () => {
-      for (let i = 0; i < 5; i++) {
-        window.dispatchEvent(new MessageEvent('message', { source: frame.contentWindow, data: { __diui: tok, type: 'html', html: `<p>chunk ${i}</p>` } }))
-      }
-      window.dispatchEvent(new MessageEvent('message', { source: frame.contentWindow, data: { __diui: tok, type: 'theme', css: ':root{--ui-text:#111}', scheme: 'dark' } }))
-    })
+    const port = channelFor(frame)
+    act(() => fromFrame(frame, { type: 'ready', final: false }))
+    for (let i = 0; i < 5; i++) renderWidget({ mode: 'preview', html: `<p>chunk ${i}</p>` })
+    expect(port.postMessage.mock.calls.filter(([m]) => m.type === 'html')).toHaveLength(6)
+    expect(port.postMessage.mock.calls.at(-1)![0].html).toContain('chunk 4')
     expect(strayedNotice()).toBeNull()
     expect(frameOf()).toBe(frame)
+  })
+
+  it('accepts one handshake and refuses wrong source, wrong token and window RPCs', () => {
+    renderWidget()
+    const frame = frameOf()!
+    const wrongSource = connectFrame(frame, frameToken(frame), window)
+    const wrongToken = connectFrame(frame, 'wrong')
+    expect(wrongSource.start).not.toHaveBeenCalled()
+    expect(wrongToken.start).not.toHaveBeenCalled()
+    const port = channelFor(frame)
+    const duplicate = connectFrame(frame)
+    expect(duplicate.close).toHaveBeenCalledOnce()
+    act(() => window.dispatchEvent(new MessageEvent('message', {
+      source: frame.contentWindow, data: { type: 'resize', __diui: frameToken(frame), height: 900 },
+    })))
+    expect(frame.style.height).not.toBe('900px')
+    act(() => fromFrame(frame, { type: 'resize', height: 900 }))
+    expect(frame.style.height).toBe('900px')
+    expect(port.start).toHaveBeenCalledOnce()
+  })
+
+  it.each(['generation', 'policy'])('really replaces srcdoc on a %s-only rebuild and rejects stale ports', key => {
+    renderWidget({ generation: 0 })
+    const frame = frameOf()!, doc = frame.srcdoc, tok = frameToken(frame)
+    const oldPort = channelFor(frame)
+    renderWidget(key === 'generation' ? { generation: 1 } : { policy: { ...DEFAULT_POLICY, sendPromptMaxChars: 4001 } })
+    expect(frameOf()).toBe(frame)
+    expect(frame.srcdoc).not.toBe(doc)
+    expect(frameToken(frame)).not.toBe(tok)
+    expect(oldPort.close).toHaveBeenCalled()
+    const fresh = channelFor(frame)
+    act(() => oldPort.onmessage?.(new MessageEvent('message', { data: { type: 'resize', __diui: tok, height: 999 } })))
+    expect(frame.style.height).not.toBe('999px')
+    act(() => fromFrame(frame, { type: 'resize', height: 777 }))
+    expect(frame.style.height).toBe('777px')
+    expect(fresh.start).toHaveBeenCalledOnce()
+  })
+
+  it('discards async RPC results after a rebuild and closes channels on unmount', async () => {
+    let resolve!: () => void
+    const sendPrompt = vi.fn(() => new Promise<void>(r => { resolve = r }))
+    renderWidget({ generation: 0, sendPrompt })
+    const frame = frameOf()!
+    const old = channelFor(frame)
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 2000)
+    try {
+      act(() => fromFrame(frame, { type: 'rpc', id: 1, method: 'sendPrompt', params: { text: 'hello' } }))
+      expect(sendPrompt).toHaveBeenCalledOnce()
+      renderWidget({ generation: 1, sendPrompt })
+      const fresh = channelFor(frameOf()!)
+      await act(async () => resolve())
+      expect(old.postMessage).not.toHaveBeenCalled()
+      expect(fresh.postMessage).not.toHaveBeenCalled()
+      act(() => root.render(null))
+      expect(fresh.close).toHaveBeenCalled()
+    } finally { vi.restoreAllMocks() }
   })
 })

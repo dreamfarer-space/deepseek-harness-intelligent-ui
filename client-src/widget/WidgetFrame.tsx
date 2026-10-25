@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { contextOf, type ControlledEnv, type ActionRequest } from '../controlled.ts'
 import { BridgeError, BridgeGuard, readFrameMessage } from '../bridge.ts'
 import type { WidgetPolicy } from '../policy.ts'
@@ -42,14 +42,13 @@ export interface WidgetFrameProps extends ControlledEnv {
 
 /**
  * One sandboxed widget iframe. A frame first opened in `preview` mode holds
- * css + bootstrap, receives streamed body html by postMessage, and is
+ * css + bootstrap, receives streamed body html through a MessagePort, and is
  * finalized in place when `mode` turns `final` (html + code are posted, the
  * document is not rebuilt). A frame first opened in `final` mode (replay,
  * reload) gets the complete document at once.
  */
 export function WidgetFrame(props: WidgetFrameProps) {
   const ref = useRef<HTMLIFrameElement>(null)
-  const tok = useMemo(token, [])
   const persist = props.persist !== false && !props.controlled
   const theme = useRef(readTheme())
   const [height, setHeight] = useState(() => heights.get(props.callId)
@@ -66,48 +65,29 @@ export function WidgetFrame(props: WidgetFrameProps) {
   /** Whether the frame has received (or was built with) the final code. */
   const finalized = useRef(false)
   const errors = useRef<string[]>([])
-  /**
-   * Set once the frame has finished loading its own `srcdoc`. A second `load`
-   * means the widget navigated the frame away (`location.href = …`), which no
-   * CSP directive can block. The host then stops posting: the `WindowProxy`
-   * survives navigation, so every later message would carry host data into the
-   * foreign document. See docs/widget-csp-audit.md.
-   */
+  /** The document-bound channel; never send host data to the WindowProxy. */
+  const port = useRef<MessagePort | null>(null)
   const strayed = useRef(false)
-  /** The last element the load listener was attached to, so a rebuild re-attaches. */
   const watched = useRef<HTMLIFrameElement | null>(null)
-  /** Whether the mount load of the *current* element has been seen. */
+  /** Whether the mount load of the current document has been seen. */
   const ownLoad = useRef(false)
   // Policies arrive as fresh objects (defaults while running, result meta once
   // settled); key by value so an equal policy never rebuilds the document.
   const resourceKey = JSON.stringify(props.resourceLibraries)
   const policyKey = JSON.stringify(props.policy)
   const policy = useMemo(() => props.policy, [policyKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  // A reload must change srcdoc even when its visible content is identical.
+  // The fresh credential also rejects messages queued by the previous document.
+  const tok = useMemo(token, [props.css, policy, props.generation, resourceKey])
   const guard = useMemo(() => new BridgeGuard({ policy }), [policy])
   const live = useRef(props)
   live.current = props
 
-  // Clear the containment notice whenever the document is rebuilt (new css,
-  // policy or an explicit reload): the new frame gets a fresh lifecycle.
-  // Declared before `srcDoc` so it runs in the same commit, and it is keyed on
-  // the same inputs so it can never lag behind the document it belongs to.
-  useEffect(() => {
-    strayed.current = false
-    ownLoad.current = false
-    setStrayedNotice(false)
-  }, [tok, props.css, policy, props.generation, resourceKey])
-
   // Built once per frame lifetime: later html/code/theme changes travel by
-  // postMessage so widget state survives. Only a different css or policy, or
+  // the MessagePort so widget state survives. Only a different css or policy, or
   // an explicit reload (generation), rebuilds the document.
   const srcDoc = useMemo(() => {
     const p = live.current
-    pendingAction.current = false
-    actionFlight.current = false
-    actionEpoch.current++
-    finalized.current = p.mode === 'final'
-    ready.current = false
-    errors.current = []
     return buildFrameDocument({
       resourceLibraries: p.resourceLibraries,
       token: tok,
@@ -123,11 +103,31 @@ export function WidgetFrame(props: WidgetFrameProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tok, props.css, policy, props.generation, resourceKey])
 
-  const post = (msg: Record<string, unknown>) => {
-    // Never address a document that replaced the widget's own: it is opaque to
-    // us, but contentWindow still forwards whatever the host sends it.
-    if (strayed.current) return
-    ref.current?.contentWindow?.postMessage({ ...msg, __diui: tok }, '*')
+  // React reuses the iframe when srcDoc changes. Reset during commit, before
+  // its new load task, and revoke the old port and pending action authority.
+  useLayoutEffect(() => {
+    strayed.current = false
+    ownLoad.current = false
+    ready.current = false
+    finalized.current = live.current.mode === 'final'
+    errors.current = []
+    pendingAction.current = false
+    actionFlight.current = false
+    actionEpoch.current++
+    setAction(undefined)
+    setActionStatus('')
+    setStrayedNotice(false)
+    return () => {
+      port.current?.close()
+      port.current = null
+      ready.current = false
+      actionEpoch.current++
+    }
+  }, [srcDoc])
+
+  const post = (msg: Record<string, unknown>, target = port.current) => {
+    if (strayed.current || !target || target !== port.current) return
+    target.postMessage({ ...msg, __diui: tok })
   }
 
   const finalize = () => {
@@ -146,25 +146,18 @@ export function WidgetFrame(props: WidgetFrameProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [tok])
 
-  // Detect the widget navigating its own frame. The element keeps the same
-  // WindowProxy, but the document behind it is now foreign, and neither CSP
-  // (`navigate-to` never shipped) nor the sandbox blocks that hop — so the host
-  // has to notice and stop posting, or it keeps feeding host data to whatever
-  // page the widget chose.
-  //
-  // The signal is the frame's second `load`. Streaming morphs, theme updates and
-  // ordinary DOM work never navigate, so they fire none. `document.open()`/
-  // `write()` also fires one, but the widget contract has no use for it (the
-  // bootstrap owns the document and morphs its `#ui-root`), and a rewrite that
-  // replaces the bootstrap also destroys the `message` listener the bridge runs
-  // on — so treating it as a stray document is correct, not merely strict.
-  //
-  // A callback ref, not an effect keyed on `srcDoc`: a rebuilt document (new
-  // css, policy or an explicit reload) is a *new* element, so the guard has to
-  // start over on it rather than stay armed from the previous one.
+  // A later load removes the foreign UI. This is only a visual containment
+  // signal: an attacker can delay load with an unfinished subresource. Host
+  // data travels exclusively on the original document's MessagePort, so a
+  // delayed load cannot make the replacement document receive it.
+  // The callback ref follows element replacement; the layout effect above
+  // handles srcdoc rebuilds on the same element.
   const contain = () => {
     if (strayed.current) return
     strayed.current = true
+    port.current?.close()
+    port.current = null
+    actionEpoch.current++
     ready.current = false
     finalized.current = false
     errors.current = []
@@ -204,10 +197,9 @@ export function WidgetFrame(props: WidgetFrameProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.html, props.mode])
 
-  useEffect(() => {
-    const onMessage = (ev: MessageEvent) => {
-      const frame = ref.current
-      if (!frame || ev.source !== frame.contentWindow) return
+  useLayoutEffect(() => {
+    const onPortMessage = (ev: MessageEvent, source: MessagePort) => {
+      if (strayed.current || source !== port.current) return
       const msg = readFrameMessage(ev.data, tok)
       if (!msg) return
       const p = live.current
@@ -236,11 +228,12 @@ export function WidgetFrame(props: WidgetFrameProps) {
           }
           break
         case 'rpc':
-          void handleRpc(msg.id, msg.method, msg.params)
+          void handleRpc(msg.id, msg.method, msg.params, source)
           break
       }
     }
-    const handleRpc = async (id: number, method: string, params: Record<string, unknown>) => {
+    const handleRpc = async (id: number, method: string, params: Record<string, unknown>, source: MessagePort) => {
+      const reply = (msg: Record<string, unknown>) => post(msg, source)
       const p = live.current
       try {
         if (!finalized.current || p.mode !== 'final') throw new BridgeError('unavailable', 'the widget is still generating')
@@ -249,11 +242,11 @@ export function WidgetFrame(props: WidgetFrameProps) {
           p.onSending?.(true)
           try { await p.sendPrompt(text) } finally { p.onSending?.(false) }
           p.onSent?.(true)
-          post({ type: 'rpc-result', id, ok: true, value: { accepted: true } })
+          reply({ type: 'rpc-result', id, ok: true, value: { accepted: true } })
         } else if (method === 'readData') {
           if (!p.controlled) throw new Error('Data binding unavailable')
           const entry = p.controlled.readData(contextOf(p), params.dataRef)
-          post({ type: 'rpc-result', id, ok: true, value: entry.value })
+          reply({ type: 'rpc-result', id, ok: true, value: entry.value })
         } else if (method === 'invokeAction') {
           if (!p.controlled) throw new Error('Actions unavailable')
           if (pendingAction.current) throw new Error('An action is already awaiting confirmation')
@@ -264,18 +257,35 @@ export function WidgetFrame(props: WidgetFrameProps) {
         } else if (method === 'openLink') {
           const url = guard.admitLink(params.url)
           window.open(url, '_blank', 'noopener,noreferrer')
-          post({ type: 'rpc-result', id, ok: true, value: { opened: true } })
+          reply({ type: 'rpc-result', id, ok: true, value: { opened: true } })
         } else {
           throw new BridgeError('unavailable', `unknown bridge method ${method}`)
         }
       } catch (err) {
         const reason = err instanceof Error ? err.message : String(err)
         if (method === 'sendPrompt') p.onSent?.(false, reason)
-        post({ type: 'rpc-result', id, ok: false, error: reason })
+        reply({ type: 'rpc-result', id, ok: false, error: reason })
       }
     }
-    window.addEventListener('message', onMessage)
-    return () => { window.removeEventListener('message', onMessage); pendingAction.current = false; setAction(undefined) }
+    // The bootstrap transfers a port before any generated code runs. Never
+    // transfer a host-created port back through a potentially navigated window.
+    const onConnect = (ev: MessageEvent) => {
+      const frame = ref.current
+      if (!frame || ev.source !== frame.contentWindow || strayed.current) return
+      if (ev.data?.type !== 'connect' || ev.data.__diui !== tok || ev.ports.length !== 1) return
+      const incoming = ev.ports[0]!
+      if (port.current) { incoming.close(); return }
+      port.current = incoming
+      incoming.onmessage = ev => onPortMessage(ev, incoming)
+      incoming.start()
+    }
+    window.addEventListener('message', onConnect)
+    return () => {
+      window.removeEventListener('message', onConnect)
+      port.current?.close()
+      port.current = null
+    }
+  // Layout registration precedes srcdoc's first script/connection task.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tok, guard])
 
