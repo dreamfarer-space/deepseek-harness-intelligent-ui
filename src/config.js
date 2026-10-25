@@ -32,7 +32,7 @@ export const Config = Schema.object({
   cdnAllowlist: Schema.array(Schema.string()).default([...DEFAULTS.cdnAllowlist])
     .description('Origins widgets may load scripts, styles, fonts and images from (CSP).'),
   allowNetwork: Schema.boolean().default(DEFAULTS.allowNetwork)
-    .description('Allow widgets to fetch()/WebSocket to the CDN allowlist (CSP connect-src). Off: no network calls.'),
+    .description('Allow widgets to fetch()/WebSocket to the CDN allowlist (CSP connect-src). Off: no script network calls. Resource elements (img/script/style/font/media) still reach allowlisted origins; set cdnAllowlist to [] to block external resource requests. Self-navigation can still send data in its URL.'),
   maxWidgetHeight: Schema.natural().min(200).max(8000).default(DEFAULTS.maxWidgetHeight)
     .description('Maximum widget frame height in pixels.'),
   maxWidgetBytes: Schema.natural().min(10000).default(DEFAULTS.maxWidgetBytes)

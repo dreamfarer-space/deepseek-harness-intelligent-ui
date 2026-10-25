@@ -90,6 +90,8 @@ jobs:
         run: node scripts/e2e/run-all.mjs --spec "./$TARBALL" --no-build --out e2e-shots
       - name: Controlled actions (real browser clicks)
         run: npm run e2e:controlled
+      - name: Widget sandbox boundary (real browser)
+        run: npm run e2e:security
       - name: Trusted component extension template (real browser)
         run: npm run e2e:extensions
       - name: External component package in DSH

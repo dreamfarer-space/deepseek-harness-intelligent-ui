@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { contextOf, type ControlledEnv, type ActionRequest } from '../controlled.ts'
 import { BridgeError, BridgeGuard, readFrameMessage } from '../bridge.ts'
 import type { WidgetPolicy } from '../policy.ts'
@@ -28,6 +28,8 @@ export interface WidgetFrameProps extends ControlledEnv {
   initialHeight?: number
   policy: WidgetPolicy
   title: string
+  /** Shown instead of the frame after the widget navigates out of its sandbox. */
+  strayedMessage?: string
   sendPrompt: (text: string) => Promise<void>
   /** Persist control values / UI.state / height for this callId (default true). */
   persist?: boolean
@@ -40,14 +42,13 @@ export interface WidgetFrameProps extends ControlledEnv {
 
 /**
  * One sandboxed widget iframe. A frame first opened in `preview` mode holds
- * css + bootstrap, receives streamed body html by postMessage, and is
+ * css + bootstrap, receives streamed body html through a MessagePort, and is
  * finalized in place when `mode` turns `final` (html + code are posted, the
  * document is not rebuilt). A frame first opened in `final` mode (replay,
  * reload) gets the complete document at once.
  */
 export function WidgetFrame(props: WidgetFrameProps) {
   const ref = useRef<HTMLIFrameElement>(null)
-  const tok = useMemo(token, [])
   const persist = props.persist !== false && !props.controlled
   const theme = useRef(readTheme())
   const [height, setHeight] = useState(() => heights.get(props.callId)
@@ -58,30 +59,35 @@ export function WidgetFrame(props: WidgetFrameProps) {
   const actionFlight = useRef(false)
   const actionEpoch = useRef(0)
   const [actionStatus, setActionStatus] = useState('')
+  /** The widget navigated its frame away; the card must say so. */
+  const [strayedNotice, setStrayedNotice] = useState(false)
   const ready = useRef(false)
   /** Whether the frame has received (or was built with) the final code. */
   const finalized = useRef(false)
   const errors = useRef<string[]>([])
+  /** The document-bound channel; never send host data to the WindowProxy. */
+  const port = useRef<MessagePort | null>(null)
+  const strayed = useRef(false)
+  const watched = useRef<HTMLIFrameElement | null>(null)
+  /** Whether the mount load of the current document has been seen. */
+  const ownLoad = useRef(false)
   // Policies arrive as fresh objects (defaults while running, result meta once
   // settled); key by value so an equal policy never rebuilds the document.
   const resourceKey = JSON.stringify(props.resourceLibraries)
   const policyKey = JSON.stringify(props.policy)
   const policy = useMemo(() => props.policy, [policyKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  // A reload must change srcdoc even when its visible content is identical.
+  // The fresh credential also rejects messages queued by the previous document.
+  const tok = useMemo(token, [props.css, policy, props.generation, resourceKey])
   const guard = useMemo(() => new BridgeGuard({ policy }), [policy])
   const live = useRef(props)
   live.current = props
 
   // Built once per frame lifetime: later html/code/theme changes travel by
-  // postMessage so widget state survives. Only a different css or policy, or
+  // the MessagePort so widget state survives. Only a different css or policy, or
   // an explicit reload (generation), rebuilds the document.
   const srcDoc = useMemo(() => {
     const p = live.current
-    pendingAction.current = false
-    actionFlight.current = false
-    actionEpoch.current++
-    finalized.current = p.mode === 'final'
-    ready.current = false
-    errors.current = []
     return buildFrameDocument({
       resourceLibraries: p.resourceLibraries,
       token: tok,
@@ -97,8 +103,31 @@ export function WidgetFrame(props: WidgetFrameProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tok, props.css, policy, props.generation, resourceKey])
 
-  const post = (msg: Record<string, unknown>) => {
-    ref.current?.contentWindow?.postMessage({ ...msg, __diui: tok }, '*')
+  // React reuses the iframe when srcDoc changes. Reset during commit, before
+  // its new load task, and revoke the old port and pending action authority.
+  useLayoutEffect(() => {
+    strayed.current = false
+    ownLoad.current = false
+    ready.current = false
+    finalized.current = live.current.mode === 'final'
+    errors.current = []
+    pendingAction.current = false
+    actionFlight.current = false
+    actionEpoch.current++
+    setAction(undefined)
+    setActionStatus('')
+    setStrayedNotice(false)
+    return () => {
+      port.current?.close()
+      port.current = null
+      ready.current = false
+      actionEpoch.current++
+    }
+  }, [srcDoc])
+
+  const post = (msg: Record<string, unknown>, target = port.current) => {
+    if (strayed.current || !target || target !== port.current) return
+    target.postMessage({ ...msg, __diui: tok })
   }
 
   const finalize = () => {
@@ -117,6 +146,47 @@ export function WidgetFrame(props: WidgetFrameProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [tok])
 
+  // A later load removes the foreign UI. This is only a visual containment
+  // signal: an attacker can delay load with an unfinished subresource. Host
+  // data travels exclusively on the original document's MessagePort, so a
+  // delayed load cannot make the replacement document receive it.
+  // The callback ref follows element replacement; the layout effect above
+  // handles srcdoc rebuilds on the same element.
+  const contain = () => {
+    if (strayed.current) return
+    strayed.current = true
+    port.current?.close()
+    port.current = null
+    actionEpoch.current++
+    ready.current = false
+    finalized.current = false
+    errors.current = []
+    setStrayedNotice(true)
+    setAction(undefined)
+    pendingAction.current = false
+    actionFlight.current = false
+    live.current.onErrors?.([])
+  }
+
+  const onFrameLoad = () => {
+    if (strayed.current) return
+    if (!ownLoad.current) { ownLoad.current = true; return }
+    contain()
+  }
+  const onFrameLoadRef = useRef(onFrameLoad)
+  onFrameLoadRef.current = onFrameLoad
+  const stableLoad = useCallback(() => onFrameLoadRef.current(), [])
+  const attachFrame = useCallback((frame: HTMLIFrameElement | null) => {
+    if (watched.current) watched.current.removeEventListener('load', stableLoad)
+    watched.current = frame
+    ref.current = frame
+    if (!frame) return
+    // A fresh element means a fresh document lifecycle.
+    strayed.current = false
+    ownLoad.current = false
+    frame.addEventListener('load', stableLoad)
+  }, [stableLoad])
+
   // Stream preview html; switch to the final widget in place.
   useEffect(() => {
     if (props.mode === 'preview') {
@@ -127,10 +197,9 @@ export function WidgetFrame(props: WidgetFrameProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.html, props.mode])
 
-  useEffect(() => {
-    const onMessage = (ev: MessageEvent) => {
-      const frame = ref.current
-      if (!frame || ev.source !== frame.contentWindow) return
+  useLayoutEffect(() => {
+    const onPortMessage = (ev: MessageEvent, source: MessagePort) => {
+      if (strayed.current || source !== port.current) return
       const msg = readFrameMessage(ev.data, tok)
       if (!msg) return
       const p = live.current
@@ -159,11 +228,12 @@ export function WidgetFrame(props: WidgetFrameProps) {
           }
           break
         case 'rpc':
-          void handleRpc(msg.id, msg.method, msg.params)
+          void handleRpc(msg.id, msg.method, msg.params, source)
           break
       }
     }
-    const handleRpc = async (id: number, method: string, params: Record<string, unknown>) => {
+    const handleRpc = async (id: number, method: string, params: Record<string, unknown>, source: MessagePort) => {
+      const reply = (msg: Record<string, unknown>) => post(msg, source)
       const p = live.current
       try {
         if (!finalized.current || p.mode !== 'final') throw new BridgeError('unavailable', 'the widget is still generating')
@@ -172,11 +242,11 @@ export function WidgetFrame(props: WidgetFrameProps) {
           p.onSending?.(true)
           try { await p.sendPrompt(text) } finally { p.onSending?.(false) }
           p.onSent?.(true)
-          post({ type: 'rpc-result', id, ok: true, value: { accepted: true } })
+          reply({ type: 'rpc-result', id, ok: true, value: { accepted: true } })
         } else if (method === 'readData') {
           if (!p.controlled) throw new Error('Data binding unavailable')
           const entry = p.controlled.readData(contextOf(p), params.dataRef)
-          post({ type: 'rpc-result', id, ok: true, value: entry.value })
+          reply({ type: 'rpc-result', id, ok: true, value: entry.value })
         } else if (method === 'invokeAction') {
           if (!p.controlled) throw new Error('Actions unavailable')
           if (pendingAction.current) throw new Error('An action is already awaiting confirmation')
@@ -187,18 +257,35 @@ export function WidgetFrame(props: WidgetFrameProps) {
         } else if (method === 'openLink') {
           const url = guard.admitLink(params.url)
           window.open(url, '_blank', 'noopener,noreferrer')
-          post({ type: 'rpc-result', id, ok: true, value: { opened: true } })
+          reply({ type: 'rpc-result', id, ok: true, value: { opened: true } })
         } else {
           throw new BridgeError('unavailable', `unknown bridge method ${method}`)
         }
       } catch (err) {
         const reason = err instanceof Error ? err.message : String(err)
         if (method === 'sendPrompt') p.onSent?.(false, reason)
-        post({ type: 'rpc-result', id, ok: false, error: reason })
+        reply({ type: 'rpc-result', id, ok: false, error: reason })
       }
     }
-    window.addEventListener('message', onMessage)
-    return () => { window.removeEventListener('message', onMessage); pendingAction.current = false; setAction(undefined) }
+    // The bootstrap transfers a port before any generated code runs. Never
+    // transfer a host-created port back through a potentially navigated window.
+    const onConnect = (ev: MessageEvent) => {
+      const frame = ref.current
+      if (!frame || ev.source !== frame.contentWindow || strayed.current) return
+      if (ev.data?.type !== 'connect' || ev.data.__diui !== tok || ev.ports.length !== 1) return
+      const incoming = ev.ports[0]!
+      if (port.current) { incoming.close(); return }
+      port.current = incoming
+      incoming.onmessage = ev => onPortMessage(ev, incoming)
+      incoming.start()
+    }
+    window.addEventListener('message', onConnect)
+    return () => {
+      window.removeEventListener('message', onConnect)
+      port.current?.close()
+      port.current = null
+    }
+  // Layout registration precedes srcdoc's first script/connection task.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tok, guard])
 
@@ -231,16 +318,20 @@ export function WidgetFrame(props: WidgetFrameProps) {
       <button type="button" className="diui-button" onClick={e => { void finishAction(e.nativeEvent, false) }}>Cancel</button>
     </div>}
     {actionStatus && <span role="status">{actionStatus}</span>}
-    <iframe
-      ref={ref}
-      className="diui-frame"
-      title={props.title}
-      sandbox="allow-scripts allow-forms"
-      referrerPolicy="no-referrer"
-      srcDoc={srcDoc}
-      style={{ height }}
-      data-mode={props.mode}
-    />
+    {strayedNotice
+      // Unmounting the element destroys the foreign document too, so nothing
+      // keeps running or receiving in place of the widget.
+      ? <div className="diui-card" role="alert" data-widget-strayed="true">{props.strayedMessage ?? 'The widget navigated to another page and was removed'}</div>
+      : <iframe
+        ref={attachFrame}
+        className="diui-frame"
+        title={props.title}
+        sandbox="allow-scripts allow-forms"
+        referrerPolicy="no-referrer"
+        srcDoc={srcDoc}
+        style={{ height }}
+        data-mode={props.mode}
+      />}
   </>)
 }
 
