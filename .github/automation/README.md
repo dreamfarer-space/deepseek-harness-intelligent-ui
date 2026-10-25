@@ -23,5 +23,6 @@ The workflow executes only trusted default-branch automation and does not
 install or execute PR code. Inference uses a text-only HTTPS Chat Completions
 request; the GitHub token is never sent to the model service. Model output
 cannot choose API routes. Provider failures fail the Actions run rather than
-fabricate results. Transient rate limits receive one delayed retry; no
+fabricate results. Transient rate limits receive two delayed retries, after
+15 seconds and then 30 seconds, for three requests in total; no
 alternate model is selected automatically.
