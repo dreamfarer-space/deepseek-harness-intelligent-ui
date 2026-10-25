@@ -10,6 +10,9 @@
 // Usage: node scripts/security/audit.mjs
 //   Chrome required, like the other browser suites ($CHROME_PATH overrides).
 import { fileURLToPath } from 'node:url'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import puppeteer from 'puppeteer-core'
 import { launchBrowser } from '../e2e/dsh-web.mjs'
 import { auditContainment } from './containment.mjs'
@@ -32,6 +35,13 @@ function check(name, ok, detail = '') {
 }
 
 const browser = await launchBrowser(puppeteer, { args: ['--no-sandbox'] })
+const downloadDir = await mkdtemp(join(tmpdir(), 'diui-audit-downloads-'))
+const downloads = []
+const downloadSession = await browser.target().createCDPSession()
+await downloadSession.send('Browser.setDownloadBehavior', {
+  behavior: 'allow', downloadPath: downloadDir, eventsEnabled: true,
+})
+downloadSession.on('Browser.downloadWillBegin', event => downloads.push(event))
 const page = await browser.newPage()
 page.setDefaultTimeout(30_000)
 await page.setCacheEnabled(false)
@@ -50,6 +60,11 @@ page.on('request', req => {
   if (url === EVIL + '/held.png') { held.push(req); return }
   if (url === EVIL + '/held-page') {
     req.respond({ status: 200, contentType: 'text/html', body: '<!doctype html><script>window.__msgs=[];addEventListener("message",e=>window.__msgs.push(JSON.stringify(e.data)))</script><p id="foreign-ready">foreign</p><img src="/held.png">' })
+    return
+  }
+  if (url === EVIL + '/attachment') {
+    req.respond({ status: 200, contentType: 'application/octet-stream',
+      headers: { 'Content-Disposition': 'attachment; filename="audit.txt"' }, body: 'audit download' })
     return
   }
   if (url.startsWith(EVIL)) {
@@ -297,25 +312,78 @@ try {
 
   // ---- 9. Downloads, popups and form submission ---------------------------
   {
-    const { requests } = await probe({ ...DEFAULT_POLICY, cdn: [CDN] }, async ({ EVIL }) => {
-      const out = {}
-      try { out.open = window.open(EVIL + '/popup') ? 'opened' : 'blocked' } catch (e) { out.open = 'blocked:' + e.name }
-      try { const a = document.createElement('a'); a.href = EVIL + '/dl'; a.download = 'x.txt'; document.body.appendChild(a); a.click(); out.download = 'clicked' } catch (e) { out.download = 'blocked:' + e.name }
-      try { out.topNav = (() => { top.location.href = EVIL + '/top'; return 'set' })() } catch (e) { out.topNav = 'blocked:' + e.name }
+    // Each boundary needs its own document. A cross-origin <a download> can
+    // navigate the frame instead, so mixing it with a form creates a race and
+    // falsely labels the navigation request as a form-action failure.
+    const policy = { ...DEFAULT_POLICY, cdn: [CDN] }
+    const popup = await probe(policy, ({ EVIL }) => {
+      try { return window.open(EVIL + '/popup') ? 'opened' : 'blocked' } catch (e) { return 'blocked:' + e.name }
+    })
+    check('9a. window.open is blocked by the sandbox (no allow-popups)',
+      String(popup.out).startsWith('blocked') && toEvil(popup.requests).length === 0, JSON.stringify(popup))
+
+    const topNav = await probe(policy, ({ EVIL }) => {
+      try { top.location.href = EVIL + '/top'; return 'set' } catch (e) { return 'blocked:' + e.name }
+    })
+    check('9b. top-level navigation is blocked by the sandbox',
+      !toEvil(topNav.requests).some(r => r.url === EVIL + '/top') && page.url() === HOST + '/', page.url())
+
+    const form = await probe(policy, async ({ EVIL }) => {
+      const violation = new Promise(resolve => {
+        document.addEventListener('securitypolicyviolation', e => {
+          if (e.effectiveDirective === 'form-action') resolve(e.effectiveDirective)
+        })
+        setTimeout(() => resolve('timeout'), 1500)
+      })
       const fm = document.createElement('form')
       fm.action = EVIL + '/form'; fm.method = 'post'
       fm.innerHTML = '<input name=a value=1>'
       document.body.appendChild(fm)
       fm.submit()
-      return out
-    }, 1500)
-    check('9a. window.open is blocked by the sandbox (no allow-popups)', String((await (async () => {
-      const w = await mount({ policy: { ...DEFAULT_POLICY, cdn: [CDN] } })
-      return w.evaluate(evil => { try { return window.open(evil + '/p') ? 'opened' : 'blocked' } catch (e) { return 'blocked:' + e.name } }, EVIL)
-    })())).startsWith('blocked'))
-    check('9b. top-level navigation is blocked by the sandbox',
-      !toEvil(requests).some(r => r.url === EVIL + '/top') && page.url() === HOST + '/', page.url())
-    check('9c. form-action none plus the sandbox blocks submissions', toEvil(requests).length === 0, JSON.stringify(toEvil(requests).map(r => r.url)))
+      return violation
+    })
+    check('9c. form-action none blocks an attempted submission',
+      form.out === 'form-action' && toEvil(form.requests).length === 0, JSON.stringify(form))
+
+    // Prove the download observer is live with an unsandboxed host Blob URL.
+    const controlStart = downloads.length
+    await page.evaluate(() => {
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(new Blob(['audit control'], { type: 'text/plain' }))
+      a.download = 'control.txt'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+    })
+    const controlDeadline = Date.now() + 5000
+    while (downloads.length === controlStart && Date.now() < controlDeadline) await new Promise(r => setTimeout(r, 50))
+    check('9d. download observer sees an unsandboxed positive control',
+      downloads.slice(controlStart).some(d => d.suggestedFilename === 'control.txt'))
+
+    const blobStart = downloads.length
+    const blob = await probe(policy, () => {
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(new Blob(['widget download'], { type: 'text/plain' }))
+      a.download = 'widget.txt'
+      document.body.appendChild(a)
+      a.click()
+      return 'clicked'
+    })
+    check('9e. sandbox blocks a Blob download (no allow-downloads)',
+      blob.out === 'clicked' && downloads.length === blobStart, JSON.stringify(downloads.slice(blobStart)))
+
+    const attachmentStart = downloads.length
+    const attachment = await probe(policy, ({ EVIL }) => {
+      const a = document.createElement('a')
+      a.href = EVIL + '/attachment'
+      a.download = 'widget.txt'
+      document.body.appendChild(a)
+      a.click()
+      return 'clicked'
+    })
+    check('9f. sandbox blocks attachment download after its navigation request',
+      attachment.out === 'clicked' && toEvil(attachment.requests).some(r => r.url === EVIL + '/attachment')
+        && downloads.length === attachmentStart, JSON.stringify(attachment.requests))
   }
 
   // ---- 10. allowNetwork=true is consistent -------------------------------
@@ -358,4 +426,5 @@ try {
   process.exitCode = 1
 } finally {
   await browser.close()
+  await rm(downloadDir, { recursive: true, force: true })
 }

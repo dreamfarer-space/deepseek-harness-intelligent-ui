@@ -258,7 +258,7 @@ npx deepseek-harness-intelligent-ui doctor      # 只诊断，不做修改
 - **隔离：** `<iframe sandbox="allow-scripts allow-forms">` 配合 `srcdoc`，**不加** `allow-same-origin`。E2E 在浏览器中实测：`parent.document`、`localStorage`、`document.cookie` 均抛出 `SecurityError`，`fetch` 被拦截，`window.origin` 为 `"null"`。
 - **CSP：** `default-src 'none'`；脚本、样式、字体、图片只能来自 `cdnAllowlist`；未开启 `allowNetwork` 时 `connect-src 'none'`；`form-action 'none'`、`base-uri 'none'`。逐通道实测矩阵见 [docs/widget-csp-audit.md](docs/widget-csp-audit.md)，并可运行 `npm run e2e:security`。
 - **`allowNetwork=false` 能挡与不能挡什么：** 它能拦截 `fetch`、XHR、WebSocket、`EventSource`、`sendBeacon` 和 `<a ping>`；但**不能**阻止 `<img>`、`<script src>`、`<link rel=stylesheet>`、`@font-face`、`<video>` 向**允许名单内**的来源发起请求，而本实现将 `cdnAllowlist` 转为仅含来源的 CSP 条目，不限制资源路径——允许名单内的 CDN 仍可能在资源 URL 中看到组件数据。要阻止外部资源请求，请设 `cdnAllowlist: []`（离线包已如此）；它仍不能阻止组件自身导航，以及在首次导航 URL 中携带数据。
-- **导航：** 绑定原文档的 MessageChannel 可阻止替换文档接收宿主数据。后续 iframe `load` 会移除外部页面；未完成的响应可延迟这一步界面移除。首次自身导航请求仍可能发生。iframe sandbox 已阻止顶层导航、`window.open` 和下载。
+- **导航：** 绑定原文档的 MessageChannel 可阻止替换文档接收宿主数据。后续 iframe `load` 会移除外部页面；未完成的响应可延迟这一步界面移除。首次自身导航请求仍可能发生。iframe sandbox 已阻止顶层导航、`window.open` 和文件下载。跨来源下载链接仍可能先触发自身导航请求，再由浏览器阻止保存响应。
 - **消息校验：** 首次握手校验 iframe 来源与每个文档的新 token，再接收其转移的端口。后续消息仅走该端口并校验 token/格式；窗口 RPC 与旧端口均被拒绝（E2E 实测）。
 - **sendPrompt 限制：** 挂载后 1 秒内拒绝，2 秒内最多一次，长度受 `sendPromptMaxChars` 限制，以普通用户消息排队发送。
 - **openLink：** 只允许 https，可用 `openLinkAllowedOrigins` 进一步限制。

@@ -24,7 +24,7 @@ directives is what decides reachability:
 | `<video>`, `<audio>`, `media` | `media-src` | **allowed to the CDN allowlist** |
 | `<iframe>`, `<object>`, `<embed>`, `<link rel=prefetch>` | `default-src 'none'` | blocked |
 | Form submission | `form-action 'none'` | blocked |
-| Download (`<a download>`) | iframe sandbox (no `allow-downloads`) | blocked |
+| File download (Blob URL or attachment response) | iframe sandbox (no `allow-downloads`) | file download blocked; a cross-origin link can still issue a self-navigation request |
 | `window.open`, `target=_blank` | iframe sandbox (no `allow-popups`) | blocked |
 | Top-level navigation (`top.location`) | iframe sandbox (no `allow-top-navigation`) | blocked by the sandbox |
 | **Self-navigation (`location.href`, `location.replace`)** | **nothing** | **allowed** — see the finding below |
@@ -214,7 +214,16 @@ request and allowlisted resource URL cases deliberately demonstrate remaining
 egress. The top-level-navigation check asserts both the actual attempted
 request list and unchanged host URL, rather than an unconditional pass.
 
-Current validation for the review fix: 402 unit tests, 36/36 Chrome security
+Popup, top-level navigation, form submission and downloads use separate fresh
+documents. The form test requires both a `form-action` CSP violation and no
+outbound request. Downloads are measured with Chrome's `downloadWillBegin`
+events, with an unsandboxed Blob download as a positive control; sandboxed Blob
+and attachment downloads must not start. The attachment URL is still requested:
+cross-origin `download` attributes can be ignored and the link can navigate its
+own frame. That request is not a form submission and is not blocked by
+`form-action` or the download restriction.
+
+Current validation for the review fix: 402 unit tests, 39/39 Chrome security
 checks, the real-browser controlled action regressions, typecheck, release
 checks and package-content checks. The browser checks exercise the production
 component plus the exact `buildFrameDocument()` output, rather than copying its
