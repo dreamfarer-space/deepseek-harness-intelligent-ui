@@ -14,7 +14,6 @@ export const RENDER_TOOL = 'ui_render';
  * @param {ReturnType<import('../config.js').resolveConfig>} config
  */
 export function createRenderTool(config) {
-  const policy = clientPolicy(config);
   return {
     name: RENDER_TOOL,
     get description() { return [
@@ -61,7 +60,7 @@ export function createRenderTool(config) {
         required: ['ok', 'summary'],
       },
       render: (_args, value) => [{ type: 'text', text: value.ok ? value.summary : `${value.summary}\n${(value.errors || []).map(e => `- ${e}`).join('\n')}` }],
-      presentationMeta: (_args, value) => ({ ok: value.ok, policy }),
+      presentationMeta: (_args, value) => ({ ok: value.ok, policy: clientPolicy(config) }),
     },
     isConcurrencySafe: () => true,
     async execute(args, exec) {

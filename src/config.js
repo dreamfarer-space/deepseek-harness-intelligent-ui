@@ -1,6 +1,11 @@
 /**
  * Plugin configuration (Schemastery). Every field is deployment-tunable; the
- * Plugins page renders this schema. Browser-relevant fields travel to the
+ * Plugins page renders this schema. Widget policy fields are `volatile`: the
+ * official settings service (Desktop forms, Remote clients) edits them live,
+ * and every read goes through {@link resolveConfig}'s getters, so the next
+ * tool call sees the new value without remounting the plugin. Tool and
+ * guidance switches stay structural because they change what is registered.
+ * Browser-relevant fields travel to the
  * client through each tool result's `presentationMeta` (see {@link clientPolicy}).
  * @module deepseek-harness-intelligent-ui/config
  */
@@ -29,31 +34,61 @@ export const Config = Schema.object({
     .description('Register `ui_compose` (one answer that interleaves markdown, native components and widgets). Needs at least one UI capability.'),
   injectGuidance: Schema.boolean().default(DEFAULTS.injectGuidance)
     .description('Add a system-prompt section telling the model when and how to answer with UI.'),
-  cdnAllowlist: Schema.array(Schema.string()).default([...DEFAULTS.cdnAllowlist])
+  cdnAllowlist: Schema.array(Schema.string()).default([...DEFAULTS.cdnAllowlist]).volatile()
     .description('Origins widgets may load scripts, styles, fonts and images from (CSP).'),
-  allowNetwork: Schema.boolean().default(DEFAULTS.allowNetwork)
+  allowNetwork: Schema.boolean().default(DEFAULTS.allowNetwork).volatile()
     .description('Allow widgets to fetch()/WebSocket to the CDN allowlist (CSP connect-src). Off: no script network calls. Resource elements (img/script/style/font/media) still reach allowlisted origins; set cdnAllowlist to [] to block external resource requests. Self-navigation can still send data in its URL.'),
-  maxWidgetHeight: Schema.natural().min(200).max(8000).default(DEFAULTS.maxWidgetHeight)
+  maxWidgetHeight: Schema.natural().min(200).max(8000).default(DEFAULTS.maxWidgetHeight).volatile()
     .description('Maximum widget frame height in pixels.'),
-  maxWidgetBytes: Schema.natural().min(10000).default(DEFAULTS.maxWidgetBytes)
+  maxWidgetBytes: Schema.natural().min(10000).default(DEFAULTS.maxWidgetBytes).volatile()
     .description('Reject widgets whose html+css+js exceed this many characters.'),
-  sendPromptMaxChars: Schema.natural().min(100).max(20000).default(DEFAULTS.sendPromptMaxChars)
+  sendPromptMaxChars: Schema.natural().min(100).max(20000).default(DEFAULTS.sendPromptMaxChars).volatile()
     .description('Longest message a widget, button or form may send back to the conversation.'),
-  openLinkAllowedOrigins: Schema.array(Schema.string()).default([])
+  openLinkAllowedOrigins: Schema.array(Schema.string()).default([]).volatile()
     .description('If non-empty, widgets may only open https links on these origins.'),
+}).i18n({
+  'zh-CN': {
+    enableCatalog: '注册 `ui_render`（声明式卡片、表格、图表、表单）。',
+    enableWidget: '注册 `ui_render_widget`（沙箱中流式渲染的 HTML/CSS/JS 组件）。',
+    enableCompose: '注册 `ui_compose`（在一个回答中穿插 Markdown、原生组件和 Widget）。至少需要开启一种 UI 能力。',
+    injectGuidance: '在系统提示词中加入何时、如何用 UI 作答的说明。',
+    cdnAllowlist: 'Widget 可加载脚本、样式、字体和图片的来源（CSP）。',
+    allowNetwork: '允许 Widget 对 CDN 白名单发起 fetch()/WebSocket（CSP connect-src）。关闭时禁止脚本网络调用；图片、脚本、样式、字体和媒体仍可请求白名单来源。将 cdnAllowlist 设为空数组可阻止外部资源请求，但不能阻止组件自身导航及其 URL 携带的数据。',
+    maxWidgetHeight: 'Widget 框架的最大高度（像素）。',
+    maxWidgetBytes: 'html+css+js 总字符数超过此值的 Widget 会被拒绝。',
+    sendPromptMaxChars: 'Widget、按钮或表单回传到对话的消息最大长度。',
+    openLinkAllowedOrigins: '非空时，Widget 只能打开这些来源下的 https 链接。',
+  },
 });
 
 /**
  * Normalize raw config onto defaults (tests and direct callers may skip Schemastery).
- * @param {Partial<typeof DEFAULTS> | undefined} raw
+ * Volatile fields arrive as live `{ get() }` references; each property is a
+ * getter so callers always read the current value.
+ * @param {Partial<typeof DEFAULTS> | Record<string, unknown> | undefined} raw
  * @returns {typeof DEFAULTS}
  */
 export function resolveConfig(raw) {
-  const merged = { ...DEFAULTS, ...(raw || {}) };
-  for (const key of Object.keys(merged)) {
+  const source = raw || {};
+  for (const key of Object.keys(source)) {
     if (!(key in DEFAULTS)) throw new TypeError(`deepseek-harness-intelligent-ui: unknown config key "${key}"`);
   }
-  return merged;
+  const config = {};
+  for (const key of Object.keys(DEFAULTS)) {
+    Object.defineProperty(config, key, {
+      enumerable: true,
+      get() {
+        const value = isVolatileRef(source[key]) ? source[key].get() : source[key];
+        return value === undefined ? DEFAULTS[key] : value;
+      },
+    });
+  }
+  return /** @type {typeof DEFAULTS} */ (config);
+}
+
+/** @param {unknown} value @returns {value is { get(): unknown }} */
+function isVolatileRef(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) && typeof value.get === 'function';
 }
 
 /**

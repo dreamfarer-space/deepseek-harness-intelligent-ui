@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Widget policy settings (`cdnAllowlist`, `allowNetwork`, `maxWidgetHeight`, `maxWidgetBytes`, `sendPromptMaxChars`, `openLinkAllowedOrigins`) are now live settings: they can be edited from the official settings forms, including DeepSeek Harness Remote clients, and apply to the next tool call without reloading the plugin.
+- Settings descriptions are available in Simplified Chinese.
+
 ### Security
 
 - Separated popup, top-navigation, form and download probes in the sandbox audit. A form check now requires an actual CSP violation and no request; download checks use browser events with a positive control. Cross-origin download links can still issue self-navigation requests even when saving the response is blocked.

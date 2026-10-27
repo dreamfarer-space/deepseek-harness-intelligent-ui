@@ -24,13 +24,14 @@ export { COMPOSE_TOOL };
  * @param {ReturnType<import('../config.js').resolveConfig>} config
  */
 export function createComposeTool(config) {
-  const policy = clientPolicy(config);
   const caps = composeCapabilities(config);
   const enabled = [caps.catalog ? 'catalog' : undefined, caps.widget ? 'widget' : undefined].filter(Boolean).join(' and ');
-  const cdn = policy.cdn.length ? policy.cdn.join(', ') : '(none)';
   return {
     get name() { return COMPOSE_TOOL; },
-    get description() { return [
+    get description() {
+      const policy = clientPolicy(config);
+      const cdn = policy.cdn.length ? policy.cdn.join(', ') : '(none)';
+      return [
       'Answer with ONE composed response whose ordered blocks interleave markdown prose with native UI and sandboxed widgets, so explanation can surround the interactive parts.',
       'Use it when the answer needs both substantial prose and one or more UI moments between its paragraphs: technical comparisons with a chart in the middle, a teaching walkthrough (explain → demonstrate → interpret), or a report with several sections. Do NOT use it for a pure dashboard (use ui_render) or for a plain prose answer.',
       'Each block has a stable id and a type:',
@@ -44,7 +45,7 @@ export function createComposeTool(config) {
       '- One composition per answer is usually enough. Interactions (Button/Form/Choice) arrive later as the user\'s next message; do not wait for them in this turn.',
       '- Do not write a closing summary after calling: the composition IS the answer.',
       ...(caps.widget ? [
-        `Sandbox: no same-origin access. External resources only from ${cdn}.${policy.allowNetwork ? ' fetch() to those origins is allowed.' : ' Network requests are blocked.'} Use Bridge.sendPrompt only in response to an explicit user action.`,
+        `Sandbox: no same-origin access. External resources only from ${cdn}.${policy.allowNetwork ? ' fetch() to those origins is allowed.' : ' fetch/XHR/WebSocket are blocked.'} Use Bridge.sendPrompt only in response to an explicit user action.`,
         ...(RESOURCE_MODE === 'offline' ? ['Offline resource pack: only the bundled imports (three, d3, chart.js/auto, canvas-confetti, katex, mermaid) are available; no CDN URLs, fetch or external assets.'] : []),
       ] : []),
       ...(caps.catalog ? ['Components for catalog blocks (the same catalog as ui_render):', catalogReference()] : []),
@@ -103,7 +104,7 @@ export function createComposeTool(config) {
         required: ['ok', 'summary'],
       },
       render: (_args, value) => [{ type: 'text', text: value.ok ? value.summary : `${value.summary}\n${(value.errors || []).map(e => `- ${e}`).join('\n')}` }],
-      presentationMeta: (_args, value) => ({ ok: value.ok, policy }),
+      presentationMeta: (_args, value) => ({ ok: value.ok, policy: clientPolicy(config) }),
     },
     isConcurrencySafe: () => true,
     async execute(args, exec) {

@@ -17,11 +17,12 @@ export const WIDGET_FIELDS = ['title', 'initialHeight', 'placeholderMessages', '
  * @param {ReturnType<import('../config.js').resolveConfig>} config
  */
 export function createWidgetTool(config) {
-  const policy = clientPolicy(config);
-  const cdn = policy.cdn.length ? policy.cdn.join(', ') : '(none)';
   return {
     name: WIDGET_TOOL,
-    description: [
+    get description() {
+      const policy = clientPolicy(config);
+      const cdn = policy.cdn.length ? policy.cdn.join(', ') : '(none)';
+      return [
       'Render a custom interactive widget (HTML + CSS + JS) live in a sandboxed iframe inside the chat — ONLY for 3D scenes (Three.js/WebGL), dynamic physics/math simulations, animations, games, or custom canvas mini-apps.',
       'NEVER use this for standard charts (bar, line, area, multi-series), tables, forms, timelines, or dashboards — ALWAYS use ui_render for those instead.',
       'PARAMETER ORDER IS CRITICAL — emit the JSON keys in exactly this order, it is rendered while streaming:',
@@ -44,7 +45,7 @@ export function createWidgetTool(config) {
       config.enableCompose !== false
         ? 'When the widget is one part of a longer explanation, use ui_compose to place prose around it.'
         : 'When the user requests a longer explanation, provide the full prose in the reply alongside the widget.',
-    ].join('\n'),
+    ].join('\n'); },
     parameters: {
       type: 'object',
       properties: {
@@ -69,7 +70,7 @@ export function createWidgetTool(config) {
         required: ['ok', 'summary'],
       },
       render: (_args, value) => [{ type: 'text', text: value.ok ? value.summary : `${value.summary}\n${(value.errors || []).map(e => `- ${e}`).join('\n')}` }],
-      presentationMeta: (_args, value) => ({ ok: value.ok, policy }),
+      presentationMeta: (_args, value) => ({ ok: value.ok, policy: clientPolicy(config) }),
     },
     isConcurrencySafe: () => true,
     async execute(args) {
