@@ -1,3 +1,4 @@
+import { channelFor, frameToken, fromFrame } from './fixtures/widget-channel.ts'
 // @vitest-environment jsdom
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
@@ -175,11 +176,6 @@ describe('catalog interactions and state', () => {
 })
 
 describe('widget lifecycle', () => {
-  const frameToken = (frame: HTMLIFrameElement) => /var TOKEN = "([0-9a-f]+)"/.exec(frame.getAttribute('srcdoc') ?? '')![1]!
-  const fromFrame = (frame: HTMLIFrameElement, data: Record<string, unknown>, token = frameToken(frame)) => {
-    window.dispatchEvent(new MessageEvent('message', { data: { ...data, __diui: token }, source: frame.contentWindow }))
-  }
-
   it('finalizes the streaming preview frame in place instead of rebuilding it', async () => {
     const raw = JSON.stringify(WIDGET)
     const props = { ...base(), toolName: 'ui_render_widget', callId: 'w5' }
@@ -188,7 +184,7 @@ describe('widget lifecycle', () => {
     const frame = host.querySelector('iframe')!
     const doc = frame.getAttribute('srcdoc')
     expect(frame.dataset.mode).toBe('preview')
-    const posted = vi.spyOn(frame.contentWindow!, 'postMessage')
+    const posted = channelFor(frame).postMessage
     await act(async () => { fromFrame(frame, { type: 'ready', final: false }) })
     expect(posted.mock.calls.at(-1)![0]).toMatchObject({ type: 'html', html: '<div id="c">wave</div>' })
     render(<WidgetView {...props} phase="start" block={{ phase: 'start', callId: 'w5', argsRaw: raw }} useToolCallArgumentsPartial={() => ''} />)
@@ -240,8 +236,8 @@ describe('widget lifecycle', () => {
     await act(async () => { fromFrame(frame, { type: 'error', kind: 'runtime', message: 'boom' }) })
     act(() => button('Reload')!.click())
     expect(host.textContent).not.toContain('script error')
-    // Same token and inputs, so the rebuilt document is equal; the srcdoc attribute is re-applied by React.
-    expect(host.querySelector('iframe')!.getAttribute('srcdoc')).toBe(doc)
+    // Fresh document credentials ensure React actually reloads srcdoc.
+    expect(host.querySelector('iframe')!.getAttribute('srcdoc')).not.toBe(doc)
   })
 
   it('keeps a static preview when generation stops mid-widget', () => {

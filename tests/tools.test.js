@@ -59,7 +59,12 @@ describe('ui_render_widget tool', () => {
   it('mentions the configured CDN and network policy to the model', () => {
     const offline = createWidgetTool(resolveConfig({ cdnAllowlist: ['https://cdn.example'], allowNetwork: false }))
     expect(offline.description).toMatch(/https:\/\/cdn\.example/)
-    expect(offline.description).toMatch(/Network requests .* are blocked/)
+    // The off-state wording must stay accurate: connect-src is what is blocked,
+    // not every request (resource elements still reach allowlisted origins).
+    expect(offline.description).toMatch(/fetch\/XHR\/WebSocket are blocked/)
+    expect(offline.description).toMatch(/Never navigate the widget's own frame/)
+    const online = createWidgetTool(resolveConfig({ allowNetwork: true }))
+    expect(online.description).toMatch(/fetch\(\) to those origins is allowed/)
   })
 })
 

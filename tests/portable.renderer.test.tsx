@@ -1,3 +1,4 @@
+import { fromFrame } from './fixtures/widget-channel.ts'
 // @vitest-environment jsdom
 import { act } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -68,11 +69,7 @@ describe('portable renderer without a DSH Web session', () => {
     expect(parts[3]!.querySelector('iframe')!.getAttribute('sandbox')).toBe('allow-scripts allow-forms')
     expect((window as unknown as { __xss?: number }).__xss).toBeUndefined()
     const frame = parts[3]!.querySelector('iframe')!
-    const token = /var TOKEN = "([0-9a-f]+)"/.exec(frame.srcdoc)![1]
-    act(() => window.dispatchEvent(new MessageEvent('message', {
-      source: frame.contentWindow,
-      data: { __diui: token, type: 'error', kind: 'runtime', message: 'Remote simulator failed' },
-    })))
+    act(() => fromFrame(frame, { type: 'error', kind: 'runtime', message: 'Remote simulator failed' }))
     expect(parts[3]!.querySelector('.diui-problem')!.textContent).toContain('1 script error')
     act(() => parts[3]!.querySelector<HTMLButtonElement>('.diui-problem button')!.click())
     expect(parts[3]!.textContent).toContain('runtime: Remote simulator failed')

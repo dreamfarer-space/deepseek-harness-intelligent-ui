@@ -17,11 +17,12 @@ export const WIDGET_FIELDS = ['title', 'initialHeight', 'placeholderMessages', '
  * @param {ReturnType<import('../config.js').resolveConfig>} config
  */
 export function createWidgetTool(config) {
-  const policy = clientPolicy(config);
-  const cdn = policy.cdn.length ? policy.cdn.join(', ') : '(none)';
   return {
     name: WIDGET_TOOL,
-    description: [
+    get description() {
+      const policy = clientPolicy(config);
+      const cdn = policy.cdn.length ? policy.cdn.join(', ') : '(none)';
+      return [
       'Render a custom interactive widget (HTML + CSS + JS) live in a sandboxed iframe inside the chat — ONLY for 3D scenes (Three.js/WebGL), dynamic physics/math simulations, animations, games, or custom canvas mini-apps.',
       'NEVER use this for standard charts (bar, line, area, multi-series), tables, forms, timelines, or dashboards — ALWAYS use ui_render for those instead.',
       'PARAMETER ORDER IS CRITICAL — emit the JSON keys in exactly this order, it is rendered while streaming:',
@@ -38,13 +39,13 @@ export function createWidgetTool(config) {
       '- Helper classes: .ui-row (wrapping flex row), .ui-control (label + input + <output>), .ui-card, .ui-muted, .ui-stage.',
       'Theme CSS variables: --ui-bg, --ui-surface, --ui-text, --ui-muted, --ui-border, --ui-accent, --ui-accent-text, --ui-success, --ui-warning, --ui-error, --ui-radius, --ui-font, --ui-mono. Use them (never hard-coded page colors) so the widget follows light/dark mode. Layout must be responsive (fluid widths, wrap rows) — the chat may be phone-narrow.',
       'Interactivity: sliders, buttons, drag, rotate and zoom must update the widget immediately in JS (listen to "input" events; recompute and redraw). Never call sendPrompt for those.',
-      `Sandbox: no same-origin access (no localStorage/cookies/parent DOM). External resources only from: ${cdn}.${policy.allowNetwork ? ' fetch() to those origins is allowed.' : ' Network requests (fetch/XHR/WebSocket) are blocked.'}`,
+      `Sandbox: no same-origin access (no localStorage/cookies/parent DOM). External resources only from: ${cdn}.${policy.allowNetwork ? ' fetch() to those origins is allowed.' : ' fetch/XHR/WebSocket are blocked.'} Never navigate the widget's own frame (no location.href/location.replace): the widget is removed if it does.`,
       'To talk to the conversation call `Bridge.sendPrompt({ text })` (returns a Promise; the clicked button is disabled until it settles) ONLY in response to an explicit user action that needs you (e.g. an "Explain" or "Submit" button) — never on load, timers or ordinary input changes. Include the relevant current values in the text. `Bridge.openLink({ url })` opens an https link.',
       'For a standalone widget, add at most one short sentence after calling; do not paste the code into the reply.',
       config.enableCompose !== false
         ? 'When the widget is one part of a longer explanation, use ui_compose to place prose around it.'
         : 'When the user requests a longer explanation, provide the full prose in the reply alongside the widget.',
-    ].join('\n'),
+    ].join('\n'); },
     parameters: {
       type: 'object',
       properties: {
@@ -69,7 +70,7 @@ export function createWidgetTool(config) {
         required: ['ok', 'summary'],
       },
       render: (_args, value) => [{ type: 'text', text: value.ok ? value.summary : `${value.summary}\n${(value.errors || []).map(e => `- ${e}`).join('\n')}` }],
-      presentationMeta: (_args, value) => ({ ok: value.ok, policy }),
+      presentationMeta: (_args, value) => ({ ok: value.ok, policy: clientPolicy(config) }),
     },
     isConcurrencySafe: () => true,
     async execute(args) {

@@ -46,7 +46,6 @@ function conversationUis(exec, config) {
  * @param {ReturnType<import('../config.js').resolveConfig>} config
  */
 export function createPatchTool(config) {
-  const policy = clientPolicy(config);
   return {
     name: PATCH_TOOL,
     description: [
@@ -111,7 +110,7 @@ export function createPatchTool(config) {
       },
       render: (_args, value) => [{ type: 'text', text: value.ok ? value.summary : `${value.summary}\n${(value.errors || []).map(e => `- ${e}`).join('\n')}` }],
       // The complete next version travels to the browser; the model only sees the summary.
-      presentationMeta: (_args, value) => (value.ok ? { ok: true, policy, ui: value.ui } : { ok: false, policy, ...(value.code ? { code: value.code } : {}) }),
+      presentationMeta: (_args, value) => (value.ok ? { ok: true, policy: clientPolicy(config), ui: value.ui } : { ok: false, policy: clientPolicy(config), ...(value.code ? { code: value.code } : {}) }),
     },
     // Exclusive: patches of one UI must apply in a single, replayable order.
     isConcurrencySafe: () => false,

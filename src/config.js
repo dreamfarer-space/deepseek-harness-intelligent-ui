@@ -4,7 +4,8 @@
  * official settings service (Desktop forms, Remote clients) edits them live,
  * and every read goes through {@link resolveConfig}'s getters, so the next
  * tool call sees the new value without remounting the plugin. Tool and
- * guidance switches stay structural because they change what is registered. Browser-relevant fields travel to the
+ * guidance switches stay structural because they change what is registered.
+ * Browser-relevant fields travel to the
  * client through each tool result's `presentationMeta` (see {@link clientPolicy}).
  * @module deepseek-harness-intelligent-ui/config
  */
@@ -36,7 +37,7 @@ export const Config = Schema.object({
   cdnAllowlist: Schema.array(Schema.string()).default([...DEFAULTS.cdnAllowlist]).volatile()
     .description('Origins widgets may load scripts, styles, fonts and images from (CSP).'),
   allowNetwork: Schema.boolean().default(DEFAULTS.allowNetwork).volatile()
-    .description('Allow widgets to fetch()/WebSocket to the CDN allowlist (CSP connect-src). Off: no network calls.'),
+    .description('Allow widgets to fetch()/WebSocket to the CDN allowlist (CSP connect-src). Off: no script network calls. Resource elements (img/script/style/font/media) still reach allowlisted origins; set cdnAllowlist to [] to block external resource requests. Self-navigation can still send data in its URL.'),
   maxWidgetHeight: Schema.natural().min(200).max(8000).default(DEFAULTS.maxWidgetHeight).volatile()
     .description('Maximum widget frame height in pixels.'),
   maxWidgetBytes: Schema.natural().min(10000).default(DEFAULTS.maxWidgetBytes).volatile()
@@ -52,7 +53,7 @@ export const Config = Schema.object({
     enableCompose: '注册 `ui_compose`（在一个回答中穿插 Markdown、原生组件和 Widget）。至少需要开启一种 UI 能力。',
     injectGuidance: '在系统提示词中加入何时、如何用 UI 作答的说明。',
     cdnAllowlist: 'Widget 可加载脚本、样式、字体和图片的来源（CSP）。',
-    allowNetwork: '允许 Widget 对 CDN 白名单发起 fetch()/WebSocket（CSP connect-src）。关闭时禁止网络请求。',
+    allowNetwork: '允许 Widget 对 CDN 白名单发起 fetch()/WebSocket（CSP connect-src）。关闭时禁止脚本网络调用；图片、脚本、样式、字体和媒体仍可请求白名单来源。将 cdnAllowlist 设为空数组可阻止外部资源请求，但不能阻止组件自身导航及其 URL 携带的数据。',
     maxWidgetHeight: 'Widget 框架的最大高度（像素）。',
     maxWidgetBytes: 'html+css+js 总字符数超过此值的 Widget 会被拒绝。',
     sendPromptMaxChars: 'Widget、按钮或表单回传到对话的消息最大长度。',

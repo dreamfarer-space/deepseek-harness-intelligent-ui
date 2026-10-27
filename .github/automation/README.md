@@ -1,33 +1,28 @@
 # Intelligent UI GitHub bots
 
-Both bots run on GitHub Actions through a text-only LLM endpoint.
-The default model is `gemini-3.8-flash-high`.
+CodeRabbit is the sole automatic PR code reviewer. The custom workflow that
+published “Intelligent UI · AI 审核” has been removed. Historical reviews remain
+in PR timelines; the shared Python implementation is retained for its tests and
+Issue labeling, but has no automatic PR review entrypoint.
 
-- **AI Issue Labeler**: handles opened, edited and reopened issues, selecting up
-  to three existing classification labels. Adds labels without removing human
-  labels; leaves status, priority and assignment decisions to maintainers.
-- **AI PR Review**: handles opened, synchronized, reopened and ready PRs. Posts
-  a Chinese advisory review with inline findings tied to added lines and the
-  exact head commit. It never approves, requests changes or merges a PR.
+## AI Issue Labeler
+
+Handles opened, edited and reopened issues, selecting up to three existing
+classification labels. Adds labels without removing human labels; leaves
+status, priority and assignment decisions to maintainers.
 
 Configure `GEMINI_API_KEY` as a repository Actions secret. Optional repository
-variables: `GEMINI_BASE_URL`, `ISSUE_LABEL_MODEL`, `PR_REVIEW_MODEL`.
-The base URL defaults to `https://api.zemengzhou.com/v1`.
+variables: `GEMINI_BASE_URL` and `ISSUE_LABEL_MODEL`. The default model is
+`gemini-3.8-flash-high`; the base URL defaults to `https://api.zemengzhou.com/v1`.
 
-To process existing items or retry a failed request: Actions → select the bot →
-Run workflow → select `main`, enter the item number. Dry run defaults to enabled;
-disable it to publish. A commit already reviewed by this bot is skipped.
+To process an existing issue or retry a failed request: Actions → AI Issue
+Labeler → Run workflow → select `main`, enter the issue number. Dry run defaults
+to enabled; disable it to publish labels.
 
-The workflows only execute trusted base-branch automation. They never install or
-execute PR code. PR file contents are read through GitHub's API. Inference is a
-single HTTPS Chat Completions request with JSON mode: there is no agent loop, no
-shell, no tool catalogue, and the GitHub token is never sent to the model service.
-Only validated labels and
-validated review locations can be published. Model output cannot choose API routes.
-Generated bundles, lock files and binary assets are omitted. Large source files and
-diffs may be truncated; omissions are listed in the review. This is a bounded
-static review, not test execution or a guarantee that every defect is found.
-
-Provider failures fail the Actions run rather than fabricate a review. Transient
-rate limits receive one delayed retry. Check the Actions run and provider account
-availability if a run fails; no alternate model is selected automatically.
+The workflow executes only trusted default-branch automation and does not
+install or execute PR code. Inference uses a text-only HTTPS Chat Completions
+request; the GitHub token is never sent to the model service. Model output
+cannot choose API routes. Provider failures fail the Actions run rather than
+fabricate results. Transient rate limits receive two delayed retries, after
+15 seconds and then 30 seconds, for three requests in total; no
+alternate model is selected automatically.

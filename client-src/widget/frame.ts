@@ -1,7 +1,8 @@
 /**
  * Build the srcdoc for a widget frame. The frame is an opaque-origin sandbox
  * (`sandbox="allow-scripts allow-forms"`, never `allow-same-origin`), so the
- * only channel to the host is postMessage, gated by a per-frame token.
+ * only channel to the host is a document-bound MessagePort, bootstrapped
+ * through postMessage with a fresh per-document token.
  *
  * Layout of the document (after OpenIntelligentUI's frame-content.ts):
  * CSP meta → importmap → theme variables → base design CSS → widget css →
@@ -54,6 +55,18 @@ export function safeOrigins(list: readonly string[]): string[] {
   return [...new Set(out)]
 }
 
+/**
+ * CSP for one frame.
+ *
+ * `connect-src` is the only directive that follows `allowNetwork`: the resource
+ * directives always carry the CDN allowlist, because widgets load libraries,
+ * fonts and images from it. safeOrigins() emits origin-only sources, so this
+ * policy does not restrict resource paths. CSP supports path sources, but
+ * ignores queries (and path matching after redirects); even a path prefix
+ * permits data in its suffix or query. An empty `cdn` blocks external resource
+ * requests, but cannot stop self-navigation. The per-channel matrix,
+ * including why each grant is needed, is in docs/widget-csp-audit.md.
+ */
 export function contentSecurityPolicy(policy: WidgetPolicy): string {
   const cdn = offlinePack ? '' : safeOrigins(policy.cdn).join(' ')
   const connect = policy.allowNetwork && cdn ? cdn : "'none'"
@@ -65,6 +78,9 @@ export function contentSecurityPolicy(policy: WidgetPolicy): string {
     `font-src data: ${cdn}`.trim(),
     `media-src data: blob: ${cdn}`.trim(),
     `connect-src ${connect}`,
+    // canvas-confetti (an advertised import) runs its default path in a
+    // blob: Worker; a blob worker inherits this document's CSP and opaque
+    // origin, so it adds no reach (verified in scripts/security/audit.mjs).
     'worker-src blob:',
     "form-action 'none'",
     "base-uri 'none'",
@@ -139,7 +155,11 @@ const BOOTSTRAP = `
   var TOKEN = __TOKEN__, MAX = __MAX__, seq = 0, pending = {}, finalized = false;
   var doc = document.documentElement;
   doc.dataset.theme = __SCHEME__;
-  function post(msg){ msg.__diui = TOKEN; parent.postMessage(msg, '*'); }
+  // Create and transfer before generated scripts run. A replacement document
+  // never inherits this endpoint, even if its load event is held open.
+  var channel = new MessageChannel(), port = channel.port1;
+  parent.postMessage({ type: 'connect', __diui: TOKEN }, '*', [channel.port2]);
+  function post(msg){ msg.__diui = TOKEN; port.postMessage(msg); }
   function call(method, params){
     return new Promise(function(resolve, reject){
       var id = ++seq; pending[id] = { resolve: resolve, reject: reject };
@@ -313,8 +333,7 @@ const BOOTSTRAP = `
     var root = document.getElementById('ui-root');
     try { Idiomorph.morph(root, html, { morphStyle: 'innerHTML' }); } catch (e) { root.innerHTML = html; }
   }
-  window.addEventListener('message', function(ev){
-    if (ev.source !== parent) return;
+  port.addEventListener('message', function(ev){
     var m = ev.data;
     if (!m || m.__diui !== TOKEN) return;
     if (m.type === 'rpc-result' && pending[m.id]) {
@@ -331,6 +350,8 @@ const BOOTSTRAP = `
       themeListeners.slice().forEach(function(cb){ try { cb(UI.scheme); } catch (e) { report('onTheme', e); } });
     }
   });
+  port.start();
+  window.addEventListener('pagehide', function(){ port.close(); });
   function report(kind, e){
     var msg = e && (e.message || String(e)) || 'error';
     post({ type: 'error', kind: kind, message: String(msg).slice(0, 500) });
