@@ -19,7 +19,7 @@ describe('DSH compatibility range', () => {
     expect(semver.satisfies(runtime, SUPPORTED_DSH_RANGE)).toBe(true)
   })
 
-  it.each([...TESTED_DSH_VERSIONS, '0.2.0-rc.3', '0.2.9'])('DSH %s accepts the plugin', (runtime) => {
+  it.each([...TESTED_DSH_VERSIONS, '0.2.0-rc.3', '0.2.2-rc.1', '0.2.9'])('DSH %s accepts the plugin', (runtime) => {
     expect(evaluatePluginCompatibility(manifest, {}, runtime)).toBeUndefined()
   })
 

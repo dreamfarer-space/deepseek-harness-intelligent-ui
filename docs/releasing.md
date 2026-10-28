@@ -13,8 +13,8 @@ as "version absent". A retry only reuses identical contents from the same source
 The GitHub Release receives the verified npm tarball; an existing different
 attachment fails instead of being overwritten.
 
-The supported DSH prerelease peer ranges include the tested 0.2.0-rc and
-0.2.1-alpha lines explicitly so ordinary npm co-installation and DSH's own
+The supported DSH prerelease peer ranges include the tested 0.2.0, 0.2.1 and
+0.2.2 prerelease lines (and the matching cordis 4.0.6 prereleases) explicitly so ordinary npm co-installation and DSH's own
 compatibility gate agree on those versions. CI checks both semver behaviors.
 
 ## npm Trusted Publishing

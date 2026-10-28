@@ -9,10 +9,10 @@
  */
 
 /** Range of `@deepseek-ai/dsh` / `@deepseek-ai/dsh-llm` versions the plugin runs on. */
-export const SUPPORTED_DSH_RANGE = '>=0.1.7-rc.1 <0.3.0-0 || >=0.2.0-0 <0.2.0 || >=0.2.1-0 <0.2.1';
+export const SUPPORTED_DSH_RANGE = '>=0.1.7-rc.1 <0.3.0-0 || >=0.2.0-0 <0.2.0 || >=0.2.1-0 <0.2.1 || >=0.2.2-0 <0.2.2';
 
 /** Versions the CI compatibility matrix installs the packed plugin into. */
-export const TESTED_DSH_VERSIONS = Object.freeze(['0.1.7-rc.2', '0.2.0-rc.1', '0.2.0-rc.2', '0.2.1-alpha.2', '0.2.1-alpha.4', '0.2.1-alpha.5', '0.2.1-rc.2']);
+export const TESTED_DSH_VERSIONS = Object.freeze(['0.1.7-rc.2', '0.2.0-rc.1', '0.2.0-rc.2', '0.2.1-alpha.2', '0.2.1-alpha.4', '0.2.1-alpha.5', '0.2.1-rc.2', '0.2.1-rc.3', '0.2.1-rc.4', '0.2.2-alpha.2']);
 
 /** Lowest Node.js version DSH itself requires. */
 export const MIN_NODE_VERSION = '22.13.0';
