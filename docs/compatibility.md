@@ -45,6 +45,14 @@ Each release also installs the **published** package from npm on all three OSes 
 | 0.2.1-alpha.5 (`alpha`, cordis 4.0.5) | pass | pass |
 | 0.2.1-rc.2 (`next`, cordis 4.0.5) | pass | pass |
 
+### Local verification on Windows (2026-10-27, plugin 0.2.10 tarball)
+
+| DSH (cordis) | Install smoke test (9 checks) | Browser E2E (43 checks) | DSH extension E2E |
+|---|---|---|---|
+| 0.2.1-rc.3 (cordis 4.0.5) | pass | pass | — |
+| 0.2.1-rc.4 (`next`, cordis 4.0.5) | pass | pass | pass |
+| 0.2.2-alpha.2 (`alpha`, cordis 4.0.6-alpha.1) | pass | pass | pass |
+
 **Known API differences between DSH versions:**
 
 - **0.1.x:** shows a first-run notice whose Continue button is enabled only after a delay. The E2E driver waits for it.

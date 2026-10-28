@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Supports DeepSeek Harness 0.2.1-rc.3, 0.2.1-rc.4 (`next`) and 0.2.2-alpha.2 (`alpha`). The `@deepseek-ai/dsh` and `@deepseek-ai/dsh-llm` peer ranges now list the 0.2.2 prereleases, and the `@deepseek-ai/cordis` peer range the 4.0.6 prereleases, so ordinary npm co-installation agrees with DSH's own compatibility gate. Install smoke test, the full browser E2E (43 checks) and the DSH extension E2E pass on all three; no runtime changes were needed.
+
 ## [0.2.10]
 
 ### Changed
