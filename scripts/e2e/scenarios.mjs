@@ -11,12 +11,12 @@ export const SESSION_LAUNCH = {
   } }],
 }
 
-/** Issue #17 components: data grid, scatter, heatmap, code diff and map in one card. */
+/** Issue #17 components: data grid, scatter, heatmap, code diff, map and photos in one card. */
 export const DATA_TOOLS = {
   title: 'Data tools',
   root: 'stack',
   components: [
-    { id: 'stack', type: 'Stack', children: ['grid', 'scatter', 'heat', 'diff', 'map'] },
+    { id: 'stack', type: 'Stack', children: ['grid', 'scatter', 'heat', 'diff', 'map', 'photos'] },
     { id: 'grid', type: 'Table', props: {
       caption: 'Orders', sortable: true, searchable: true, filterable: true, exportable: true, pageSize: 5,
       columns: ['Order', 'Date', 'Amount', 'Note'],
@@ -34,6 +34,15 @@ export const DATA_TOOLS = {
     } },
     { id: 'diff', type: 'CodeDiff', props: {
       title: 'Change', files: [{ path: 'app.js', before: Array.from({ length: 12 }, (_, i) => `line ${i}`).join('\n'), after: Array.from({ length: 12 }, (_, i) => i === 6 ? '<img src=x onerror="window.__xss=1">' : `line ${i}`).join('\n') }],
+    } },
+    // https://media.e2e.test is answered by the browser driver (request interception), so no real network is used.
+    { id: 'photos', type: 'Gallery', props: {
+      title: 'Photos',
+      images: [
+        { src: 'https://media.e2e.test/a.png', alt: 'Blue square', caption: 'First', credit: 'E2E', creditUrl: 'https://media.e2e.test/credit' },
+        { src: 'https://media.e2e.test/b.png', alt: 'Green square', caption: 'Second' },
+        { src: 'https://media.e2e.test/missing.png', alt: 'Missing photo', caption: 'Broken' },
+      ],
     } },
     { id: 'map', type: 'Map', props: {
       title: 'Kyoto day trip',

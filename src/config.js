@@ -26,6 +26,7 @@ export const DEFAULTS = Object.freeze({
   mapTileUrl: '',
   mapTileAttribution: '',
   mapTileMaxZoom: 19,
+  mediaAllowedOrigins: [],
 });
 
 export const Config = Schema.object({
@@ -55,6 +56,8 @@ export const Config = Schema.object({
     .description('Attribution shown on every tiled map, e.g. `© OpenStreetMap contributors`. Required by most tile providers.'),
   mapTileMaxZoom: Schema.natural().min(1).max(22).default(DEFAULTS.mapTileMaxZoom).volatile()
     .description('Highest zoom level the tile provider serves.'),
+  mediaAllowedOrigins: Schema.array(Schema.string()).default([]).volatile()
+    .description('If non-empty, Image, Gallery and Video components load media only from these https origins; other sources show a placeholder. Empty: any https source (loaded without a Referer).'),
 }).i18n({
   'zh-CN': {
     enableCatalog: '注册 `ui_render`（声明式卡片、表格、图表、表单）。',
@@ -70,6 +73,7 @@ export const Config = Schema.object({
     mapTileUrl: 'Map 组件的栅格瓦片 URL 模板，例如 `https://tile.openstreetmap.org/{z}/{x}/{y}.png`（https，需含 {z}、{x}、{y}）。留空时地图绘制内置的离线世界轮廓。请遵守瓦片服务商的使用政策。',
     mapTileAttribution: '瓦片地图上始终显示的署名，例如 `© OpenStreetMap contributors`。多数瓦片服务商要求署名。',
     mapTileMaxZoom: '瓦片服务商提供的最大缩放级别。',
+    mediaAllowedOrigins: '非空时，Image、Gallery 和 Video 组件只从这些 https 来源加载媒体，其他来源显示占位提示。留空：允许任意 https 来源（加载时不发送 Referer）。',
   },
 });
 
@@ -116,6 +120,8 @@ export function clientPolicy(config) {
     sendPromptMaxChars: config.sendPromptMaxChars,
     openLinkOrigins: [...config.openLinkAllowedOrigins],
     mapTiles: RESOURCE_MODE === 'offline' ? null : mapTiles(config),
+    allowMedia: RESOURCE_MODE !== 'offline',
+    mediaOrigins: [...config.mediaAllowedOrigins],
   };
 }
 

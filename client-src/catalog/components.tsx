@@ -15,6 +15,7 @@ import { Plot, type PlotProps } from './Plot.tsx'
 import { CodeDiff, FileTree, JsonView } from './CodeView.tsx'
 import { Heatmap, Scatter, type HeatmapProps, type ScatterProps } from './Scatter.tsx'
 import { GeoMap, type GeoMapProps } from './GeoMap.tsx'
+import { Gallery, PhotoImage, type Photo } from './Photo.tsx'
 import { ExportButtons, Table, type Cell } from './Table.tsx'
 
 export { compareCells } from './Table.tsx'
@@ -163,6 +164,10 @@ function Component({ node, env, children }: { node: UiNode; env: RenderEnv; chil
       return <JsonView data={p.data} title={p.title} expandDepth={p.expandDepth} t={env.t} callId={env.callId} nodeId={node.id} />
     case 'Map':
       return <GeoMap {...(p as Omit<GeoMapProps, 'tiles' | 'nodeId' | 't'>)} tiles={env.policy.mapTiles} callId={env.callId} nodeId={node.id} t={env.t} />
+    case 'Image':
+      return <PhotoImage {...(p as Photo & { height?: number; fit?: 'cover' | 'contain' })} policy={env.policy} t={env.t} />
+    case 'Gallery':
+      return <Gallery images={p.images as Photo[]} title={p.title} columns={p.columns} policy={env.policy} t={env.t} />
     case 'Button':
       if (p.action) return <ControlledButton label={p.label} action={p.action} env={env} />
       return <ActionButton label={p.label} prompt={p.prompt} variant={p.variant} sessionTarget={p.sessionTarget} env={env} nodeId={node.id} />

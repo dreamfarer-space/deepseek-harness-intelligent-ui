@@ -8,6 +8,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `Image` and `Gallery` (1–24 photos): absolute https sources only (no `http:`, `data:`, relative or credentialed URLs, checked by the Host), loaded lazily with `referrerpolicy="no-referrer"`; required `alt` text, optional `caption` and `credit`/`creditUrl`. Tapping opens a modal full-size viewer (`<dialog>`, focus starts on Close, arrow keys and buttons step through, Escape closes). A photo that fails to load is replaced by its description, the reason and an "Open original" link; the rest of the gallery is unaffected. New live setting `mediaAllowedOrigins` restricts sources to listed origins; the offline package never loads remote media, even for replayed results.
+
 - `Map`: places on a Web Mercator map with markers (WGS84 `lat`/`lon`, optional `group` colours with a toggleable legend and a `note` per place), routes as `[lat, lon]` point lists (straight segments, `dashed` for itinerary sketches; drawn the short way across the antimeridian), drag/keyboard panning, zoom buttons, `+`/`−`, double-click and Ctrl+wheel (the page scroll is never captured), a scale bar, and a place list with a details panel. View and selection survive remounts and reloads. Works offline with a built-in Natural Earth world outline; set `mapTileUrl`, `mapTileAttribution` and `mapTileMaxZoom` to use a raster tile basemap, which falls back to the outline when tiles cannot load. The Host rejects out-of-range or swapped coordinates, duplicate ids and oversized data (500 markers, 50 routes, 5,000 route points).
 
 ## [0.2.11]
