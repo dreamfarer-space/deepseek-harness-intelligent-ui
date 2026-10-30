@@ -190,7 +190,7 @@ Why these rules were kept after a real-model A/B against a rewritten decision or
 | Data | `Stat`, `Progress`, `List`, `Timeline`, **`Table`** as a data grid: typed sorting (numbers, ISO dates, booleans), search, per-column filters, paging, CSV/Markdown export |
 | Charts | **`Chart`** (bar / line / area / pie, stacked, legend toggles, hover/tap/keyboard tooltips, data export), **`Scatter`** (continuous x/y), **`Heatmap`** (sequential or diverging scale, explicit missing cells) |
 | Maps | **`Map`** (markers, routes, groups; drag/keyboard pan and zoom; a built-in offline world outline, or the tile basemap you configure) |
-| Media | **`Image`** and **`Gallery`** (photos from https URLs, lazy and without a Referer, captions and linked credits, a modal full-size viewer with arrow keys; a broken photo shows its description) |
+| Media | **`Image`** and **`Gallery`** (photos from https URLs, lazy and without a Referer, captions and linked credits, a modal full-size viewer with arrow keys; a broken photo shows its description); **`Video`** (YouTube / Bilibili / Vimeo links in the official player, loaded only after the user presses play, or a direct https .mp4/.webm with native controls; always a link to the original) |
 | Math & diagrams | **`Plot`** (y = f(x) with sliders that redraw instantly; a safe expression compiler, never `eval`), **`Math`** (KaTeX), **`Mermaid`** |
 | Code & structure | **`CodeDiff`** (multi-file before/after or unified patch), **`FileTree`** (status badges), **`JsonView`** (JSONPath, copy) |
 | Interaction | `Button`, **`Choice`** (single-choice card), `Form` (text, number, range slider, select, checkbox, date, textarea) |
@@ -291,7 +291,7 @@ The bundle patch inserts the plugin row automatically. To change settings, add t
 | `mapTileUrl` | `''` | Raster tile template for `Map`, e.g. `https://tile.openstreetmap.org/{z}/{x}/{y}.png` (https with `{z}`/`{x}`/`{y}`). Empty: the offline outline. Follow the provider's tile usage policy |
 | `mapTileAttribution` | `''` | Attribution always shown on tiled maps, e.g. `© OpenStreetMap contributors` |
 | `mapTileMaxZoom` | `19` | Highest zoom the tile provider serves |
-| `mediaAllowedOrigins` | `[]` | If non-empty, the only https origins `Image`/`Gallery` may load from; others show a placeholder. Empty: any https source |
+| `mediaAllowedOrigins` | `[]` | If non-empty, the only https origins `Image`/`Gallery`/`Video` may load from (for platform videos, the player origin, e.g. `https://www.youtube-nocookie.com`, `https://player.bilibili.com`); others show a placeholder. Empty: any https source |
 
 ## 📊 Real-model quality baseline
 

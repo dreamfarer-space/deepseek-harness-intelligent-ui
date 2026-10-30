@@ -11,12 +11,12 @@ export const SESSION_LAUNCH = {
   } }],
 }
 
-/** Issue #17 components: data grid, scatter, heatmap, code diff, map and photos in one card. */
+/** Issue #17 components: data grid, scatter, heatmap, code diff, map, photos and videos in one card. */
 export const DATA_TOOLS = {
   title: 'Data tools',
   root: 'stack',
   components: [
-    { id: 'stack', type: 'Stack', children: ['grid', 'scatter', 'heat', 'diff', 'map', 'photos'] },
+    { id: 'stack', type: 'Stack', children: ['grid', 'scatter', 'heat', 'diff', 'map', 'photos', 'clip', 'talk'] },
     { id: 'grid', type: 'Table', props: {
       caption: 'Orders', sortable: true, searchable: true, filterable: true, exportable: true, pageSize: 5,
       columns: ['Order', 'Date', 'Amount', 'Note'],
@@ -44,6 +44,8 @@ export const DATA_TOOLS = {
         { src: 'https://media.e2e.test/missing.png', alt: 'Missing photo', caption: 'Broken' },
       ],
     } },
+    { id: 'clip', type: 'Video', props: { src: 'https://media.e2e.test/clip.webm', title: 'Clip', caption: 'A 1 s test clip' } },
+    { id: 'talk', type: 'Video', props: { src: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ', title: 'Talk', start: 10 } },
     { id: 'map', type: 'Map', props: {
       title: 'Kyoto day trip',
       markers: [

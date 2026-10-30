@@ -12,6 +12,7 @@
 import { checkExpression, FUNCTIONS } from './expr.js';
 import { extensionEntry, extensionTypes } from './extensions.js';
 import { validateSchema } from '../controlled/runtime.js';
+import { embedSource, PROVIDER_NAMES, videoPlatform } from './video.js';
 
 const DATA_REF = { type: 'object', props: { id: { type: 'string', required: true, max: 100 }, scope: { type: 'string', required: true, max: 200 } } };
 const ACTION = { type: 'object', props: { actionId: { type: 'string', required: true, max: 100 }, args: { type: 'any', required: true } } };
@@ -367,6 +368,20 @@ export const CATALOG = Object.freeze({
       columns: { type: 'number', min: 1, max: 6 },
     },
   },
+  Video: {
+    description: 'One video: a YouTube, Bilibili or Vimeo page link (played in the official embed player after the user presses play) or a direct https .mp4/.webm file. Only links you have actually seen (user, tool result, page); never invent video ids. start skips to a second; poster is an https image. Always shows a link to open the original.',
+    children: false,
+    props: {
+      src: { ...URL_SPEC, required: true },
+      title: { type: 'string', max: 300 },
+      poster: URL_SPEC,
+      caption: { type: 'string', max: 1000 },
+      credit: { type: 'string', max: 300 },
+      creditUrl: URL_SPEC,
+      start: { type: 'number', min: 0, max: 86400 },
+      aspectRatio: { type: 'enum', values: ['16:9', '4:3', '1:1', '9:16'] },
+    },
+  },
   Button: {
     description: 'Button sends prompt on explicit user click: sessionTarget defaults to current; new starts an independent Agent session in the same workspace. Or invokes a host-registered action {actionId,args}. Never invent action ids.',
     children: false,
@@ -674,6 +689,14 @@ function checkSemantics(type, props, path, errors) {
   }
   if (type === 'Map') checkMap(props, path, errors);
   if (type === 'Image') checkPhoto(props, path, errors);
+  if (type === 'Video') {
+    for (const key of ['src', 'poster', 'creditUrl']) {
+      const problem = httpsUrlProblem(props[key]);
+      if (problem) errors.push(`${path}.${key}: ${problem}`);
+    }
+    const platform = videoPlatform(props.src);
+    if (platform && !embedSource(props.src)) errors.push(`${path}.src: not a playable ${PROVIDER_NAMES[platform]} video link; use the video page URL (e.g. ${platform === 'youtube' ? 'https://www.youtube.com/watch?v=<11-character id>' : platform === 'bilibili' ? 'https://www.bilibili.com/video/BV…' : 'https://vimeo.com/<number>'})`);
+  }
   if (type === 'Gallery' && Array.isArray(props.images)) {
     if (!props.images.length) errors.push(`${path}.images: needs at least 1 image`);
     props.images.forEach((img, i) => { if (isPlainObject(img)) checkPhoto(img, `${path}.images[${i}]`, errors); });
