@@ -1,4 +1,5 @@
 /** Browser-side policy: Host config persisted on each tool result's `meta.policy`. */
+import { resourceMode } from './resources.ts'
 
 export interface WidgetPolicy {
   cdn: readonly string[]
@@ -39,7 +40,8 @@ export function policyFromMeta(meta: unknown): WidgetPolicy {
     maxHeight: num(p.maxHeight, DEFAULT_POLICY.maxHeight),
     sendPromptMaxChars: num(p.sendPromptMaxChars, DEFAULT_POLICY.sendPromptMaxChars),
     openLinkOrigins: strings(p.openLinkOrigins) ?? DEFAULT_POLICY.openLinkOrigins,
-    mapTiles: mapTilesFrom(p.mapTiles),
+    // A replayed online policy cannot reopen network access in the offline bundle.
+    mapTiles: resourceMode === 'offline' ? null : mapTilesFrom(p.mapTiles),
   }
 }
 
