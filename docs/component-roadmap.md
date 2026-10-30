@@ -108,9 +108,9 @@ Not implemented yet. A read-only agenda for "plan my week" style answers;
 - **Quiz / multi-select ChoiceGroup**: `Choice` covers single-choice
   clarification with explicit submit; scoring, multi-select and retries need
   their own state semantics (what a patch does to an answered quiz).
-- **Accordion, KeyValue, Steps, Image/Audio/Video, Scene3D**: lower frequency;
+- **Accordion, KeyValue, Steps, Audio, Scene3D**: lower frequency;
   most are compositions of existing components or are better served by a
-  widget. Media needs a Host URL policy first.
+  widget. (`Image`/`Gallery` shipped with the `mediaAllowedOrigins` policy.)
 - **More chart types** (histogram, box plot, radar, Sankey): add on evidence of
   real demand, preferably as a trusted catalog extension
   (`docs/component-extensions.md`) rather than growing the core catalog.

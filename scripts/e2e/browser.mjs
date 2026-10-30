@@ -156,7 +156,19 @@ async function scrollIntoView(selectorOrHandle) {
 }
 
 async function checkDataTools() {
-  await caption('13 · Data grid, scatter, heatmap, code diff and map work locally')
+  await caption('13 · Data grid, scatter, heatmap, code diff, map and photos work locally')
+  // Photos come from a fake https origin answered here: deterministic and offline.
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAEElEQVR4nGPwzf4HRww4OQCIRhSJR4H4DgAAAABJRU5ErkJggg==', 'base64')
+  const mediaRequests = []
+  const onMedia = req => {
+    if (req.isInterceptResolutionHandled()) return
+    const url = new URL(req.url())
+    if (url.host !== 'media.e2e.test') return req.continue()
+    mediaRequests.push({ path: url.pathname, referer: req.headers().referer ?? '' })
+    return url.pathname === '/missing.png' ? req.respond({ status: 404, body: '' }) : req.respond({ status: 200, contentType: 'image/png', body: PNG })
+  }
+  await page.setRequestInterception(true)
+  page.on('request', onMedia)
   await page.evaluate(() => {
     window.__blobs = []
     const create = URL.createObjectURL.bind(URL)
@@ -260,6 +272,27 @@ async function checkDataTools() {
   }
   check('13h. map draws the offline outline, centres a selected place and zooms on it locally', mapState && mapState.centred && mapState.basemap === 'outline' && mapState.land > 1000 && mapState.markers === 3 && mapState.imgs === 0
     && /Fushimi Inari/.test(mapState.detail) && /34\.9671°N/.test(mapState.detail) && mapState.zoomedScale !== mapState.scale, JSON.stringify(mapState))
+  const gallery = await page.$$('.diui-tail .diui-gallery').then(h => h.at(-1))
+  let photoState = null
+  if (gallery) {
+    await scrollIntoView(gallery)
+    await waitFor(() => gallery.evaluate(g => g.querySelectorAll('img[data-status="ready"]').length === 2 && !!g.querySelector('.diui-photo-fallback')), 8000)
+    const grid = await gallery.evaluate(g => ({ ready: g.querySelectorAll('img[data-status="ready"]').length, fallback: g.querySelector('.diui-photo-fallback')?.textContent ?? '', noReferrer: [...g.querySelectorAll('img')].every(i => i.referrerPolicy === 'no-referrer') }))
+    await (await gallery.$('.diui-photo-open')).click()
+    await sleep(200)
+    const viewer = await page.evaluate(() => { const d = document.querySelector('.diui-tail dialog.diui-lightbox'); return d && { modal: d.matches(':modal'), alt: d.querySelector('img')?.alt, count: d.querySelector('.diui-lightbox-count')?.textContent, focus: document.activeElement?.className } })
+    await page.keyboard.press('ArrowRight')
+    await sleep(150)
+    const next = await page.evaluate(() => document.querySelector('.diui-tail dialog.diui-lightbox img')?.alt)
+    await page.keyboard.press('Escape')
+    await sleep(150)
+    photoState = { ...grid, viewer, next, closed: await page.evaluate(() => !document.querySelector('.diui-tail dialog')), requests: mediaRequests }
+  }
+  page.off('request', onMedia)
+  await page.setRequestInterception(false)
+  check('13i. gallery loads photos without a Referer, explains a broken one and steps through a modal viewer', photoState && photoState.ready === 2 && /Missing photo/.test(photoState.fallback) && photoState.noReferrer
+    && photoState.requests.every(r => r.referer === '') && photoState.viewer?.modal && photoState.viewer.alt === 'Blue square' && photoState.viewer.count === '1 / 3'
+    && /diui-lightbox-close/.test(photoState.viewer.focus ?? '') && photoState.next === 'Green square' && photoState.closed, JSON.stringify(photoState))
   check('13g. data-tool interactions made no model calls', mock().length === callsBefore, `calls ${callsBefore} → ${mock().length}`)
   if (ready) await shellShot('16-data-tools.png', 'Data tools')
 }

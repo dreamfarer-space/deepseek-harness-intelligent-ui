@@ -54,7 +54,33 @@ export const LIMITS = Object.freeze({
   mapRoutes: 50,
   mapRoutePoints: 1000,
   mapTotalRoutePoints: 5000,
+  galleryImages: 24,
+  urlChars: 2048,
 });
+
+/** Media sources and credit links: absolute https URLs (no credentials), checked in {@link checkSemantics}. */
+const URL_SPEC = { type: 'string', max: LIMITS.urlChars };
+const PHOTO_PROPS = {
+  src: { ...URL_SPEC, required: true },
+  alt: { type: 'string', required: true, max: 500 },
+  caption: { type: 'string', max: 1000 },
+  credit: { type: 'string', max: 300 },
+  creditUrl: URL_SPEC,
+};
+
+/**
+ * Why `value` is not an absolute https URL without embedded credentials, or
+ * undefined when it is one.
+ * @param {unknown} value
+ */
+export function httpsUrlProblem(value) {
+  if (typeof value !== 'string') return undefined;
+  let url;
+  try { url = new URL(value); } catch { return 'expected an absolute https:// URL'; }
+  if (url.protocol !== 'https:') return `expected an https:// URL, got ${url.protocol}`;
+  if (url.username || url.password) return 'must not contain credentials';
+  return undefined;
+}
 
 /**
  * Prop spec language: `{ type, required?, values?, items?, max?, min? }` where
@@ -321,6 +347,24 @@ export const CATALOG = Object.freeze({
       height: { type: 'number', min: 200, max: 640 },
       selected: { type: 'string', max: 100 },
       basemap: { type: 'enum', values: ['auto', 'outline'] },
+    },
+  },
+  Image: {
+    description: 'One photo or picture from an absolute https URL that you know exists (given by the user, a tool result or a page you read); never invent or guess image URLs. alt describes the picture (shown if it cannot load); credit/creditUrl name the author, source or license. Tap opens a full-size viewer.',
+    children: false,
+    props: {
+      ...PHOTO_PROPS,
+      height: { type: 'number', min: 80, max: 800 },
+      fit: { type: 'enum', values: ['cover', 'contain'] },
+    },
+  },
+  Gallery: {
+    description: 'Grid of 1–24 photos (same rules as Image) with a full-size viewer: tap a photo, then arrow keys or buttons step through them. Use for destinations, products, comparisons of several pictures.',
+    children: false,
+    props: {
+      images: { type: 'array', required: true, max: LIMITS.galleryImages, items: { type: 'object', props: PHOTO_PROPS } },
+      title: { type: 'string' },
+      columns: { type: 'number', min: 1, max: 6 },
     },
   },
   Button: {
@@ -629,6 +673,12 @@ function checkSemantics(type, props, path, errors) {
     else if (jsonDepth(props.data) > LIMITS.jsonDepth) errors.push(`${path}.data: nested deeper than ${LIMITS.jsonDepth} levels`);
   }
   if (type === 'Map') checkMap(props, path, errors);
+  if (type === 'Image') checkPhoto(props, path, errors);
+  if (type === 'Gallery' && Array.isArray(props.images)) {
+    if (!props.images.length) errors.push(`${path}.images: needs at least 1 image`);
+    props.images.forEach((img, i) => { if (isPlainObject(img)) checkPhoto(img, `${path}.images[${i}]`, errors); });
+    if (props.columns !== undefined && !Number.isInteger(props.columns)) errors.push(`${path}.columns: expected integer`);
+  }
   if (type === 'Heatmap' && Array.isArray(props.values) && Array.isArray(props.xLabels) && Array.isArray(props.yLabels)) {
     if (props.values.length !== props.yLabels.length) errors.push(`${path}.values: has ${props.values.length} rows but yLabels has ${props.yLabels.length}`);
     props.values.forEach((row, r) => {
@@ -638,6 +688,14 @@ function checkSemantics(type, props, path, errors) {
     });
     if (typeof props.min === 'number' && typeof props.max === 'number' && !(props.min < props.max)) errors.push(`${path}: min must be less than max`);
   }
+}
+
+function checkPhoto(props, path, errors) {
+  for (const key of ['src', 'creditUrl']) {
+    const problem = httpsUrlProblem(props[key]);
+    if (problem) errors.push(`${path}.${key}: ${problem}`);
+  }
+  if (typeof props.alt === 'string' && !props.alt.trim()) errors.push(`${path}.alt: must describe the picture`);
 }
 
 function checkMap(props, path, errors) {
