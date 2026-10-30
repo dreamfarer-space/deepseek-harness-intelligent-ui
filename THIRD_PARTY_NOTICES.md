@@ -26,6 +26,12 @@ https://github.com/bigskysoftware/idiomorph (v0.7.4). Its minified build is embe
 
 Copyright (c) Big Sky Software. Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted. THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES.
 
+## world-atlas — ISC License; Natural Earth — public domain
+
+https://github.com/topojson/world-atlas (2.0.2). `scripts/map/build-land.mjs` converts its `land-110m.json` (derived from [Natural Earth](https://www.naturalearthdata.com/) 1:110m land, public domain) into the rounded outline in `client-src/catalog/map-land.ts`, bundled into `client/client.js` and `renderer/renderer.js` as the `Map` component's offline base map.
+
+Copyright 2013-2019 Michael Bostock. Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies. THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES.
+
 ## React — MIT License
 
 React is provided at runtime by the DSH Web shell. It is not bundled.

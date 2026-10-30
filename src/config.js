@@ -23,6 +23,9 @@ export const DEFAULTS = Object.freeze({
   maxWidgetBytes: 400000,
   sendPromptMaxChars: 4000,
   openLinkAllowedOrigins: [],
+  mapTileUrl: '',
+  mapTileAttribution: '',
+  mapTileMaxZoom: 19,
 });
 
 export const Config = Schema.object({
@@ -46,6 +49,12 @@ export const Config = Schema.object({
     .description('Longest message a widget, button or form may send back to the conversation.'),
   openLinkAllowedOrigins: Schema.array(Schema.string()).default([]).volatile()
     .description('If non-empty, widgets may only open https links on these origins.'),
+  mapTileUrl: Schema.string().default(DEFAULTS.mapTileUrl).volatile()
+    .description('Raster tile URL template for the Map component, e.g. `https://tile.openstreetmap.org/{z}/{x}/{y}.png` (https, with {z}, {x} and {y}). Empty: maps draw the built-in offline world outline. Follow the provider usage policy.'),
+  mapTileAttribution: Schema.string().default(DEFAULTS.mapTileAttribution).volatile()
+    .description('Attribution shown on every tiled map, e.g. `© OpenStreetMap contributors`. Required by most tile providers.'),
+  mapTileMaxZoom: Schema.natural().min(1).max(22).default(DEFAULTS.mapTileMaxZoom).volatile()
+    .description('Highest zoom level the tile provider serves.'),
 }).i18n({
   'zh-CN': {
     enableCatalog: '注册 `ui_render`（声明式卡片、表格、图表、表单）。',
@@ -58,6 +67,9 @@ export const Config = Schema.object({
     maxWidgetBytes: 'html+css+js 总字符数超过此值的 Widget 会被拒绝。',
     sendPromptMaxChars: 'Widget、按钮或表单回传到对话的消息最大长度。',
     openLinkAllowedOrigins: '非空时，Widget 只能打开这些来源下的 https 链接。',
+    mapTileUrl: 'Map 组件的栅格瓦片 URL 模板，例如 `https://tile.openstreetmap.org/{z}/{x}/{y}.png`（https，需含 {z}、{x}、{y}）。留空时地图绘制内置的离线世界轮廓。请遵守瓦片服务商的使用政策。',
+    mapTileAttribution: '瓦片地图上始终显示的署名，例如 `© OpenStreetMap contributors`。多数瓦片服务商要求署名。',
+    mapTileMaxZoom: '瓦片服务商提供的最大缩放级别。',
   },
 });
 
@@ -103,5 +115,19 @@ export function clientPolicy(config) {
     maxHeight: config.maxWidgetHeight,
     sendPromptMaxChars: config.sendPromptMaxChars,
     openLinkOrigins: [...config.openLinkAllowedOrigins],
+    mapTiles: RESOURCE_MODE === 'offline' ? null : mapTiles(config),
   };
+}
+
+/**
+ * The Host-approved tile provider, or null when none is configured or the
+ * template is unusable (the Map component then draws its offline outline).
+ * @param {typeof DEFAULTS} config
+ * @returns {{ url: string, attribution: string, maxZoom: number } | null}
+ */
+export function mapTiles(config) {
+  const url = typeof config.mapTileUrl === 'string' ? config.mapTileUrl.trim() : '';
+  if (!/^https:\/\/[^/?#\s]+\/\S*$/.test(url) || !['{z}', '{x}', '{y}'].every(p => url.includes(p))) return null;
+  const maxZoom = Number.isInteger(config.mapTileMaxZoom) ? Math.max(1, Math.min(22, config.mapTileMaxZoom)) : DEFAULTS.mapTileMaxZoom;
+  return { url, attribution: String(config.mapTileAttribution ?? '').slice(0, 300), maxZoom };
 }

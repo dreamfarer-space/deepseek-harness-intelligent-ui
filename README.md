@@ -189,11 +189,12 @@ Why these rules were kept after a real-model A/B against a rewritten decision or
 | Text & callouts | `Text` (markdown subset), `Code`, `Alert`, `Badge`, `Divider` |
 | Data | `Stat`, `Progress`, `List`, `Timeline`, **`Table`** as a data grid: typed sorting (numbers, ISO dates, booleans), search, per-column filters, paging, CSV/Markdown export |
 | Charts | **`Chart`** (bar / line / area / pie, stacked, legend toggles, hover/tap/keyboard tooltips, data export), **`Scatter`** (continuous x/y), **`Heatmap`** (sequential or diverging scale, explicit missing cells) |
+| Maps | **`Map`** (markers, routes, groups; drag/keyboard pan and zoom; a built-in offline world outline, or the tile basemap you configure) |
 | Math & diagrams | **`Plot`** (y = f(x) with sliders that redraw instantly; a safe expression compiler, never `eval`), **`Math`** (KaTeX), **`Mermaid`** |
 | Code & structure | **`CodeDiff`** (multi-file before/after or unified patch), **`FileTree`** (status badges), **`JsonView`** (JSONPath, copy) |
 | Interaction | `Button`, **`Choice`** (single-choice card), `Form` (text, number, range slider, select, checkbox, date, textarea) |
 
-- **Validated before it renders.** A UI travels as a flat node list with id references (DSH's tool schema has no recursion). The Host rejects unknown types or props, dangling or duplicate ids, cycles, shape mismatches (chart series, heatmap rows), non-finite numbers, uncompilable `Plot` expressions and oversized data, returning `ok:false` with paths so the model fixes and retries.
+- **Validated before it renders.** A UI travels as a flat node list with id references (DSH's tool schema has no recursion). The Host rejects unknown types or props, dangling or duplicate ids, cycles, shape mismatches (chart series, heatmap rows), non-finite numbers, uncompilable `Plot` expressions, out-of-range map coordinates and oversized data, returning `ok:false` with paths so the model fixes and retries.
 - **Text, never HTML.** Cells, code, JSON and labels render as React text. CSV export neutralises spreadsheet formula injection and is RFC 4180 with a UTF-8 BOM.
 - **Accessible and responsive.** Charts are focusable and keyboard-inspectable, trees use `role=tree`, touch targets grow on coarse pointers, and charts lay out at the card's real width so axis text stays legible on phones.
 - **`Math` and `Mermaid`** render in the same sandbox as widgets from the CDN allowlist, with a static fallback when the CDN is unreachable, or fully offline with the [offline resource package](docs/offline-resources.md).
@@ -286,6 +287,9 @@ The bundle patch inserts the plugin row automatically. To change settings, add t
 | `maxWidgetBytes` | `400000` | Reject larger widgets |
 | `sendPromptMaxChars` | `4000` | Longest message a widget, button, form or choice may send |
 | `openLinkAllowedOrigins` | `[]` | If non-empty, the only origins `openLink` may open |
+| `mapTileUrl` | `''` | Raster tile template for `Map`, e.g. `https://tile.openstreetmap.org/{z}/{x}/{y}.png` (https with `{z}`/`{x}`/`{y}`). Empty: the offline outline. Follow the provider's tile usage policy |
+| `mapTileAttribution` | `''` | Attribution always shown on tiled maps, e.g. `© OpenStreetMap contributors` |
+| `mapTileMaxZoom` | `19` | Highest zoom the tile provider serves |
 
 ## 📊 Real-model quality baseline
 

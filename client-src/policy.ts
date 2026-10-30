@@ -6,7 +6,11 @@ export interface WidgetPolicy {
   maxHeight: number
   sendPromptMaxChars: number
   openLinkOrigins: readonly string[]
+  /** Host-approved raster tile provider for Map; null draws the offline outline. */
+  mapTiles: MapTiles | null
 }
+
+export interface MapTiles { url: string; attribution: string; maxZoom: number }
 
 /** Used while a call is still streaming (no result meta yet) and for malformed meta. */
 export const DEFAULT_POLICY: WidgetPolicy = Object.freeze({
@@ -15,6 +19,7 @@ export const DEFAULT_POLICY: WidgetPolicy = Object.freeze({
   maxHeight: 2400,
   sendPromptMaxChars: 4000,
   openLinkOrigins: [],
+  mapTiles: null,
 })
 
 const strings = (v: unknown): string[] | undefined =>
@@ -34,5 +39,15 @@ export function policyFromMeta(meta: unknown): WidgetPolicy {
     maxHeight: num(p.maxHeight, DEFAULT_POLICY.maxHeight),
     sendPromptMaxChars: num(p.sendPromptMaxChars, DEFAULT_POLICY.sendPromptMaxChars),
     openLinkOrigins: strings(p.openLinkOrigins) ?? DEFAULT_POLICY.openLinkOrigins,
+    mapTiles: mapTilesFrom(p.mapTiles),
   }
+}
+
+/** Same rules as the Host: https template with {z}/{x}/{y}; anything else means no tiles. */
+function mapTilesFrom(v: unknown): MapTiles | null {
+  if (!v || typeof v !== 'object') return null
+  const t = v as Record<string, unknown>
+  if (typeof t.url !== 'string' || !/^https:\/\/[^/?#\s]+\/\S*$/.test(t.url) || !['{z}', '{x}', '{y}'].every(k => (t.url as string).includes(k))) return null
+  const maxZoom = typeof t.maxZoom === 'number' && Number.isInteger(t.maxZoom) ? Math.max(1, Math.min(22, t.maxZoom)) : 19
+  return { url: t.url, attribution: typeof t.attribution === 'string' ? t.attribution.slice(0, 300) : '', maxZoom }
 }

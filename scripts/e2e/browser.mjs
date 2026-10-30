@@ -156,7 +156,7 @@ async function scrollIntoView(selectorOrHandle) {
 }
 
 async function checkDataTools() {
-  await caption('13 · Data grid, scatter, heatmap and code diff work locally')
+  await caption('13 · Data grid, scatter, heatmap, code diff and map work locally')
   await page.evaluate(() => {
     window.__blobs = []
     const create = URL.createObjectURL.bind(URL)
@@ -243,6 +243,23 @@ async function checkDataTools() {
   const diff = await page.$$('.diui-tail .diui-diff').then(h => h.at(-1))
   const diffState = diff ? await diff.evaluate(d => ({ added: d.querySelectorAll('.diui-diff-line[data-op="+"]').length, removed: d.querySelectorAll('.diui-diff-line[data-op="-"]').length, img: !!d.querySelector('img'), text: d.textContent.includes('onerror'), xss: !!window.__xss })) : null
   check('13f. CodeDiff renders the change as text (no HTML execution)', diffState && diffState.added === 1 && diffState.removed === 1 && !diffState.img && diffState.text && !diffState.xss, JSON.stringify(diffState))
+  const map = await page.$$('.diui-tail .diui-map').then(h => h.at(-1))
+  let mapState = null
+  if (map) {
+    await scrollIntoView(map)
+    const before = await map.evaluate(m => ({ basemap: m.querySelector('.diui-map-stage')?.dataset.basemap, land: (m.querySelector('.diui-map-land')?.getAttribute('d') ?? '').length, markers: m.querySelectorAll('.diui-map-marker').length, scale: m.querySelector('.diui-map-scale')?.textContent }))
+    await (await map.$('.diui-map-item')).click()
+    await (await map.$('.diui-map-controls button')).click()
+    await sleep(200)
+    mapState = { ...before, ...await map.evaluate(m => {
+      const stage = m.querySelector('.diui-map-stage').getBoundingClientRect()
+      const dot = m.querySelector('[data-marker="inari"] circle')?.getBoundingClientRect()
+      return { detail: m.querySelector('.diui-map-detail')?.textContent ?? '', zoomedScale: m.querySelector('.diui-map-scale')?.textContent, imgs: m.querySelectorAll('img').length,
+        centred: !!dot && Math.abs(dot.x + dot.width / 2 - (stage.x + stage.width / 2)) < 3 && Math.abs(dot.y + dot.height / 2 - (stage.y + stage.height / 2)) < 3 }
+    }) }
+  }
+  check('13h. map draws the offline outline, centres a selected place and zooms on it locally', mapState && mapState.centred && mapState.basemap === 'outline' && mapState.land > 1000 && mapState.markers === 3 && mapState.imgs === 0
+    && /Fushimi Inari/.test(mapState.detail) && /34\.9671°N/.test(mapState.detail) && mapState.zoomedScale !== mapState.scale, JSON.stringify(mapState))
   check('13g. data-tool interactions made no model calls', mock().length === callsBefore, `calls ${callsBefore} → ${mock().length}`)
   if (ready) await shellShot('16-data-tools.png', 'Data tools')
 }
