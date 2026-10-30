@@ -11,12 +11,12 @@ export const SESSION_LAUNCH = {
   } }],
 }
 
-/** Issue #17 components: data grid, scatter, heatmap and code diff in one card. */
+/** Issue #17 components: data grid, scatter, heatmap, code diff and map in one card. */
 export const DATA_TOOLS = {
   title: 'Data tools',
   root: 'stack',
   components: [
-    { id: 'stack', type: 'Stack', children: ['grid', 'scatter', 'heat', 'diff'] },
+    { id: 'stack', type: 'Stack', children: ['grid', 'scatter', 'heat', 'diff', 'map'] },
     { id: 'grid', type: 'Table', props: {
       caption: 'Orders', sortable: true, searchable: true, filterable: true, exportable: true, pageSize: 5,
       columns: ['Order', 'Date', 'Amount', 'Note'],
@@ -34,6 +34,15 @@ export const DATA_TOOLS = {
     } },
     { id: 'diff', type: 'CodeDiff', props: {
       title: 'Change', files: [{ path: 'app.js', before: Array.from({ length: 12 }, (_, i) => `line ${i}`).join('\n'), after: Array.from({ length: 12 }, (_, i) => i === 6 ? '<img src=x onerror="window.__xss=1">' : `line ${i}`).join('\n') }],
+    } },
+    { id: 'map', type: 'Map', props: {
+      title: 'Kyoto day trip',
+      markers: [
+        { id: 'inari', lat: 34.9671, lon: 135.7727, label: 'Fushimi Inari', group: 'Morning', note: 'Go early' },
+        { id: 'kiyo', lat: 34.9949, lon: 135.785, label: 'Kiyomizu-dera', group: 'Morning' },
+        { id: 'arashi', lat: 35.0094, lon: 135.6668, label: 'Arashiyama', group: 'Afternoon' },
+      ],
+      routes: [{ label: 'Itinerary sketch', dashed: true, points: [[34.9671, 135.7727], [34.9949, 135.785], [35.0094, 135.6668]] }],
     } },
   ],
 }

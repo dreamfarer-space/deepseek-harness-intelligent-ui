@@ -41,40 +41,41 @@ and the mock-model browser E2E checks 13a–13g (search + range/date filters,
 CSV contents and formula neutralisation, scatter hover, heatmap keyboard with
 0 vs missing data, CodeDiff without HTML execution, no model calls).
 
-## Proposed: `Map` (geo view)
-
-Not implemented yet. A declarative contract that separates **data** from the
-**base map**, so the data part works offline and in the portable renderer.
+## Shipped: `Map` (geo view)
 
 ```jsonc
 {
   "type": "Map",
   "props": {
     "title": "Kyoto day trip",
-    "markers": [{ "id": "a", "lat": 34.9671, "lon": 135.7727, "label": "Fushimi Inari", "group": "Morning" }],
-    "routes": [{ "id": "r1", "points": [[34.9671, 135.7727], [34.9949, 135.7850]], "label": "Train" }],
-    "geojson": null,               // optional FeatureCollection, size-limited
-    "fit": "data",                 // or { "lat", "lon", "zoom" }
-    "basemap": "none"              // "none" | "tiles" (host-approved provider only)
+    "markers": [{ "id": "a", "lat": 34.9671, "lon": 135.7727, "label": "Fushimi Inari", "group": "Morning", "note": "Go early" }],
+    "routes": [{ "label": "Itinerary sketch", "dashed": true, "points": [[34.9671, 135.7727], [34.9949, 135.7850]] }],
+    "center": { "lat": 35, "lon": 135.75 }, "zoom": 12,   // optional; default fits the data
+    "basemap": "auto"                                      // "auto" | "outline"
   }
 }
 ```
 
-- **Coordinates** are WGS84 `lat`/`lon` in degrees, validated to ±90/±180;
-  `[lat, lon]` order everywhere (stated in the schema description because models
-  often swap it).
-- **Default `basemap: "none"`**: an SVG equirectangular/Web-Mercator projection
-  of markers, routes and GeoJSON outlines, with axes in degrees. Works offline,
-  needs no network, no third-party script and no attribution.
-- **`basemap: "tiles"`** only when the Host configures a tile provider (URL
-  template, attribution, max zoom) through plugin config, like the CDN
-  allowlist. The tile layer is loaded inside the existing sandboxed frame so
-  network policy and CSP stay in one place; attribution is always shown.
-- **Interaction**: marker list ↔ map selection, keyboard stepping through
-  markers, pan/zoom with buttons as well as gestures, details panel.
-- **Limits**: 500 markers, 50 routes × 1,000 points, GeoJSON ≤ 200 KB.
+- **Coordinates** are WGS84 degrees: markers use `lat`/`lon`, route points are
+  `[lat, lon]`. The Host rejects values outside ±90/±180 and says so when the
+  order looks swapped.
+- **Base map.** By default an offline world outline (Natural Earth 1:110m land,
+  ~21 KB in the bundle) with a 30° graticule: no network, no third-party script.
+  When the Host sets `mapTileUrl` (https template with `{z}`/`{x}`/`{y}`),
+  `mapTileAttribution` and `mapTileMaxZoom`, raster tiles are drawn as plain
+  images under the overlay with the attribution always visible; after four tile
+  failures without a single success the map falls back to the outline and says
+  so. `basemap: "outline"` never requests tiles.
+- **Interaction**: drag, arrow keys, `+`/`−`, double-click and Ctrl/⌘+wheel
+  (plain wheel scrolls the page), a fit-to-data button, a scale bar, group
+  legend toggles, and a place list ↔ marker selection with a details panel. View
+  and selection persist like other component state.
+- **Routes** are straight segments between the given points, drawn the short
+  way across the antimeridian. They are not road directions; the guidance tells
+  the model to label them and use `dashed`.
+- **Limits**: 500 markers, 50 routes, 1,000 points per route and 5,000 in total.
 - **Out of scope**: geocoding addresses (the model must supply coordinates),
-  live location, routing services.
+  live location, routing services, GeoJSON overlays.
 
 ## Proposed: `Calendar` (schedule snapshot)
 

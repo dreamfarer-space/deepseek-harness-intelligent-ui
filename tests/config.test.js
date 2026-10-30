@@ -14,7 +14,7 @@ describe('config', () => {
       .map(([key]) => key)
       .sort()
     expect(volatile).toEqual([
-      'allowNetwork', 'cdnAllowlist', 'maxWidgetBytes', 'maxWidgetHeight', 'openLinkAllowedOrigins', 'sendPromptMaxChars',
+      'allowNetwork', 'cdnAllowlist', 'mapTileAttribution', 'mapTileMaxZoom', 'mapTileUrl', 'maxWidgetBytes', 'maxWidgetHeight', 'openLinkAllowedOrigins', 'sendPromptMaxChars',
     ])
   })
 
@@ -33,6 +33,16 @@ describe('config', () => {
     height = 900
     origins = []
     expect(clientPolicy(config)).toMatchObject({ maxHeight: 900, openLinkOrigins: [] })
+  })
+
+  it('passes a usable tile template to the browser and drops anything else', () => {
+    const tiles = (mapTileUrl, extra = {}) => clientPolicy(resolveConfig({ mapTileUrl, ...extra })).mapTiles
+    expect(tiles('')).toBeNull()
+    expect(tiles('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { mapTileAttribution: '© OpenStreetMap contributors', mapTileMaxZoom: 19 }))
+      .toEqual({ url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '© OpenStreetMap contributors', maxZoom: 19 })
+    expect(tiles('http://tile.example/{z}/{x}/{y}.png')).toBeNull()
+    expect(tiles('https://tile.example/{z}/{x}.png')).toBeNull()
+    expect(tiles('javascript:alert(1)//{z}{x}{y}')).toBeNull()
   })
 
   it('falls back to defaults when a live reference is unset and rejects unknown keys', () => {
@@ -58,7 +68,7 @@ describe('live policy on registered tools', () => {
     })
     const tools = [createWidgetTool(config), createComposeTool(config), createRenderTool(config), createPatchTool(config)]
     const previous = tools.map(tool => tool.output.presentationMeta({}, { ok: true, ui: {} }))
-    for (const meta of previous) expect(meta.policy).toEqual({ cdn, allowNetwork: true, openLinkOrigins: origins, maxHeight: 900, sendPromptMaxChars: 2000 })
+    for (const meta of previous) expect(meta.policy).toEqual({ cdn, allowNetwork: true, openLinkOrigins: origins, maxHeight: 900, sendPromptMaxChars: 2000, mapTiles: null })
     for (const tool of tools.slice(0, 2)) {
       expect(tool.description).toContain('https://cdn.example')
       expect(tool.description).toContain('fetch() to those origins is allowed.')
@@ -70,7 +80,7 @@ describe('live policy on registered tools', () => {
     sendPromptMaxChars = 100
     for (const tool of tools) {
       for (const ok of [true, false]) expect(tool.output.presentationMeta({}, { ok, ui: {} }).policy).toEqual({
-        cdn: [], allowNetwork: false, openLinkOrigins: [], maxHeight: 500, sendPromptMaxChars: 100,
+        cdn: [], allowNetwork: false, openLinkOrigins: [], maxHeight: 500, sendPromptMaxChars: 100, mapTiles: null,
       })
     }
     for (const tool of tools.slice(0, 2)) {

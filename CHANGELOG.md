@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `Map`: places on a Web Mercator map with markers (WGS84 `lat`/`lon`, optional `group` colours with a toggleable legend and a `note` per place), routes as `[lat, lon]` point lists (straight segments, `dashed` for itinerary sketches; drawn the short way across the antimeridian), drag/keyboard panning, zoom buttons, `+`/`−`, double-click and Ctrl+wheel (the page scroll is never captured), a scale bar, and a place list with a details panel. View and selection survive remounts and reloads. Works offline with a built-in Natural Earth world outline; set `mapTileUrl`, `mapTileAttribution` and `mapTileMaxZoom` to use a raster tile basemap, which falls back to the outline when tiles cannot load. The Host rejects out-of-range or swapped coordinates, duplicate ids and oversized data (500 markers, 50 routes, 5,000 route points).
+
 ## [0.2.11]
 
 ### Changed

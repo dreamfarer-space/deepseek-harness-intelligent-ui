@@ -189,11 +189,12 @@ npx deepseek-harness-intelligent-ui doctor      # 只诊断，不做修改
 | 文本与提示 | `Text`（markdown 子集）、`Code`、`Alert`、`Badge`、`Divider` |
 | 数据 | `Stat`、`Progress`、`List`、`Timeline`；**`Table`** 数据表格：按类型排序（数值、ISO 日期、布尔）、搜索、按列筛选、分页、CSV/Markdown 导出 |
 | 图表 | **`Chart`**（柱状、折线、面积、饼图；可堆叠，图例显隐，悬停/点按/键盘提示，数据导出）、**`Scatter`**（连续坐标散点图）、**`Heatmap`**（顺序或发散色标，缺失值单独标识） |
+| 地图 | **`Map`**（地点标记、路线、分组；拖动/键盘平移缩放；内置离线世界轮廓，或使用你配置的瓦片底图） |
 | 数学与图示 | **`Plot`**（y = f(x)，拖动滑块即时重绘；安全表达式编译器，不用 `eval`）、**`Math`**（KaTeX）、**`Mermaid`** |
 | 代码与结构 | **`CodeDiff`**（多文件新旧对比或 unified patch）、**`FileTree`**（状态徽标）、**`JsonView`**（JSONPath、复制） |
 | 交互 | `Button`、**`Choice`**（选择题卡片）、`Form`（文本、数字、范围滑块、下拉、勾选、日期、多行文本） |
 
-- **先校验再渲染。** DSH 的工具 schema 不支持递归，所以界面以扁平节点列表加 id 引用传输。Host 会拒绝未知类型或属性、悬空或重复的 id、环、形状不一致（图表系列、热力图行列）、非有限数值、无法编译的 `Plot` 表达式和超限数据，返回 `ok:false` 并附出错路径，模型据此修正后重试。
+- **先校验再渲染。** DSH 的工具 schema 不支持递归，所以界面以扁平节点列表加 id 引用传输。Host 会拒绝未知类型或属性、悬空或重复的 id、环、形状不一致（图表系列、热力图行列）、非有限数值、无法编译的 `Plot` 表达式、越界的地图坐标和超限数据，返回 `ok:false` 并附出错路径，模型据此修正后重试。
 - **只渲染文本。** 单元格、代码、JSON 和标签都作为 React 文本渲染，不作为 HTML。CSV 导出遵循 RFC 4180，带 UTF-8 BOM，并防止表格公式注入。
 - **可访问、自适应。** 图表可获得焦点并用键盘查看，树形组件使用 `role=tree`，触屏上控件更大；图表按卡片实际宽度布局，手机上坐标轴文字依然清晰。
 - **`Math` 与 `Mermaid`** 在与组件相同的沙箱中从 CDN 白名单加载，CDN 不可达时显示静态降级；使用[离线资源包](docs/offline-resources.md)可完全离线。
@@ -286,6 +287,9 @@ npx deepseek-harness-intelligent-ui doctor      # 只诊断，不做修改
 | `maxWidgetBytes` | `400000` | 超过此大小的组件会被拒绝 |
 | `sendPromptMaxChars` | `4000` | 组件、按钮、表单、选择题单条消息的最大长度 |
 | `openLinkAllowedOrigins` | `[]` | 非空时，`openLink` 只能打开这些来源 |
+| `mapTileUrl` | `''` | `Map` 的栅格瓦片模板，例如 `https://tile.openstreetmap.org/{z}/{x}/{y}.png`（https，含 `{z}`/`{x}`/`{y}`）。留空则显示离线轮廓。请遵守瓦片服务商的使用政策 |
+| `mapTileAttribution` | `''` | 瓦片地图上始终显示的署名，例如 `© OpenStreetMap contributors` |
+| `mapTileMaxZoom` | `19` | 瓦片服务商提供的最大缩放级别 |
 
 ## 📊 真实模型质量基线
 

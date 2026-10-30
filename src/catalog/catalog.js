@@ -50,6 +50,10 @@ export const LIMITS = Object.freeze({
   treeEntries: 2000,
   jsonChars: 100_000,
   jsonDepth: 32,
+  mapMarkers: 500,
+  mapRoutes: 50,
+  mapRoutePoints: 1000,
+  mapTotalRoutePoints: 5000,
 });
 
 /**
@@ -280,6 +284,43 @@ export const CATALOG = Object.freeze({
       data: { type: 'any', required: true },
       title: { type: 'string' },
       expandDepth: { type: 'number', min: 0, max: 32 },
+    },
+  },
+  Map: {
+    description: 'Geographic map of real places: markers at WGS84 lat/lon degrees (look the coordinates up; never guess), optional routes as [lat, lon] point lists drawn as straight segments (an itinerary sketch, not road directions; set dashed when illustrative). Pan, zoom, tap a marker for its note. Works offline with a built-in world outline; uses the Host tile basemap when configured. group colours markers and adds a legend.',
+    children: false,
+    props: {
+      markers: {
+        type: 'array', max: LIMITS.mapMarkers,
+        items: {
+          type: 'object',
+          props: {
+            id: { type: 'string', required: true, max: 100 },
+            lat: { type: 'number', required: true, min: -90, max: 90 },
+            lon: { type: 'number', required: true, min: -180, max: 180 },
+            label: { type: 'string', required: true, max: 200 },
+            group: { type: 'string', max: 100 },
+            note: { type: 'string', max: 1000 },
+          },
+        },
+      },
+      routes: {
+        type: 'array', max: LIMITS.mapRoutes,
+        items: {
+          type: 'object',
+          props: {
+            points: { type: 'array', required: true, max: LIMITS.mapRoutePoints, items: { type: 'array', items: { type: 'number' } } },
+            label: { type: 'string', max: 200 },
+            dashed: { type: 'boolean' },
+          },
+        },
+      },
+      title: { type: 'string' },
+      center: { type: 'object', props: { lat: { type: 'number', required: true, min: -90, max: 90 }, lon: { type: 'number', required: true, min: -180, max: 180 } } },
+      zoom: { type: 'number', min: 0, max: 18 },
+      height: { type: 'number', min: 200, max: 640 },
+      selected: { type: 'string', max: 100 },
+      basemap: { type: 'enum', values: ['auto', 'outline'] },
     },
   },
   Button: {
@@ -587,6 +628,7 @@ function checkSemantics(type, props, path, errors) {
     else if (json.length > LIMITS.jsonChars) errors.push(`${path}.data: ${json.length} characters; at most ${LIMITS.jsonChars}`);
     else if (jsonDepth(props.data) > LIMITS.jsonDepth) errors.push(`${path}.data: nested deeper than ${LIMITS.jsonDepth} levels`);
   }
+  if (type === 'Map') checkMap(props, path, errors);
   if (type === 'Heatmap' && Array.isArray(props.values) && Array.isArray(props.xLabels) && Array.isArray(props.yLabels)) {
     if (props.values.length !== props.yLabels.length) errors.push(`${path}.values: has ${props.values.length} rows but yLabels has ${props.yLabels.length}`);
     props.values.forEach((row, r) => {
@@ -596,6 +638,32 @@ function checkSemantics(type, props, path, errors) {
     });
     if (typeof props.min === 'number' && typeof props.max === 'number' && !(props.min < props.max)) errors.push(`${path}: min must be less than max`);
   }
+}
+
+function checkMap(props, path, errors) {
+  const markers = Array.isArray(props.markers) ? props.markers : [];
+  const routes = Array.isArray(props.routes) ? props.routes : [];
+  if (!markers.length && !routes.length) errors.push(`${path}: needs at least one marker or route`);
+  const ids = new Set();
+  markers.forEach((m, i) => {
+    if (!isPlainObject(m) || typeof m.id !== 'string') return;
+    if (!m.id.trim()) errors.push(`${path}.markers[${i}].id: must not be blank`);
+    else if (ids.has(m.id)) errors.push(`${path}.markers[${i}].id: duplicate marker id ${JSON.stringify(m.id)}`);
+    ids.add(m.id);
+  });
+  let total = 0;
+  routes.forEach((r, i) => {
+    if (!isPlainObject(r) || !Array.isArray(r.points)) return;
+    total += r.points.length;
+    if (r.points.length < 2) errors.push(`${path}.routes[${i}].points: needs at least 2 points`);
+    r.points.forEach((pt, j) => {
+      const at = `${path}.routes[${i}].points[${j}]`;
+      if (!Array.isArray(pt) || pt.length !== 2) errors.push(`${at}: expected [lat, lon]`);
+      else if (Math.abs(pt[0]) > 90 || Math.abs(pt[1]) > 180) errors.push(`${at}: [lat, lon] out of range (lat ±90, lon ±180); points are [lat, lon], not [lon, lat]`);
+    });
+  });
+  if (total > LIMITS.mapTotalRoutePoints) errors.push(`${path}.routes: ${total} points in total; at most ${LIMITS.mapTotalRoutePoints}`);
+  if (props.selected !== undefined && !ids.has(props.selected)) errors.push(`${path}.selected: must reference a marker id`);
 }
 
 function jsonDepth(v, d = 0) {
