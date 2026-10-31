@@ -14,7 +14,7 @@ describe('config', () => {
       .map(([key]) => key)
       .sort()
     expect(volatile).toEqual([
-      'allowNetwork', 'cdnAllowlist', 'mapTileAttribution', 'mapTileMaxZoom', 'mapTileUrl', 'maxWidgetBytes', 'maxWidgetHeight', 'openLinkAllowedOrigins', 'sendPromptMaxChars',
+      'allowNetwork', 'cdnAllowlist', 'mapTileAttribution', 'mapTileMaxZoom', 'mapTileUrl', 'maxWidgetBytes', 'maxWidgetHeight', 'mediaAllowedOrigins', 'openLinkAllowedOrigins', 'sendPromptMaxChars',
     ])
   })
 
@@ -68,7 +68,7 @@ describe('live policy on registered tools', () => {
     })
     const tools = [createWidgetTool(config), createComposeTool(config), createRenderTool(config), createPatchTool(config)]
     const previous = tools.map(tool => tool.output.presentationMeta({}, { ok: true, ui: {} }))
-    for (const meta of previous) expect(meta.policy).toEqual({ cdn, allowNetwork: true, openLinkOrigins: origins, maxHeight: 900, sendPromptMaxChars: 2000, mapTiles: null })
+    for (const meta of previous) expect(meta.policy).toEqual({ cdn, allowNetwork: true, openLinkOrigins: origins, maxHeight: 900, sendPromptMaxChars: 2000, mapTiles: null, allowMedia: true, mediaOrigins: [] })
     for (const tool of tools.slice(0, 2)) {
       expect(tool.description).toContain('https://cdn.example')
       expect(tool.description).toContain('fetch() to those origins is allowed.')
@@ -80,7 +80,7 @@ describe('live policy on registered tools', () => {
     sendPromptMaxChars = 100
     for (const tool of tools) {
       for (const ok of [true, false]) expect(tool.output.presentationMeta({}, { ok, ui: {} }).policy).toEqual({
-        cdn: [], allowNetwork: false, openLinkOrigins: [], maxHeight: 500, sendPromptMaxChars: 100, mapTiles: null,
+        cdn: [], allowNetwork: false, openLinkOrigins: [], maxHeight: 500, sendPromptMaxChars: 100, mapTiles: null, allowMedia: true, mediaOrigins: [],
       })
     }
     for (const tool of tools.slice(0, 2)) {

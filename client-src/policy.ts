@@ -9,6 +9,10 @@ export interface WidgetPolicy {
   openLinkOrigins: readonly string[]
   /** Host-approved raster tile provider for Map; null draws the offline outline. */
   mapTiles: MapTiles | null
+  /** False in the offline bundle: Image/Gallery/Video show placeholders, never fetch. */
+  allowMedia: boolean
+  /** Non-empty: the only origins Image/Gallery/Video may load from. */
+  mediaOrigins: readonly string[]
 }
 
 export interface MapTiles { url: string; attribution: string; maxZoom: number }
@@ -21,6 +25,8 @@ export const DEFAULT_POLICY: WidgetPolicy = Object.freeze({
   sendPromptMaxChars: 4000,
   openLinkOrigins: [],
   mapTiles: null,
+  allowMedia: resourceMode !== 'offline',
+  mediaOrigins: [],
 })
 
 const strings = (v: unknown): string[] | undefined =>
@@ -42,6 +48,8 @@ export function policyFromMeta(meta: unknown): WidgetPolicy {
     openLinkOrigins: strings(p.openLinkOrigins) ?? DEFAULT_POLICY.openLinkOrigins,
     // A replayed online policy cannot reopen network access in the offline bundle.
     mapTiles: resourceMode === 'offline' ? null : mapTilesFrom(p.mapTiles),
+    allowMedia: resourceMode !== 'offline' && (typeof p.allowMedia === 'boolean' ? p.allowMedia : DEFAULT_POLICY.allowMedia),
+    mediaOrigins: strings(p.mediaOrigins) ?? DEFAULT_POLICY.mediaOrigins,
   }
 }
 

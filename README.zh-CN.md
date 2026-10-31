@@ -190,6 +190,7 @@ npx deepseek-harness-intelligent-ui doctor      # 只诊断，不做修改
 | 数据 | `Stat`、`Progress`、`List`、`Timeline`；**`Table`** 数据表格：按类型排序（数值、ISO 日期、布尔）、搜索、按列筛选、分页、CSV/Markdown 导出 |
 | 图表 | **`Chart`**（柱状、折线、面积、饼图；可堆叠，图例显隐，悬停/点按/键盘提示，数据导出）、**`Scatter`**（连续坐标散点图）、**`Heatmap`**（顺序或发散色标，缺失值单独标识） |
 | 地图 | **`Map`**（地点标记、路线、分组；拖动/键盘平移缩放；内置离线世界轮廓，或使用你配置的瓦片底图） |
+| 媒体 | **`Image`** 与 **`Gallery`**（https 图片，懒加载且不发送 Referer，说明文字与可点击署名，模态大图查看器支持方向键；加载失败时显示图片描述）；**`Video`**（YouTube / Bilibili / Vimeo 链接用官方播放器，用户点击播放后才加载；或 https 直链 .mp4/.webm 原生播放；始终附原视频链接） |
 | 数学与图示 | **`Plot`**（y = f(x)，拖动滑块即时重绘；安全表达式编译器，不用 `eval`）、**`Math`**（KaTeX）、**`Mermaid`** |
 | 代码与结构 | **`CodeDiff`**（多文件新旧对比或 unified patch）、**`FileTree`**（状态徽标）、**`JsonView`**（JSONPath、复制） |
 | 交互 | `Button`、**`Choice`**（选择题卡片）、`Form`（文本、数字、范围滑块、下拉、勾选、日期、多行文本） |
@@ -290,6 +291,7 @@ npx deepseek-harness-intelligent-ui doctor      # 只诊断，不做修改
 | `mapTileUrl` | `''` | `Map` 的栅格瓦片模板，例如 `https://tile.openstreetmap.org/{z}/{x}/{y}.png`（https，含 `{z}`/`{x}`/`{y}`）。留空则显示离线轮廓。请遵守瓦片服务商的使用政策 |
 | `mapTileAttribution` | `''` | 瓦片地图上始终显示的署名，例如 `© OpenStreetMap contributors` |
 | `mapTileMaxZoom` | `19` | 瓦片服务商提供的最大缩放级别 |
+| `mediaAllowedOrigins` | `[]` | 非空时，`Image`/`Gallery`/`Video` 只从这些 https 来源加载（平台视频按播放器来源，如 `https://www.youtube-nocookie.com`、`https://player.bilibili.com`），其他来源显示占位提示。留空：允许任意 https 来源 |
 
 ## 📊 真实模型质量基线
 
