@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.12]
+
 ### Added
 
 - `Video`: a YouTube (`watch`, `youtu.be`, `shorts`), Bilibili (`BV…`, with `?p=`) or Vimeo page link plays in the platform's official embed player (YouTube via `youtube-nocookie.com`), which is loaded only after the user presses play; the player URL is rebuilt from a validated id, never copied from model input, and the frame is sandboxed without top navigation. A direct https `.mp4`/`.webm` file plays with native controls and `preload="metadata"`. Optional `title`, `poster`, `caption`, `credit`/`creditUrl`, `start` (seconds) and `aspectRatio`. An "Open on …" / "Open original video" link is always shown, and a file that fails to load is replaced by an explanation. The Host rejects non-https sources and platform links without a playable id. Follows `mediaAllowedOrigins` and the offline package's no-remote-media rule.
