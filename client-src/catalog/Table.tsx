@@ -100,6 +100,10 @@ export interface TableProps {
  * Table with optional local search, per-column filters (AND), typed sorting,
  * paging and export. All of it runs in the browser; nothing is sent to the model.
  */
+function cleanText(text: string): string {
+  return text.replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&').replace(/&quot;/g, '"')
+}
+
 export function Table(props: TableProps) {
   const { t, columns } = props
   const key = (k: string) => `${props.nodeId}:${k}`
@@ -157,7 +161,7 @@ export function Table(props: TableProps) {
       )}
       <div className="diui-table-wrap">
         <table className="diui-table">
-          {props.caption && <caption>{props.caption}</caption>}
+          {props.caption && <caption>{cleanText(props.caption)}</caption>}
           <thead>
             <tr>
               {columns.map((c, i) => (

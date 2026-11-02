@@ -30,12 +30,14 @@ export { createControlledRuntime } from '../src/controlled/runtime.js'
 export interface RendererHost {
   controlled?: import('../client-src/controlled.ts').ControlledRuntime
   sessionId?: string
+  locale?: string
   sendPrompt(text: string): Promise<void>
   onHeight?(height: number): void
 }
 export interface MountedRenderer {
   render(artifact: PortableUiArtifact): void
   setTheme(mode: 'light' | 'dark'): void
+  setLocale?(locale: string): void
   dispose(): void
 }
 
@@ -50,14 +52,15 @@ const CSS = STYLES + '\n' + baseCss
 const readDefinition = (value: unknown): Record<string, unknown> | undefined =>
   value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined
 
-function Surface({ artifact, host, theme }: { artifact: PortableUiArtifact; host: RendererHost; theme: 'light' | 'dark' }) {
+function Surface({ artifact, host, theme, locale = 'en' }: { artifact: PortableUiArtifact; host: RendererHost; theme: 'light' | 'dark'; locale?: string }) {
   useSyncExternalStore(subscribeCatalog, catalogRevision, catalogRevision)
   const definition = readDefinition(artifact.definition)
   const policy = useMemo(() => policyFromMeta({ policy: artifact.policy ?? DEFAULT_POLICY }), [artifact.policy])
   const guard = useMemo(() => new BridgeGuard({ policy, armDelayMs: 200, minIntervalMs: 1000 }), [policy])
+  const activeLocale = locale || host.locale || 'en'
+  const dict = activeLocale.toLowerCase().startsWith('zh') ? zh : en
   const t = ((key: keyof typeof zh, vars?: Record<string, string | number>) => {
-    // English is the portable renderer default; consumers may provide locale in future.
-    let v: string = en[key]
+    let v: string = dict[key] ?? en[key] ?? key
     for (const [name, value] of Object.entries(vars ?? {})) v = v.replace('{' + name + '}', String(value))
     return v
   }) as Translate
@@ -160,10 +163,11 @@ export function mount(element: HTMLElement, host: RendererHost): MountedRenderer
   let disposed = false
   let current: PortableUiArtifact | undefined
   let theme: 'light' | 'dark' = 'light'
+  let locale = host.locale || 'en'
   const observer = new ResizeObserver(() => host.onHeight?.(Math.ceil(document.documentElement.scrollHeight)))
   observer.observe(document.documentElement)
   const paint = () => {
-    if (!disposed && current) root.render(<Surface key={current.uiId} artifact={current} host={host} theme={theme} />)
+    if (!disposed && current) root.render(<Surface key={current.uiId} artifact={current} host={host} theme={theme} locale={locale} />)
   }
   return {
     render(value) {
@@ -174,6 +178,7 @@ export function mount(element: HTMLElement, host: RendererHost): MountedRenderer
       paint()
     },
     setTheme(value) { if (!disposed && theme !== value) { theme = value; document.documentElement.style.colorScheme = value; paint() } },
+    setLocale(value) { if (!disposed && locale !== value) { locale = value; paint() } },
     dispose() { if (disposed) return; disposed = true; observer.disconnect(); root.unmount(); css.remove() },
   }
 }
