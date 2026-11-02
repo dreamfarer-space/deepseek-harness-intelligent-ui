@@ -65,8 +65,16 @@ function Surface({ artifact, host, theme }: { artifact: PortableUiArtifact; host
     ? { '--ui-bg': '#151517', '--ui-surface': '#232324', '--ui-text': '#f9fafb', '--ui-muted': '#adb2b8', '--ui-border': '#ffffff1f', '--ui-accent': '#7aaaff', '--ui-accent-text': '#151517', '--ui-success': '#22c55e', '--ui-warning': '#f59e0b', '--ui-error': '#f25a5a', '--ui-radius': '8px', '--ui-font': 'system-ui, sans-serif', '--ui-mono': 'monospace' }
     : { '--ui-bg': '#ffffff', '--ui-surface': '#f5f6f7', '--ui-text': '#0f1115', '--ui-muted': '#81858c', '--ui-border': '#0000001a', '--ui-accent': '#4176e6', '--ui-accent-text': '#ffffff', '--ui-success': '#22c55e', '--ui-warning': '#f59e0b', '--ui-error': '#ec1313', '--ui-radius': '8px', '--ui-font': 'system-ui, sans-serif', '--ui-mono': 'monospace' }
   const title = artifact.title || (artifact.kind === 'widget' ? 'Widget' : 'UI')
-  const invalid = !definition || (artifact.kind === 'declarative' && !validateTree(definition).ok)
+  const treeValidation = artifact.kind === 'declarative' && definition ? validateTree(definition) : undefined
+  const invalid = !definition || (artifact.kind === 'declarative' && !treeValidation?.ok)
     || (artifact.kind === 'composition' && !Array.isArray(definition.blocks))
+  const invalidMessage = !definition
+    ? 'Unsupported or invalid UI definition: missing definition'
+    : (treeValidation && !treeValidation.ok)
+      ? `Unsupported or invalid UI definition: ${treeValidation.errors.join('; ')}`
+      : (artifact.kind === 'composition' && !Array.isArray(definition.blocks))
+        ? 'Unsupported or invalid UI definition: composition blocks must be an array'
+        : 'Unsupported or invalid UI definition'
   const nodes = useMemo(() => new Map<string, UiNode>(
     Array.isArray(definition?.components)
       ? definition.components.filter((node): node is UiNode =>
@@ -82,7 +90,7 @@ function Surface({ artifact, host, theme }: { artifact: PortableUiArtifact; host
   return (
     <div className="diui diui-remote" style={vars}>
       <div className="diui-remote-title">{title}</div>
-      {invalid ? <div className="diui-remote-error">Unsupported or invalid UI definition</div>
+      {invalid ? <div className="diui-remote-error">{invalidMessage}</div>
         : artifact.kind === 'declarative'
           ? <div className="diui-render">{renderNode(String(definition.root), env)}</div>
           : artifact.kind === 'composition'

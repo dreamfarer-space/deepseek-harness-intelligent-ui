@@ -82,6 +82,7 @@ describe('portable renderer without a DSH Web session', () => {
     act(() => renderer.render({ kind: 'declarative', uiId: 'invalid', version: 1,
       definition: { root: 'no-node', components: [] } }))
     expect(host.textContent).toContain('Unsupported or invalid UI definition')
+    expect(host.textContent).toContain('components: expected a non-empty array')
     act(() => renderer.setTheme('dark'))
     expect(document.documentElement.style.colorScheme).toBe('dark')
   })
