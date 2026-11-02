@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.13]
+
+### Added
+
+- Portable UI renderer multilinguality: supports `host.locale` and `renderer.setLocale(lang)` (e.g. `zh-CN`, `en-US`), translating declarative UI toolbars, options, and actions via built-in localization dictionaries instead of defaulting strictly to English.
+- Detailed validation error diagnostics: surfaces specific schema validation errors (`treeValidation.errors`) on invalid UI definitions to help locate incompatible fields instead of generic `Unsupported or invalid UI definition`.
+
+### Fixed
+
+- Table caption unescaping: automatically decodes HTML entity strings (`&gt;`, `&lt;`, `&amp;`, `&quot;`) in table captions emitted by LLM outputs.
+
 ## [0.2.12]
 
 ### Added
