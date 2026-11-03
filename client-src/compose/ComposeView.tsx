@@ -103,11 +103,14 @@ export function ComposeView(props: ToolViewProps) {
   }, [blocks])
   const bindings = useMemo(() => {
     const all = new Map<string, unknown>()
-    for (const nodes of nodesByBlock.values()) {
-      for (const [key, value] of collectBindings(nodes.values())) if (!all.has(key)) all.set(key, value)
+    for (const b of blocks) {
+      if (b.type !== 'catalog') continue
+      const nodes = nodesByBlock.get(b.id)
+      if (!nodes) continue
+      for (const [key, value] of collectBindings(nodes.values(), b.root)) if (!all.has(key)) all.set(key, value)
     }
     return all
-  }, [nodesByBlock])
+  }, [blocks, nodesByBlock])
   const computedSpecs = useMemo(
     () => blocks.filter(b => b.type === 'catalog' && Array.isArray(b.computed)).map(b => b.computed as unknown[]),
     [blocks],

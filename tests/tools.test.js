@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULTS, clientPolicy, resolveConfig } from '../src/config.js'
 import { guidanceText } from '../src/guidance.js'
 import { createRenderTool, RENDER_TOOL } from '../src/tools/render.js'
+import { createComposeTool } from '../src/tools/compose.js'
 import { createWidgetTool, validateWidget, WIDGET_FIELDS, WIDGET_TOOL } from '../src/tools/widget.js'
 import { uiPrompt } from '../src/commands.js'
 
@@ -98,4 +99,44 @@ describe('config and guidance', () => {
     expect(text).toMatch(/Dashboard or visualization-led answers: at most one or two sentences/)
   })
 
+})
+
+/**
+ * Regression suite for the review of Issue #84: the published tool schemas and
+ * descriptions must expose the `computed` contract both tools accept.
+ */
+describe('published computed capability', () => {
+  it('documents computed in the ui_render parameters and description', () => {
+    const tool = createRenderTool(config)
+    const computed = tool.parameters.properties.computed
+    expect(computed.type).toBe('array')
+    expect(computed.items.required).toEqual(['id', 'expr'])
+    expect(computed.items.properties.format.properties.style.enum).toEqual(['decimal', 'currency', 'percent'])
+    expect(tool.description).toMatch(/computed/)
+    expect(tool.description).toMatch(/\{\{id\}\}/)
+  })
+
+  it('documents computed on ui_compose catalog blocks with the same contract', () => {
+    const tool = createComposeTool(config)
+    const computed = tool.parameters.properties.blocks.items.properties.computed
+    expect(computed.type).toBe('array')
+    expect(computed.items.required).toEqual(['id', 'expr'])
+    expect(computed.items.properties).toEqual(createRenderTool(config).parameters.properties.computed.items.properties)
+    expect(computed.description).toMatch(/unique across the whole composition/)
+    expect(tool.description).toMatch(/computed/)
+  })
+
+  it('accepts the documented shape end to end', async () => {
+    const tool = createRenderTool(config)
+    const value = await tool.execute({
+      root: 's',
+      computed: [{ id: 'total', expr: 'qty * 2', format: { style: 'currency', currency: 'USD' } }],
+      components: [
+        { id: 's', type: 'Stack', children: ['f', 'bar'] },
+        { id: 'f', type: 'Form', props: { fields: [{ name: 'qty', label: 'Qty', type: 'range', min: 0, max: 100, default: 2 }] } },
+        { id: 'bar', type: 'Progress', props: { value: { $computed: 'total' } } },
+      ],
+    })
+    expect(value.ok).toBe(true)
+  })
 })

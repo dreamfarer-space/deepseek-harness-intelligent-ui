@@ -5,9 +5,11 @@
  * the protocol (`computed: [{ id, expr, format? }]`, `bindKey`, `filterField`).
  * This module joins the engine to the live UI:
  *
- * 1. {@link collectBindings} walks a catalog tree and lists every value a
- *    `Form` publishes — its field `bindKey`, else the field name — together
- *    with the value it starts from.
+ * 1. {@link collectBindings} walks the part of a catalog tree that is reachable
+ *    from its root and lists every value a `Form` publishes — its field
+ *    `bindKey` (and the field `name` as a readable alias), else the name alone —
+ *    together with the value it starts from. Nodes nothing references are never
+ *    rendered, so they contribute nothing.
  * 2. Those values are read from the shared UI state (see `state.ts`: a key
  *    without a `<nodeId>:` prefix lives at the root call id, so a form in one
  *    block and a chart in another see the same value).
@@ -28,6 +30,7 @@ export interface ShapedNode {
   id?: unknown
   type?: unknown
   props?: unknown
+  children?: unknown
 }
 
 /** The part of a `Form` field that state sharing and defaults care about. */
@@ -84,22 +87,63 @@ export function bindKeyOf(f: BoundField): string | undefined {
 }
 
 /**
- * Every form-bound value of a tree (or of several compositions blocks), keyed
- * by the name a formula uses. The first definition of a key wins, so merging
- * blocks never reorders values the model already fixed.
+ * Nodes reachable from `root`, root first, following `children` in order.
+ * Without a root every node is returned. A component no parent references is
+ * never rendered, so its `Form` must not publish values either: an orphan
+ * slider once produced a phantom total for a page that showed no input.
  * @param nodes
+ * @param root
  */
-export function collectBindings(nodes: Iterable<ShapedNode>): Map<string, unknown> {
-  const out = new Map<string, unknown>()
+export function reachableNodes(nodes: Iterable<ShapedNode>, root?: string): ShapedNode[] {
+  const pool = new Map<string, ShapedNode>()
   for (const node of nodes) {
-    if (!isRecord(node) || node.type !== 'Form' || !isRecord(node.props)) continue
+    if (!isRecord(node) || typeof node.id !== 'string' || pool.has(node.id)) continue
+    pool.set(node.id, node)
+  }
+  if (typeof root !== 'string' || root === '') return [...pool.values()]
+  const out: ShapedNode[] = []
+  const seen = new Set<string>()
+  const walk = (id: string) => {
+    if (seen.has(id)) return
+    const node = pool.get(id)
+    if (!node) return
+    seen.add(id)
+    out.push(node)
+    if (!Array.isArray(node.children)) return
+    for (const child of node.children) if (typeof child === 'string') walk(child)
+  }
+  walk(root)
+  return out
+}
+
+/**
+ * Every form-bound value of a tree (or of several composition blocks), keyed
+ * by the name a formula uses. Only nodes reachable from `root` contribute, so
+ * a component the page never renders cannot feed a formula. The first
+ * definition of a key wins, so merging blocks never reorders values the model
+ * already fixed.
+ *
+ * A field that declares `bindKey` publishes under that key *and* under its
+ * `name`: the Host accepts both in a formula, so both must be readable here.
+ * @param nodes
+ * @param root - id of the rendered root; omit to consider every node.
+ */
+export function collectBindings(nodes: Iterable<ShapedNode>, root?: string): Map<string, unknown> {
+  const out = new Map<string, unknown>()
+  for (const node of reachableNodes(nodes, root)) {
+    if (node.type !== 'Form' || !isRecord(node.props)) continue
     const form = node.props
     const fields = Array.isArray(form.fields) ? form.fields.filter(isRecord) : []
     for (const raw of fields) {
       const field = raw as BoundField
+      const initial = fieldInitialValue(field)
       const key = bindKeyOf(field)
-      if (key === undefined || out.has(key)) continue
-      out.set(key, fieldInitialValue(field))
+      if (key !== undefined && !out.has(key)) out.set(key, initial)
+      // The field name stays a readable alias of the same value.
+      if (typeof field.bindKey === 'string' && field.bindKey !== ''
+        && typeof field.name === 'string' && field.name && !out.has(field.name)) {
+        out.set(field.name, initial)
+      }
     }
     // A form-level bindKey names the value of a single-field form.
     const formKey = typeof form.bindKey === 'string' && form.bindKey ? form.bindKey : undefined

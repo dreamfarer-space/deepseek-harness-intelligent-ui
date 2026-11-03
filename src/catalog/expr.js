@@ -279,7 +279,11 @@ function parse(src, variables) {
         if (args.length === 2) { const [a, b] = args; return (s) => impl(Number(a(s)), Number(b(s))); }
         return (s) => impl(...args.map(a => Number(a(s))));
       }
-      if (vars.has(name)) return (s) => s[name];
+      if (vars.has(name)) {
+        // Own property only: a variable named `constructor` or `toString` must
+        // read the field value, never the inherited function.
+        return (s) => (Object.prototype.hasOwnProperty.call(s, name) ? s[name] : undefined);
+      }
       const constant = own(CONSTANTS, name);
       if (constant !== undefined) return () => constant;
       fail(`unknown variable "${name}"; available: ${[...vars, ...Object.keys(CONSTANTS)].join(', ')}`);

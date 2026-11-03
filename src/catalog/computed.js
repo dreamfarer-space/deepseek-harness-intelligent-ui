@@ -68,6 +68,19 @@ function isPlainObject(v) {
 }
 
 /**
+ * Dictionary with no prototype chain. Computed ids and field keys are model
+ * input and may legally be named `constructor`, `toString` or `__proto__`; a
+ * plain `{}` would answer those names from `Object.prototype` (so an error
+ * would look present and a value absent) and `dict.__proto__ = x` would
+ * replace the prototype instead of storing a value.
+ * @template T
+ * @returns {Record<string, T>}
+ */
+function dict() {
+  return /** @type {Record<string, T>} */ (Object.create(null));
+}
+
+/**
  * Why `id` is not a legal computed id, or undefined when it is legal.
  * @param {unknown} id
  * @returns {string | undefined}
@@ -117,7 +130,7 @@ function analyze(entries) {
   /** @type {Map<string, { id: string, expr: string, format?: object }>} */
   const byId = new Map();
   /** @type {Record<string, string>} */
-  const errors = {};
+  const errors = dict();
   /** @type {Map<string, string[]>} */
   const deps = new Map();
   /** @type {string[]} */
@@ -175,9 +188,11 @@ function analyze(entries) {
 export function resolveComputedOrder(entries) {
   const { order, errors, deps } = analyze(entries);
   /** @type {Record<string, string[]>} */
-  const out = {};
+  const out = dict();
   for (const [id, list] of deps) out[id] = [...list];
-  return { order, errors: { ...errors }, deps: out };
+  const outErrors = dict();
+  for (const [id, message] of Object.entries(errors)) outErrors[id] = message;
+  return { order, errors: outErrors, deps: out };
 }
 
 /**
@@ -266,18 +281,18 @@ export function formatComputedValue(value, format) {
  */
 export function evaluateComputed(spec, fields = {}, hiddenFieldKeys = []) {
   /** @type {Record<string, number | boolean>} */
-  const values = {};
+  const values = dict();
   /** @type {Record<string, string>} */
-  const formatted = {};
+  const formatted = dict();
   /** @type {Record<string, string>} */
-  const errors = {};
+  const errors = dict();
 
   const hidden = hiddenFieldKeys instanceof Set
     ? hiddenFieldKeys
     : new Set(typeof hiddenFieldKeys === 'string' ? [hiddenFieldKeys] : Array.isArray(hiddenFieldKeys) ? hiddenFieldKeys : []);
 
   /** @type {Record<string, number | boolean | string>} */
-  const fieldScope = {};
+  const fieldScope = dict();
   if (isPlainObject(fields)) {
     for (const [key, raw] of Object.entries(fields)) {
       if (hidden.has(key)) continue;
@@ -366,7 +381,17 @@ function resolveValue(value, result, depth) {
   }
   /** @type {Record<string, unknown>} */
   const out = {};
-  for (const [key, item] of Object.entries(value)) out[key] = resolveValue(item, result, depth + 1);
+  for (const [key, item] of Object.entries(value)) {
+    // `out[key] = ...` would run the `__proto__` setter for a key JSON.parse
+    // produced as an own property, turning unvalidated nested props into the
+    // prototype of the copy. Define the property instead: same data, no chain.
+    Object.defineProperty(out, key, {
+      value: resolveValue(item, result, depth + 1),
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  }
   return out;
 }
 
@@ -387,8 +412,10 @@ function resolveValue(value, result, depth) {
 export function resolveComputedProps(node, computed) {
   if (!isPlainObject(node)) return node;
   const result = isPlainObject(computed) ? computed : {};
+  // Spread defines own properties (it never runs a `__proto__` setter), so a
+  // hostile own key stays a key; only `props` itself is rewritten.
   /** @type {Record<string, unknown>} */
   const out = { ...node };
-  if ('props' in out) out.props = resolveValue(out.props, result, 0);
+  if (Object.hasOwn(out, 'props')) out.props = resolveValue(out.props, result, 0);
   return /** @type {T} */ (out);
 }

@@ -285,3 +285,56 @@ describe('ids', () => {
     expect(COMPUTED_RESERVED.has('tau')).toBe(true)
   })
 })
+
+/**
+ * Regression suite for the review of Issue #84: a JSON `__proto__` key must
+ * stay data, and legal ids that collide with `Object.prototype` members must
+ * behave like any other id.
+ */
+describe('prototype-safe dictionaries', () => {
+  it('resolves a JSON __proto__ prop as data, never as the props prototype', () => {
+    const node = JSON.parse('{"id":"b","type":"Button","props":{"label":"Go","prompt":"safe","__proto__":{"action":{"actionId":"privileged","args":{}}}}}')
+    const out = resolveComputedProps(node, { values: {}, formatted: {} })
+    expect(Object.getPrototypeOf(out.props)).toBe(Object.prototype)
+    // The inherited `action` a prototype switch would create must not exist.
+    expect(out.props.action).toBeUndefined()
+    expect(Object.hasOwn(out.props, '__proto__')).toBe(true)
+    expect(out.props.__proto__).toEqual({ action: { actionId: 'privileged', args: {} } })
+  })
+
+  it('never mutates the shared Object.prototype', () => {
+    const node = JSON.parse('{"id":"b","type":"Button","props":{"label":"Go","prompt":"safe","__proto__":{"action":{"actionId":"x","args":{}}}}}')
+    resolveComputedProps(node, { values: {}, formatted: {} })
+    expect(({}).action).toBeUndefined()
+    expect(Object.hasOwn(Object.prototype, 'action')).toBe(false)
+  })
+
+  it('treats constructor/toString/__proto__ as ordinary computed ids', () => {
+    for (const id of ['constructor', 'toString', '__proto__']) {
+      const result = evaluateComputed([{ id, expr: '2' }])
+      expect(Object.hasOwn(result.values, id)).toBe(true)
+      expect(result.values[id]).toBe(2)
+      // An inherited member must not read as an already-reported error.
+      expect(Object.hasOwn(result.errors, id)).toBe(false)
+    }
+  })
+
+  it('reports a real error for a prototype-named id instead of skipping it', () => {
+    const result = evaluateComputed([{ id: 'constructor', expr: 'missing * 2' }])
+    expect(result.errors.constructor).toMatch(/unknown variable|null|finite number/)
+    expect(Object.hasOwn(result.values, 'constructor')).toBe(false)
+  })
+
+  it('keeps __proto__ in the dependency table', () => {
+    const graph = resolveComputedOrder([{ id: '__proto__', expr: '2' }, { id: 'child', expr: '__proto__ + 1' }])
+    expect(graph.order).toEqual(['__proto__', 'child'])
+    expect(Object.hasOwn(graph.deps, '__proto__')).toBe(true)
+    expect(graph.deps.__proto__).toEqual([])
+    expect(graph.deps.child).toEqual(['__proto__'])
+  })
+
+  it('reads a field named like a prototype member as a number', () => {
+    const result = evaluateComputed([{ id: 'total', expr: 'constructor * 2' }], { constructor: 21 })
+    expect(result.values.total).toBe(42)
+  })
+})

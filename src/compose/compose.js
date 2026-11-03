@@ -59,9 +59,14 @@ const BLOCK_FIELDS = Object.freeze({
 
 /**
  * Names a catalog block's formulas may read from sibling blocks: every `Form`
- * field key it declares (`bindKey`, else the field name) plus the form-level
+ * field key it declares (`bindKey`, and its `name` alias) plus the form-level
  * bindKey of a single-field form. A composition shares one field pool, so a
  * slider in block 1 can feed a chart in block 3.
+ *
+ * Both names are collected because the Host accepts both in a formula
+ * (`ui_render` does the same): a field `name: "qty"` with
+ * `bindKey: "quantity"` publishes under both keys, so a formula that reads
+ * either name resolves instead of silently evaluating to 0.
  * @param {unknown} components
  * @param {Set<string>} into
  */
@@ -74,7 +79,7 @@ function collectFieldKeys(components, into) {
     for (const field of node.props.fields) {
       if (!isPlainObject(field)) continue;
       if (typeof field.bindKey === 'string' && field.bindKey) into.add(field.bindKey);
-      else if (typeof field.name === 'string' && field.name) into.add(field.name);
+      if (typeof field.name === 'string' && field.name) into.add(field.name);
     }
   }
   return into;
@@ -140,6 +145,10 @@ export function validateComposition(args, config, capabilities = {}) {
   // One scope for the whole answer: a formula in any catalog block may read the
   // form fields another block publishes (Issue #84, Phase 2).
   const fieldKeys = compositionFieldKeys(args.blocks);
+  // ... and one `computed` scope too: a repeated id would be resolved by the
+  // first block that declared it, so the second block's formula would silently
+  // show the sibling's number. Reject the ambiguity instead.
+  const computedOwners = new Map();
   args.blocks.forEach((block, i) => {
     const at = `blocks[${i}]`;
     if (!isPlainObject(block)) { errors.push(`${at}: expected object`); return; }
@@ -179,6 +188,17 @@ export function validateComposition(args, config, capabilities = {}) {
       total += block.text.length;
       entry.text = block.text;
     } else if (block.type === 'catalog') {
+      if (Array.isArray(block.computed)) {
+        const local = new Set();
+        for (const formula of block.computed) {
+          if (!isPlainObject(formula) || typeof formula.id !== 'string') continue;
+          if (local.has(formula.id)) continue; // validateTree reports in-block duplicates
+          local.add(formula.id);
+          const owner = computedOwners.get(formula.id);
+          if (owner === undefined) computedOwners.set(formula.id, block.id);
+          else errors.push(`${at}(${block.id}).computed: id ${JSON.stringify(formula.id)} is already declared by block ${JSON.stringify(owner)}; every block of a composition shares one computed scope, so ids must be unique`);
+        }
+      }
       const tree = { root: block.root, components: block.components, ...(block.title !== undefined ? { title: block.title } : {}), ...(block.computed !== undefined ? { computed: block.computed } : {}) };
       const result = validateTree(tree, { fields: fieldKeys });
       for (const error of result.errors) errors.push(`${at}(${block.id}).${error}`);

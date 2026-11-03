@@ -43,7 +43,13 @@ export function PatchView(props: ToolViewProps) {
   const nodes = useMemo(() => indexNodes(ui?.components), [ui])
   // A patch replaces the whole tree, `computed` included: the new formulas are
   // evaluated against the same shared state pool as the version they replace.
-  const bindings = useMemo(() => collectBindings(nodes.values()), [nodes])
+  // The snapshot's `scope` names the fields sibling blocks publish, so a
+  // formula that reads one keeps working after the patch.
+  const bindings = useMemo(() => {
+    const out = collectBindings(nodes.values(), ui?.root)
+    for (const key of ui?.scope ?? []) if (!out.has(key)) out.set(key, undefined)
+    return out
+  }, [nodes, ui])
   const computedSpecs = useMemo(() => [Array.isArray(ui?.computed) ? ui!.computed as unknown[] : []], [ui])
   const computed = useComputedContext(ui?.uiId, bindings, computedSpecs)
   const [sending, setSending] = useState(false)

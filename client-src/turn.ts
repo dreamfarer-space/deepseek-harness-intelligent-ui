@@ -57,6 +57,12 @@ export interface PatchedUi {
   readonly components: readonly unknown[]
   /** Root-level computed formulas of the patched tree, when it declares any. */
   readonly computed?: readonly unknown[]
+  /**
+   * Field keys the patched tree's formulas may read from sibling blocks of its
+   * composition (see `compose.js`): the patch card evaluates against the same
+   * pool, so these names must stay in its scope.
+   */
+  readonly scope?: readonly string[]
 }
 
 export function patchedUiOf(meta: unknown): PatchedUi | undefined {

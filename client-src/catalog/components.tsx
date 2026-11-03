@@ -4,7 +4,7 @@ import { contextOf, type ControlledEnv, type DataRef } from '../controlled.ts'
 import { componentEntry, validateProps, validateComponentVersion } from '../../src/catalog/catalog.js'
 import { resolveComputedProps } from '../../src/catalog/computed.js'
 import { subscribeCatalog } from '../../src/catalog/extensions.js'
-import { bindKeyOf, fieldInitialValue, type BoundField, type ComputedContext } from './computed-context.ts'
+import { fieldInitialValue, type BoundField, type ComputedContext } from './computed-context.ts'
 import { ExtensionBoundary, ExtensionSurface, extensionRenderer } from './extensions.tsx'
 import { BridgeGuard, formatFormSubmission } from '../bridge.ts'
 import type { WidgetPolicy } from '../policy.ts'
@@ -19,7 +19,7 @@ import { Heatmap, Scatter, type HeatmapProps, type ScatterProps } from './Scatte
 import { GeoMap, type GeoMapProps } from './GeoMap.tsx'
 import { Gallery, PhotoImage, type Photo } from './Photo.tsx'
 import { Video, type VideoProps } from './Video.tsx'
-import { ExportButtons, Table, type Cell } from './Table.tsx'
+import { ExportButtons, Table, matchesExpression, type Cell } from './Table.tsx'
 
 export { compareCells } from './Table.tsx'
 
@@ -433,19 +433,35 @@ function Form({ props, env, nodeId }: { props: Record<string, any>; env: RenderE
   // same answer recomputes on every keystroke and drag. Internal form values stay
   // under `${nodeId}:values`, untouched by other blocks.
   const live = env.computed?.liveKeys
-  const publishes = (f: FieldSpec) => (typeof f.bindKey === 'string' && f.bindKey !== '') || (live?.has(f.name) ?? false)
+  // A form-level bindKey names the value of a single-field form; it publishes
+  // like a field binding, even when the field declares no bindKey of its own.
+  const formKey = typeof props.bindKey === 'string' && props.bindKey !== '' && fields.length === 1 ? props.bindKey : undefined
+  /**
+   * Shared-state keys one field publishes. The field's own `bindKey` is an
+   * explicit binding and always publishes; a bare `name` publishes only when a
+   * formula reads it (so same-named fields in other forms do not collide); a
+   * single-field form adds its form-level `bindKey`. A field that declares
+   * `bindKey` keeps its `name` as an alias, because the Host accepts either
+   * name in a formula.
+   */
+  const keysOf = (f: FieldSpec): string[] => {
+    const keys: string[] = []
+    if (typeof f.bindKey === 'string' && f.bindKey !== '') keys.push(f.bindKey)
+    if (live?.has(f.name) && !keys.includes(f.name)) keys.push(f.name)
+    if (formKey !== undefined && !keys.includes(formKey)) keys.push(formKey)
+    return keys
+  }
+  const publishes = (f: FieldSpec) => keysOf(f).length > 0
   const publish = (f: FieldSpec, v: unknown) => {
-    const key = bindKeyOf(f as BoundField)
-    if (key !== undefined) setUiState(env.callId ?? '', key, v)
-    // A form-level bindKey names the value of a single-field form.
-    if (typeof props.bindKey === 'string' && props.bindKey && fields.length === 1) setUiState(env.callId ?? '', props.bindKey, v)
+    for (const key of keysOf(f)) setUiState(env.callId ?? '', key, v)
   }
   useEffect(() => {
     for (const f of fields) {
-      if (!publishes(f)) continue
-      const key = bindKeyOf(f as BoundField)
-      if (key === undefined || getUiState(env.callId ?? '', key) !== undefined) continue
-      setUiState(env.callId ?? '', key, values[f.name])
+      for (const key of keysOf(f)) {
+        // Seed once: a stored value (an earlier run, or a sibling block) wins.
+        if (getUiState(env.callId ?? '', key) !== undefined) continue
+        setUiState(env.callId ?? '', key, values[f.name])
+      }
     }
   // The values object changes on every edit; the guard above keeps this a one-time seed.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -535,16 +551,27 @@ function BoundData({ kind, props: p, env, nodeId }: { kind: 'Table' | 'Chart'; p
     if (!runtime) throw new Error('Data binding is unavailable in this host')
     const ref = p.dataRef as DataRef, ctx = contextOf(env)
     const entry = runtime.readData(ctx, ref)
-    const { columns, rows } = projectData(entry) as { columns: string[]; rows: Cell[][] }
+    const { columns, rows: allRows } = projectData(entry) as { columns: string[]; rows: Cell[][] }
     const set = (patch: Record<string, unknown>) => runtime.setView(ctx, ref, patch)
     if (kind === 'Chart') {
       const cols = p.valueColumns as number[]
-      if (p.labelColumn >= columns.length || cols.some(c => c >= columns.length) || rows.some(r => cols.some(c => typeof r[c] !== 'number'))) throw new Error('Chart columns must reference numeric data')
-      const series = cols.map(c => ({ name: columns[c]!, values: rows.map(r => r[c] as number) }))
+      if (p.labelColumn >= columns.length || cols.some(c => c >= columns.length) || allRows.some(r => cols.some(c => typeof r[c] !== 'number'))) throw new Error('Chart columns must reference numeric data')
+      const series = cols.map(c => ({ name: columns[c]!, values: allRows.map(r => r[c] as number) }))
       return <div className="diui-chart-block">
-        <Chart {...p as ChartProps} labels={rows.map(r => r[p.labelColumn] ?? null)} series={series} emptyText={env.t('chart.empty')} />
-        {p.exportable && <ExportButtons columns={[columns[p.labelColumn]!, ...series.map(x => x.name)]} rows={rows.map(r => [r[p.labelColumn] ?? null, ...cols.map(c => r[c] ?? null)])} name={p.title} t={env.t} />}
+        <Chart {...p as ChartProps} labels={allRows.map(r => r[p.labelColumn] ?? null)} series={series} emptyText={env.t('chart.empty')} />
+        {p.exportable && <ExportButtons columns={[columns[p.labelColumn]!, ...series.map(x => x.name)]} rows={allRows.map(r => [r[p.labelColumn] ?? null, ...cols.map(c => r[c] ?? null)])} name={p.title} t={env.t} />}
       </div>
+    }
+    // Linkage filter: a computed `filterValue` (">= {{threshold}}") narrows the
+    // bound rows before paging, counting and export — the same rule an inline
+    // Table follows, instead of silently showing every row.
+    const filterField = typeof p.filterField === 'string' ? p.filterField : undefined
+    const filterValue = typeof p.filterValue === 'string' ? p.filterValue : ''
+    let rows = allRows
+    if (filterField !== undefined && filterValue.trim() !== '') {
+      const col = columns.indexOf(filterField)
+      if (col < 0) throw new Error(`filterField must name one of the data columns (${columns.join(', ')})`)
+      rows = rows.filter(r => matchesExpression(r[col], filterValue))
     }
     const size = p.pageSize ?? 20, pages = Math.max(1, Math.ceil(rows.length / size)), page = Math.min(entry.view.page, pages - 1)
     return <div>

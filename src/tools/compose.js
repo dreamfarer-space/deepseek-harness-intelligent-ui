@@ -14,6 +14,14 @@ import { clientPolicy } from '../config.js';
 import { BLOCK_TYPES, COMPOSE_LIMITS, composeCapabilities, composeUiId, validateComposition } from '../compose/compose.js';
 import { COMPOSE_TOOL } from '../compose/constants.js';
 import { RESOURCE_MODE } from '../resource-mode.js';
+import { computedParam } from './render.js';
+
+/**
+ * `computed` parameter of a catalog block: the same {id, expr, format?}
+ * contract `ui_render` publishes, described for a block of a composition.
+ * Every block shares one computed scope, so ids must be unique across blocks.
+ */
+const blockComputedParam = () => computedParam('catalog: optional formulas recomputed in the browser as the user edits: {id, expr, format?}. `expr` reads form values published by any block (field bindKey or name) and the computed ids of its own block; ids must be unique across the whole composition. Reference a result as {{id}} in text or {"$computed":"id"} in a numeric prop.');
 
 /** Field order the streaming renderer depends on. */
 export const COMPOSE_FIELDS = ['title', 'blocks'];
@@ -36,7 +44,7 @@ export function createComposeTool(config) {
       'Use it when the answer needs both substantial prose and one or more UI moments between its paragraphs: technical comparisons with a chart in the middle, a teaching walkthrough (explain → demonstrate → interpret), or a report with several sections. Do NOT use it for a pure dashboard (use ui_render) or for a plain prose answer.',
       'Each block has a stable id and a type:',
       '- markdown {id, type:"markdown", text}: your prose for that position. Supports headings, lists, tables, quotes and fenced code; raw HTML is not rendered. Write the analysis here, not inside components.',
-      ...(caps.catalog ? ['- catalog {id, type:"catalog", title?, root, components}: the same validated component tree as ui_render (see below). The user can interact with it locally; its uiId is "<composition uiId>#<block id>" and it accepts ui_patch.'] : []),
+      ...(caps.catalog ? ['- catalog {id, type:"catalog", title?, root, components, computed?}: the same validated component tree as ui_render (see below). A form field `bindKey` (or its name) publishes a shared variable; block-level `computed` formulas of {id, expr, format?} read any block\'s form values and are recomputed in the browser, so one block can drive a chart or table in another. Ids must be unique across the composition. The user can interact with it locally; its uiId is "<composition uiId>#<block id>" and it accepts ui_patch.'] : []),
       ...(caps.widget ? ['- widget {id, type:"widget", title?, initialHeight?, placeholderMessages?, css, html, jsFunctions, jsExpressions}: the same sandboxed widget contract as ui_render_widget (emit those fields in that order inside the block).'] : []),
       `Only ${enabled} blocks are enabled on this host. ${caps.widget ? '' : 'Widgets are disabled here, so do not emit widget blocks. '}${caps.catalog ? '' : 'Native components are disabled here, so do not emit catalog blocks. '}`.trim(),
       'Rules:',
@@ -80,6 +88,7 @@ export function createComposeTool(config) {
                   required: ['id', 'type'],
                 },
               },
+              computed: blockComputedParam(),
               initialHeight: { type: 'number', description: 'widget: estimated height in px (100-1200).' },
               placeholderMessages: { type: 'array', items: { type: 'string' }, description: 'widget: 2-4 short status lines while generating.' },
               css: { type: 'string', description: 'widget: all CSS (no <style> in html).' },

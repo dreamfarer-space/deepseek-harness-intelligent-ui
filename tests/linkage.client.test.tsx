@@ -14,10 +14,15 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RenderView } from '../client-src/catalog/RenderView.tsx'
+import { PatchView } from '../client-src/catalog/PatchView.tsx'
 import { ComposeView } from '../client-src/compose/ComposeView.tsx'
 import { matchesExpression } from '../client-src/catalog/Table.tsx'
 import { en } from '../client-src/locales.ts'
 import { getUiState, resetUiStateMemory, rootCallId, setUiState } from '../client-src/state.ts'
+import { validateTree } from '../src/catalog/catalog.js'
+import { applyPatch, snapshotOf } from '../src/catalog/patch.js'
+import { createControlledRuntime } from '../src/controlled/runtime.js'
+import { resetUiVersions } from '../client-src/versions.ts'
 import type { ToolViewProps } from '../client-src/types/dsh.ts'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -30,6 +35,7 @@ let root: Root
 beforeEach(() => {
   localStorage.clear()
   resetUiStateMemory()
+  resetUiVersions()
   host = document.createElement('div')
   document.body.appendChild(host)
   root = createRoot(host)
@@ -65,11 +71,11 @@ const barTitles = () => [...host.querySelectorAll('rect title')].map(el => el.te
 const tableRows = () => [...host.querySelectorAll('tbody tr')].map(tr =>
   [...tr.children].map(td => td.textContent).join('|'))
 
-function settledView(callId: string, args: unknown) {
+function settledView(callId: string, args: unknown, meta: Record<string, unknown> = { ok: true }) {
   return {
     kind: 'tool-result' as const, callId,
     call: { name: 'ui_render', argsRaw: JSON.stringify(args) },
-    content: [], isError: false, meta: { ok: true },
+    content: [], isError: false, meta,
   }
 }
 
@@ -297,5 +303,146 @@ describe('linkage filter expressions', () => {
     expect(matchesExpression('Gold', '!= Silver')).toBe(true)
     expect(matchesExpression(null, '>= 5')).toBe(false)
     expect(matchesExpression(5, '')).toBe(true)
+  })
+})
+
+/**
+ * Regression suite for the review of Issue #84 Phase 2: each case failed
+ * before the fix it describes (patch scope, form-level and aliased bindings,
+ * unreachable forms, bound-table filters, failed chart values).
+ */
+describe('linkage review regressions', () => {
+  const range = (name: string, extra: Record<string, unknown> = {}) =>
+    ({ name, label: name, type: 'range', min: 0, max: 100, step: 1, default: 20, ...extra })
+
+  it('keeps a composition block\'s sibling field scope after a patch', () => {
+    const report = {
+      root: 'p',
+      computed: [{ id: 'total', expr: 'threshold' }],
+      components: [{ id: 'p', type: 'Progress', props: { value: { $computed: 'total' } } }],
+    }
+    // `collectUis` records the sibling field names on the snapshot; the patch
+    // must keep reading them from the shared pool.
+    const ui = { ...snapshotOf('cmp#report', report), scope: ['threshold'] }
+    const patched = applyPatch(ui, { uiId: 'cmp#report', baseVersion: 1, ops: [{ op: 'setProps', id: 'p', props: { max: 200 } }] })
+    expect(patched.ok).toBe(true)
+    setUiState('cmp#controls', 'threshold', 75)
+    const block = settledView('patch-1', {}, { ok: true, ui: patched.ok ? patched.ui : undefined })
+    render(<PatchView {...base('patch-1', 'ui_patch')} phase="result" block={block} />)
+    expect(progressValue()).toBe('75')
+  })
+
+  it('publishes edits through a single-field form\'s bindKey', () => {
+    const tree = {
+      root: 'stack',
+      computed: [{ id: 'total', expr: 'amount' }],
+      components: [
+        { id: 'stack', type: 'Stack', children: ['form', 'bar'] },
+        { id: 'form', type: 'Form', props: { title: 'Amount', bindKey: 'amount', fields: [range('qty')] } },
+        { id: 'bar', type: 'Progress', props: { label: 'Amount', max: 100, value: { $computed: 'total' } } },
+      ],
+    }
+    expect(validateTree(tree).ok).toBe(true)
+    render(<RenderView {...base('form-key')} phase="result" block={settledView('form-key', tree)} />)
+    expect(progressValue()).toBe('20')
+    expect(getUiState('form-key', 'amount')).toBe(20)
+
+    act(() => setInputValue(slider(), '70'))
+    expect(progressValue()).toBe('70')
+    expect(getUiState('form-key', 'amount')).toBe(70)
+  })
+
+  it('keeps a field name readable when the field also declares bindKey', () => {
+    const tree = {
+      root: 'stack',
+      computed: [{ id: 'double', expr: 'qty * 2' }],
+      components: [
+        { id: 'stack', type: 'Stack', children: ['form', 'bar'] },
+        { id: 'form', type: 'Form', props: { fields: [range('qty', { bindKey: 'quantity' })] } },
+        { id: 'bar', type: 'Progress', props: { label: 'Double', max: 200, value: { $computed: 'double' } } },
+      ],
+    }
+    // The Host accepts both names in a formula, so the client must publish both.
+    expect(validateTree(tree).ok).toBe(true)
+    render(<RenderView {...base('field-alias')} phase="result" block={settledView('field-alias', tree)} />)
+    expect(progressValue()).toBe('40')
+    expect(getUiState('field-alias', 'quantity')).toBe(20)
+    expect(getUiState('field-alias', 'qty')).toBe(20)
+
+    act(() => setInputValue(slider(), '70'))
+    expect(progressValue()).toBe('140')
+    expect(getUiState('field-alias', 'quantity')).toBe(70)
+    expect(getUiState('field-alias', 'qty')).toBe(70)
+  })
+
+  it('ignores a form that is not reachable from the root', () => {
+    const tree = {
+      root: 'bar',
+      computed: [{ id: 'total', expr: 'qty * 2' }],
+      components: [
+        { id: 'bar', type: 'Progress', props: { label: 'Total', value: { $computed: 'total' } } },
+        { id: 'orphan', type: 'Form', props: { fields: [range('qty')] } },
+      ],
+    }
+    expect(validateTree(tree).ok).toBe(true)
+    render(<RenderView {...base('orphan')} phase="result" block={settledView('orphan', tree)} />)
+    // Nothing is on screen, so no value may be invented from the orphan default.
+    expect(host.querySelector('input')).toBeNull()
+    expect(progressValue()).toBe('0')
+    expect(getUiState('orphan', 'qty')).toBeUndefined()
+  })
+
+  it('applies a declarative filter to a dataRef table', () => {
+    const runtime = createControlledRuntime('s')
+    runtime.registerData('board', 'checks', { columns: ['Name', 'Score'], rows: [['Low', 10], ['High', 90]] })
+    const tree = {
+      root: 'tbl',
+      components: [{ id: 'tbl', type: 'Table', props: { dataRef: { id: 'checks', scope: 'board' }, filterField: 'Score', filterValue: '>= 50' } }],
+    }
+    expect(validateTree(tree).ok).toBe(true)
+    render(<RenderView {...base('board')} sessionId="s" controlled={runtime} phase="result" block={settledView('board', tree)} />)
+    expect(host.querySelector('tbody')!.textContent).toContain('High')
+    expect(host.querySelector('tbody')!.textContent).not.toContain('Low')
+    // Paging and counting follow the filtered rows.
+    expect(host.textContent).toContain('(1)')
+  })
+
+  it('leaves a failed chart value as a gap instead of a zero data point', () => {
+    const tree = {
+      root: 'stack',
+      computed: [{ id: 'bad', expr: 'qty / 0' }],
+      components: [
+        { id: 'stack', type: 'Stack', children: ['form', 'chart'] },
+        { id: 'form', type: 'Form', props: { fields: [range('qty')] } },
+        { id: 'chart', type: 'Chart', props: {
+          kind: 'bar', labels: ['Now'],
+          series: [{ name: 'Result', values: [{ $computed: 'bad' }] }],
+        } },
+      ],
+    }
+    expect(validateTree(tree).ok).toBe(true)
+    render(<RenderView {...base('bad-chart')} phase="result" block={settledView('bad-chart', tree)} />)
+    expect(barTitles()).toEqual([])
+    expect(host.textContent).not.toContain('Result: 0')
+  })
+
+  it('draws the values that resolved and skips only the missing ones', () => {
+    const tree = {
+      root: 'stack',
+      computed: [{ id: 'good', expr: 'qty' }, { id: 'bad', expr: 'qty / 0' }],
+      components: [
+        { id: 'stack', type: 'Stack', children: ['form', 'chart'] },
+        { id: 'form', type: 'Form', props: { fields: [range('qty')] } },
+        { id: 'chart', type: 'Chart', props: {
+          kind: 'line', labels: ['A', 'B'],
+          series: [{ name: 'S', values: [{ $computed: 'good' }, { $computed: 'bad' }] }],
+        } },
+      ],
+    }
+    render(<RenderView {...base('gap-chart')} phase="result" block={settledView('gap-chart', tree)} />)
+    expect(barTitles()).toEqual([])
+    const circles = [...host.querySelectorAll('circle title')].map(el => el.textContent)
+    expect(circles).toEqual(['A · S: 20'])
+    expect(host.innerHTML).not.toContain('B · S: 0')
   })
 })

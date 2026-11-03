@@ -63,7 +63,7 @@ export function RenderView(props: ToolViewProps) {
   // Linkage (Issue #84, Phase 2): form values are published to shared state and
   // the tree's `computed` array is re-evaluated on every broadcast, so a slider
   // moves a Progress bar, a chart series and a table filter without a round trip.
-  const bindings = useMemo(() => collectBindings(tree?.nodes.values() ?? []), [tree])
+  const bindings = useMemo(() => collectBindings(tree?.nodes.values() ?? [], tree?.root), [tree])
   const computedSpecs = useMemo(() => [tree?.computed ?? []], [tree])
   const computed = useComputedContext(props.callId, bindings, computedSpecs)
   const meta = props.phase === 'result' ? props.block.meta : undefined

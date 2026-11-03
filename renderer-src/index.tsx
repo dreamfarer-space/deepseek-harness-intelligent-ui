@@ -116,11 +116,20 @@ function Surface({ artifact, host, theme, locale = 'en' }: { artifact: PortableU
   }, [blocks])
   const bindings = useMemo(() => {
     const all = new Map<string, unknown>()
-    for (const map of blockNodes.values()) {
-      for (const [key, value] of collectBindings(map.values())) if (!all.has(key)) all.set(key, value)
+    // A composition shares one pool across its catalog blocks; a declarative
+    // artifact renders its own single tree into the same pool. Either way only
+    // nodes reachable from a tree's root can publish a value.
+    const trees: { nodes: Map<string, UiNode>; root: unknown }[] = artifact.kind === 'composition'
+      ? blocks
+        .filter(block => block.type === 'catalog' && typeof block.id === 'string')
+        .map(block => ({ nodes: blockNodes.get(block.id as string) ?? new Map<string, UiNode>(), root: block.root }))
+      : [{ nodes, root: definition?.root }]
+    for (const tree of trees) {
+      const root = typeof tree.root === 'string' ? tree.root : undefined
+      for (const [key, value] of collectBindings(tree.nodes.values(), root)) if (!all.has(key)) all.set(key, value)
     }
     return all
-  }, [blockNodes])
+  }, [artifact.kind, blocks, blockNodes, definition, nodes])
   const computedSpecs = useMemo(
     () => artifact.kind === 'composition'
       ? blocks.filter(block => Array.isArray(block.computed)).map(block => block.computed as unknown[])

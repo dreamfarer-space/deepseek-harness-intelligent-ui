@@ -651,7 +651,11 @@ function checkProps(props, specs, path, errors) {
     checkValue(v, spec, `${path}.${key}`, errors);
   }
   for (const key of Object.keys(props)) {
-    if (!(key in specs)) errors.push(`${path}.${key}: unknown prop`);
+    // Own properties only: `key in specs` would accept `__proto__`,
+    // `constructor` and `toString` from the prototype chain, so a JSON
+    // `__proto__` prop (which JSON.parse creates as an own key) passed
+    // validation and then became the prototype of the resolved props.
+    if (!Object.hasOwn(specs, key)) errors.push(`${path}.${key}: unknown prop`);
   }
 }
 
@@ -1056,7 +1060,7 @@ export function validateTree(args, options) {
     if (byId.has(node.id)) { errors.push(`${at}.id: duplicate id ${JSON.stringify(node.id)}`); return; }
     byId.set(node.id, node);
     paths.set(node.id, at);
-    if (Object.hasOwn(CATALOG, node.type) && isPlainObject(node.props) && 'children' in node.props) {
+    if (Object.hasOwn(CATALOG, node.type) && isPlainObject(node.props) && Object.hasOwn(node.props, 'children')) {
       if (node.children === undefined && Array.isArray(node.props.children)) {
         node.children = node.props.children;
       }

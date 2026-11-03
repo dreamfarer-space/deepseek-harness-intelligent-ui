@@ -41,7 +41,7 @@ const clone = v => JSON.parse(JSON.stringify(v));
 
 /** Legacy built-ins alone accept props.children; extensions use their exact schema. */
 function normalize(node) {
-  if (Object.hasOwn(CATALOG, node.type) && isPlainObject(node.props) && 'children' in node.props) {
+  if (Object.hasOwn(CATALOG, node.type) && isPlainObject(node.props) && Object.hasOwn(node.props, 'children')) {
     if (node.children === undefined && Array.isArray(node.props.children)) node.children = node.props.children;
     delete node.props.children;
   }
@@ -162,7 +162,7 @@ export function applyPatch(ui, args) {
         if (problem) break;
         if (op.props === undefined && op.unset === undefined) { problem = `${at}: give props and/or unset`; break; }
         if (op.props !== undefined && !isPlainObject(op.props)) { problem = `${at}.props: expected object`; break; }
-        if (op.props && 'children' in op.props) { problem = `${at}.props.children: children are not props; use insertChild/removeNode/replaceNode`; break; }
+        if (op.props && Object.hasOwn(op.props, 'children')) { problem = `${at}.props.children: children are not props; use insertChild/removeNode/replaceNode`; break; }
         if (op.unset !== undefined && (!Array.isArray(op.unset) || op.unset.some(k => typeof k !== 'string'))) { problem = `${at}.unset: expected array of prop names`; break; }
         const node = nodes.get(op.id);
         const props = { ...(node.props ?? {}), ...clone(op.props ?? {}) };

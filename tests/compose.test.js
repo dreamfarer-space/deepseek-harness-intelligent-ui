@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { resolveConfig } from '../src/config.js'
-import { catalogTrees, composeEnabled, composeUiId, markdownOf, splitComposeUiId, validateComposition, COMPOSE_LIMITS } from '../src/compose/compose.js'
+import { catalogTrees, composeEnabled, composeUiId, compositionFieldKeys, markdownOf, splitComposeUiId, validateComposition, COMPOSE_LIMITS } from '../src/compose/compose.js'
 import { createComposeTool, COMPOSE_FIELDS, COMPOSE_TOOL } from '../src/tools/compose.js'
 import { collectUis } from '../src/catalog/patch.js'
 import { createPatchTool, PATCH_TOOL } from '../src/tools/patch.js'
@@ -220,5 +220,55 @@ describe('computed linkage across blocks', () => {
     )
     expect(value.ok).toBe(true)
     expect(value.ui.computed).toHaveLength(1)
+  })
+})
+
+/**
+ * Regression suite for the review of Issue #84: one computed scope per
+ * composition means a repeated id cannot be silently resolved by whichever
+ * block came first.
+ */
+describe('computed scope uniqueness across blocks', () => {
+  const progress = (id, expr, computedId = 'total') => ({
+    id, type: 'catalog', root: 'p', title: id,
+    computed: [{ id: computedId, expr }],
+    components: [{ id: 'p', type: 'Progress', props: { value: { $computed: computedId } } }],
+  })
+
+  it('rejects the same computed id declared by two catalog blocks', () => {
+    const result = validateComposition({ blocks: [progress('a', '10'), progress('b', '20')] }, config)
+    expect(result.ok).toBe(false)
+    expect(result.blocks).toEqual([])
+    expect(result.errors.join('\n')).toMatch(/blocks\[1\]\(b\)\.computed: id "total" is already declared by block "a"/)
+  })
+
+  it('accepts distinct ids, one per block', () => {
+    const result = validateComposition({ blocks: [progress('a', '10'), progress('b', '20', 'other')] }, config)
+    expect(result.errors).toEqual([])
+    expect(result.ok).toBe(true)
+    expect(result.blocks.map(block => block.computed[0].id)).toEqual(['total', 'other'])
+  })
+
+  it('keeps a duplicated id inside one block a validateTree error, not a cross-block one', () => {
+    const doubled = { id: 'a', type: 'catalog', root: 'p', computed: [{ id: 'total', expr: '1' }, { id: 'total', expr: '2' }],
+      components: [{ id: 'p', type: 'Progress', props: { value: { $computed: 'total' } } }] }
+    const result = validateComposition({ blocks: [doubled] }, config)
+    expect(result.ok).toBe(false)
+    expect(result.errors.join('\n')).toMatch(/duplicate computed id "total"/)
+  })
+
+  it('reads a sibling field name even when that field declares bindKey', () => {
+    const controls = { id: 'controls', type: 'catalog', root: 'f', components: [
+      { id: 'f', type: 'Form', props: { fields: [{ name: 'qty', label: 'Quantity', type: 'range', min: 0, max: 100, default: 20, bindKey: 'quantity' }] } },
+    ] }
+    const report = { id: 'report', type: 'catalog', root: 'p', computed: [{ id: 'double', expr: 'qty * 2' }], components: [
+      { id: 'p', type: 'Progress', props: { value: { $computed: 'double' } } },
+    ] }
+    const result = validateComposition({ blocks: [controls, report] }, config)
+    expect(result.errors).toEqual([])
+    // Both names are in the shared scope, matching what the client publishes.
+    const keys = compositionFieldKeys(result.blocks)
+    expect(keys.has('qty')).toBe(true)
+    expect(keys.has('quantity')).toBe(true)
   })
 })

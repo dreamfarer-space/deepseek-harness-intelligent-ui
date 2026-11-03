@@ -126,3 +126,47 @@ describe('portable renderer without a DSH Web session', () => {
     expect(host.querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(false)
   })
 })
+
+/**
+ * Regression for the review of Issue #84: a declarative artifact's formulas
+ * were evaluated against an empty pool because only composition blocks were
+ * collected, so a plain page showed 0 instead of its form's value.
+ */
+describe('portable declarative linkage', () => {
+  const definition = {
+    root: 'stack',
+    computed: [{ id: 'total', expr: 'qty' }],
+    components: [
+      { id: 'stack', type: 'Stack', children: ['form', 'bar'] },
+      { id: 'form', type: 'Form', props: { fields: [{ name: 'qty', label: 'Quantity', type: 'range', min: 0, max: 100, default: 20 }] } },
+      { id: 'bar', type: 'Progress', props: { label: 'Total', max: 100, value: { $computed: 'total' } } },
+    ],
+  }
+
+  it('reads the visible form of a declarative artifact', () => {
+    const bar = () => host.querySelector('[role=progressbar]')!.getAttribute('aria-valuenow')
+    act(() => renderer.render({ kind: 'declarative', uiId: 'portable-1', version: 1, definition }))
+    expect(bar()).toBe('20')
+
+    act(() => {
+      const input = host.querySelector<HTMLInputElement>('input[type=range]')!
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, '60')
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    expect(bar()).toBe('60')
+  })
+
+  it('does not publish from a form the root never renders', () => {
+    const orphaned = {
+      root: 'bar',
+      computed: [{ id: 'total', expr: 'qty * 2' }],
+      components: [
+        { id: 'bar', type: 'Progress', props: { label: 'Total', value: { $computed: 'total' } } },
+        { id: 'orphan', type: 'Form', props: { fields: [{ name: 'qty', label: 'Qty', type: 'range', min: 0, max: 100, default: 20 }] } },
+      ],
+    }
+    act(() => renderer.render({ kind: 'declarative', uiId: 'portable-2', version: 1, definition: orphaned }))
+    expect(host.querySelector('input')).toBeNull()
+    expect(host.querySelector('[role=progressbar]')!.getAttribute('aria-valuenow')).toBe('0')
+  })
+})

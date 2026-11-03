@@ -292,3 +292,31 @@ describe('Choice validation', () => {
     expect(validate({ options: [{ ...options[0], prompt: 'x'.repeat(20001) }, options[1]] }).length).toBeGreaterThan(0)
   })
 })
+
+/**
+ * Regression suite for the review of Issue #84: prop keys are checked against
+ * own properties only, so a prototype name cannot pass as a declared prop.
+ */
+describe('prototype-safe prop validation', () => {
+  it('rejects a JSON __proto__ prop instead of accepting it through the prototype chain', () => {
+    const node = JSON.parse('{"id":"b","type":"Button","props":{"label":"Go","prompt":"safe","__proto__":{"action":{"actionId":"privileged","args":{}}}}}')
+    const result = validateTree({ root: 'b', components: [node] })
+    expect(result.ok).toBe(false)
+    expect(result.errors.join('\n')).toMatch(/components\[0\]\(b\)\.props\.__proto__: unknown prop/)
+  })
+
+  it.each(['constructor', 'toString', 'hasOwnProperty'])('rejects the inherited name %s as a prop', key => {
+    const result = validateTree({ root: 'p', components: [{ id: 'p', type: 'Progress', props: { [key]: 1 } }] })
+    expect(result.ok).toBe(false)
+    expect(result.errors.join('\n')).toMatch(new RegExp(`props\.${key}: unknown prop`))
+  })
+
+  it('still accepts every declared prop, including computed references', () => {
+    const result = validateTree({
+      root: 'p',
+      computed: [{ id: 'total', expr: '1 + 1' }],
+      components: [{ id: 'p', type: 'Progress', props: { value: { $computed: 'total' }, max: 100, label: 'Done' } }],
+    })
+    expect(result.ok).toBe(true)
+  })
+})
