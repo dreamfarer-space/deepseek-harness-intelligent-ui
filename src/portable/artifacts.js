@@ -3,7 +3,7 @@
  * Only successful tool result metadata can authorize a render or atomic patch.
  */
 import { validateTree } from '../catalog/catalog.js';
-import { splitComposeUiId, validateComposition } from '../compose/compose.js';
+import { splitComposeUiId, validateComposition, compositionFieldKeys } from '../compose/compose.js';
 import { COMPOSE_TOOL } from '../compose/constants.js';
 
 const MAX_ARGUMENT_CHARS = 480_000;
@@ -19,8 +19,18 @@ function argumentsOf(input) {
   }
   return undefined;
 }
-function validTree(input) {
-  try { return object(input) && validateTree(clone(input)).ok; }
+/**
+ * Validate a projected definition. `fields` names the values its formulas may
+ * read from outside the tree (a composition's shared field pool): a patched
+ * catalog block keeps reading the fields its sibling blocks publish.
+ * @param {unknown} input
+ * @param {ReadonlySet<string> | readonly string[]} [fields]
+ */
+function validTree(input, fields) {
+  try {
+    const extra = fields && [...fields].length ? { fields } : undefined;
+    return object(input) && validateTree(clone(input), extra).ok;
+  }
   catch { return false; }
 }
 
@@ -97,8 +107,15 @@ export function projectNativeUiEvents(events, { hostId, sessionId }) {
     const next = meta.ui;
     const version = prior?.kind === 'composition' ? blockVersions.get(args.uiId) : prior?.version;
     if (!prior || version !== args.baseVersion
-      || !object(next) || next.uiId !== args.uiId || next.version !== version + 1
-      || !validTree(next)) continue;
+      || !object(next) || next.uiId !== args.uiId || next.version !== version + 1) continue;
+    // A catalog block of a composition is validated against the answer-wide
+    // field scope: its formulas legitimately read values a sibling block
+    // publishes (`qty * 2` where the Form lives elsewhere), exactly as the Host
+    // validated the patch and the block validated at compose time.
+    const blockFields = prior.kind === 'composition'
+      ? new Set([...(Array.isArray(next.scope) ? next.scope : []), ...compositionFieldKeys(prior.definition.blocks)])
+      : undefined;
+    if (!validTree(next, blockFields)) continue;
     const block = compositionBlockOf(prior, args.uiId);
     if (prior.kind === 'declarative') {
       latest.set(prior.uiId, { ...prior, version: next.version, definition: next,

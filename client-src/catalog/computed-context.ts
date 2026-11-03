@@ -61,6 +61,21 @@ export interface ComputedContext {
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
+/** Stable empty default: a fresh array every render would defeat the memo. */
+const EMPTY_KEYS: readonly string[] = Object.freeze([])
+
+/**
+ * Store one field value as an own data property. Field keys come from the
+ * model, so `__proto__` must become a value, not the object's prototype, and
+ * `constructor`/`toString` must shadow Object.prototype instead of finding it.
+ * @param target
+ * @param key
+ * @param value
+ */
+function defineField(target: Record<string, unknown>, key: string, value: unknown): void {
+  Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true })
+}
+
 /**
  * The value a field starts from: the same rule `Form` renders with.
  * @param f
@@ -184,12 +199,17 @@ export function mergeComputed(specs: readonly (readonly unknown[])[]): Record<st
  * @param callId - the surface's (possibly block-scoped) call id.
  * @param bindings - field keys and their defaults, from {@link collectBindings}.
  * @param specs - the `computed` arrays to evaluate (merged across blocks).
+ * @param publishedKeys - field keys this surface must keep live even when none
+ *   of its own formulas reads them: a composition block renders one block, but
+ *   the forms of the other blocks still drive the answer (a patched controls
+ *   block must keep publishing into the shared pool). Memoize the array.
  * @returns undefined when no `computed` array is declared.
  */
 export function useComputedContext(
   callId: string | undefined,
   bindings: ReadonlyMap<string, unknown>,
   specs: readonly (readonly unknown[])[],
+  publishedKeys: readonly string[] = EMPTY_KEYS,
 ): ComputedContext | undefined {
   const id = callId ?? ''
   const revision = useUiStateRevision(callId)
@@ -199,17 +219,24 @@ export function useComputedContext(
     // to read the new shared values. Recomputing is cheap (compiled formulas
     // are cached by the Phase 1 LRU).
     void revision
-    if (spec.length === 0) return undefined
-    const fields: Record<string, unknown> = {}
+    // No formulas means no values to resolve; a surface that still has to keep
+    // publishing into the shared pool (a composition block) gets a context with
+    // empty values so its forms stay live.
+    if (spec.length === 0 && publishedKeys.length === 0) return undefined
+    // Field names are model-authored: `constructor`, `toString` and `__proto__`
+    // are ordinary keys. A prototype-less target plus `defineProperty` keeps
+    // them own data values instead of hitting Object.prototype.
+    const fields = Object.create(null) as Record<string, unknown>
     for (const [key, initial] of bindings) {
       const stored = getUiState(id, key)
-      fields[key] = stored === undefined ? initial : stored
+      defineField(fields, key, stored === undefined ? initial : stored)
     }
     const result = evaluateComputed(spec, fields)
     const liveKeys = new Set<string>()
+    for (const key of publishedKeys) liveKeys.add(key)
     for (const entry of spec) {
       for (const name of extractIdentifiers(entry.expr)) if (bindings.has(name)) liveKeys.add(name)
     }
     return { values: result.values, formatted: result.formatted, errors: result.errors, liveKeys }
-  }, [id, bindings, spec, revision])
+  }, [id, bindings, spec, revision, publishedKeys])
 }

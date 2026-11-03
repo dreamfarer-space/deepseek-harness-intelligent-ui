@@ -454,7 +454,7 @@ export const CATALOG = Object.freeze({
     },
   },
   Form: {
-    description: 'Input form. Submit sends all field values prefixed by prompt. sessionTarget defaults to current; new creates an independent session in the same workspace and submits automatically. For new, prompt must contain complete task context and user constraints; conversation history is not copied. bindKey (on the form or a field) names the value in the computed scope; a field without bindKey binds to its name.',
+    description: 'Input form. Submit sends all field values prefixed by prompt. sessionTarget defaults to current; new creates an independent session in the same workspace and submits automatically. For new, prompt must contain complete task context and user constraints; conversation history is not copied. bindKey (on the form or a field) names the value in the computed scope; a field without bindKey binds to its name. A form-level bindKey only applies to a single-field form; give each field its own bindKey otherwise.',
     children: false,
     props: {
       title: { type: 'string' },
@@ -944,9 +944,10 @@ function checkComputed(entries, byId, paths, errors, extraFields) {
   const fieldKeys = new Set(extraFields ?? []);
   for (const node of byId.values()) {
     if (node.type !== 'Form' || !isPlainObject(node.props)) continue;
-    if (typeof node.props.bindKey === 'string') fieldKeys.add(node.props.bindKey);
-    if (!Array.isArray(node.props.fields)) continue;
-    for (const field of node.props.fields) {
+    const fields = Array.isArray(node.props.fields) ? node.props.fields : [];
+    // A form-level bindKey names the value of a single-field form only.
+    if (fields.length === 1 && typeof node.props.bindKey === 'string') fieldKeys.add(node.props.bindKey);
+    for (const field of fields) {
       if (!isPlainObject(field)) continue;
       if (typeof field.name === 'string' && field.name) fieldKeys.add(field.name);
       if (typeof field.bindKey === 'string' && field.bindKey) fieldKeys.add(field.bindKey);
@@ -1029,6 +1030,29 @@ export function validateProps(type, props, path = 'props') {
 }
 
 /**
+ * Rules about how a `Form` publishes values into the computed scope.
+ *
+ * Deliberately a whole-tree check rather than part of {@link validateProps}:
+ * the renderer validates props per node and degrades a bad node to a visible
+ * placeholder, so a per-node error here would make an accepted UI disappear.
+ * A form-level `bindKey` on a multi-field form is not renderable-wrong, it is
+ * meaningless (one key, several values) and must be rejected by the Host before
+ * a formula reads it as a variable that never has a value.
+ * @param {Map<string, any>} byId
+ * @param {Map<string, string>} paths
+ * @param {string[]} errors
+ */
+function checkFormBindings(byId, paths, errors) {
+  for (const node of byId.values()) {
+    if (node.type !== 'Form' || !isPlainObject(node.props) || node.props.bindKey === undefined) continue;
+    const fields = Array.isArray(node.props.fields) ? node.props.fields : [];
+    if (fields.length < 2) continue;
+    const at = `${paths.get(node.id) ?? node.id}(${node.id}).props.bindKey`;
+    errors.push(`${at}: a form with ${fields.length} fields has no single value to bind; set bindKey on the individual fields instead`);
+  }
+}
+
+/**
  * Validate a whole `ui_render` payload: node shape, ids, references, cycles,
  * single parent, depth, and per-type props.
  * @param {unknown} args - tool arguments.
@@ -1082,6 +1106,7 @@ export function validateTree(args, options) {
     }
   });
 
+  checkFormBindings(byId, paths, errors);
   checkComputed(args.computed, byId, paths, errors, options?.fields);
 
   const parentOf = new Map();

@@ -30,7 +30,7 @@ const OP_FIELDS = Object.freeze({
 
 /**
  * @typedef {{ id: string, type: string, props?: Record<string, unknown>, children?: string[] }} UiNode
- * @typedef {{ uiId: string, version: number, title?: string, root: string, components: UiNode[], computed?: unknown[], scope?: string[] }} UiSnapshot
+ * @typedef {{ uiId: string, version: number, title?: string, root: string, components: UiNode[], computed?: unknown[], scope?: string[], staleFields?: string[] }} UiSnapshot
  */
 
 function isPlainObject(v) {
@@ -81,6 +81,28 @@ function reachable(root, byId) {
   };
   walk(root);
   return out;
+}
+
+/**
+ * Field keys published by the `Form` nodes of one tree: a field's `bindKey`
+ * (with its `name` as an alias) and a single-field form's `bindKey`. The same
+ * rule `compositionFieldKeys` and the renderer use, so a patch can tell which
+ * shared values this block itself produced.
+ * @param {readonly UiNode[]} components
+ * @returns {Set<string>}
+ */
+function publishedFieldKeys(components) {
+  const keys = new Set();
+  for (const node of components ?? []) {
+    if (!isPlainObject(node) || node.type !== 'Form' || !isPlainObject(node.props)) continue;
+    const fields = Array.isArray(node.props.fields) ? node.props.fields.filter(isPlainObject) : [];
+    for (const field of fields) {
+      if (typeof field.bindKey === 'string' && field.bindKey) keys.add(field.bindKey);
+      if (typeof field.name === 'string' && field.name) keys.add(field.name);
+    }
+    if (fields.length === 1 && typeof node.props.bindKey === 'string' && node.props.bindKey) keys.add(node.props.bindKey);
+  }
+  return keys;
 }
 
 /**
@@ -230,6 +252,16 @@ export function applyPatch(ui, args) {
   // A composition block's formulas may also read fields a sibling block
   // publishes; `scope` carries those names (see collectUis).
   const scope = Array.isArray(ui.scope) ? ui.scope : undefined;
+  // A block that removes (or renames) the form it published a shared value
+  // through leaves a value no input of its own backs any more. `scope` stays
+  // (a sibling block may publish the same key), but the browser is told which
+  // keys this version no longer produces and must not resurrect their last
+  // value as if the removed input were still there.
+  const before = publishedFieldKeys(ui.components);
+  const after = publishedFieldKeys(components);
+  const staleFields = scope ? scope.filter(key => before.has(key) && !after.has(key)) : [];
+  const previous = Array.isArray(ui.staleFields) ? ui.staleFields.filter(key => scope?.includes(key) && !after.has(key)) : [];
+  const retired = [...new Set([...previous, ...staleFields])];
   // The whole next version passes the same checks as a fresh ui_render.
   const check = validateTree(
     clone({ ...(title ? { title } : {}), root: ui.root, components, ...(computed ? { computed } : {}) }),
@@ -244,6 +276,7 @@ export function applyPatch(ui, args) {
     ui: {
       uiId: ui.uiId, version: ui.version + 1, ...(title ? { title } : {}), root: ui.root, components,
       ...(computed ? { computed } : {}), ...(scope ? { scope } : {}),
+      ...(retired.length ? { staleFields: retired } : {}),
     },
     changed: [...changed].filter(id => reached.has(id)),
     warnings,

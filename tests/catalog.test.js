@@ -122,7 +122,6 @@ describe('root-level computed', () => {
       {
         id: 'form', type: 'Form',
         props: {
-          bindKey: 'order',
           fields: [
             { name: 'price', label: 'Price', type: 'number' },
             { name: 'qty', label: 'Qty', type: 'range', min: 0, max: 10, bindKey: 'quantity' },
@@ -201,6 +200,21 @@ describe('root-level computed', () => {
   it('rejects a computed id that collides with a form field key', () => {
     expect(validateTree(withComputed([{ id: 'quantity', expr: 'price' }])).errors.join())
       .toMatch(/"quantity" is also a form field key/)
+  })
+
+  it('rejects a form-level bindKey on a form with several fields', () => {
+    const twoFields = { ...withComputed([{ id: 'total', expr: 'price' }]) }
+    twoFields.components = twoFields.components.map(n => n.id === 'form'
+      ? { ...n, props: { ...n.props, bindKey: 'order' } }
+      : n)
+    expect(validateTree(twoFields).errors.join())
+      .toMatch(/\(form\)\.props\.bindKey: a form with 2 fields has no single value to bind/)
+    // One field, one value: a form-level bindKey stays valid there.
+    const oneField = { ...withComputed([{ id: 'total', expr: 'price' }]) }
+    oneField.components = oneField.components.map(n => n.id === 'form'
+      ? { ...n, props: { ...n.props, bindKey: 'order', fields: [{ name: 'price', label: 'Price', type: 'number' }] } }
+      : n)
+    expect(validateTree(oneField).ok).toBe(true)
   })
 })
 

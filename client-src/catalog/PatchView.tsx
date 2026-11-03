@@ -44,14 +44,20 @@ export function PatchView(props: ToolViewProps) {
   // A patch replaces the whole tree, `computed` included: the new formulas are
   // evaluated against the same shared state pool as the version they replace.
   // The snapshot's `scope` names the fields sibling blocks publish, so a
-  // formula that reads one keeps working after the patch.
+  // formula that reads one keeps working after the patch — except the keys
+  // this very patch orphaned (it removed or renamed the input that produced
+  // them): their last value is stale and must not come back as a phantom.
+  const stale = useMemo(() => new Set(ui?.staleFields ?? []), [ui])
+  const sharedScope = useMemo(() => (ui?.scope ?? []).filter(key => !stale.has(key)), [ui, stale])
   const bindings = useMemo(() => {
     const out = collectBindings(nodes.values(), ui?.root)
-    for (const key of ui?.scope ?? []) if (!out.has(key)) out.set(key, undefined)
+    for (const key of sharedScope) if (!out.has(key)) out.set(key, undefined)
     return out
-  }, [nodes, ui])
+  }, [nodes, ui, sharedScope])
   const computedSpecs = useMemo(() => [Array.isArray(ui?.computed) ? ui!.computed as unknown[] : []], [ui])
-  const computed = useComputedContext(ui?.uiId, bindings, computedSpecs)
+  // A block's forms keep publishing into the answer-wide pool even when this
+  // block's own formulas read none of their fields: the sibling blocks still do.
+  const computed = useComputedContext(ui?.uiId, bindings, computedSpecs, sharedScope)
   const [sending, setSending] = useState(false)
   const { t } = props
   const title = ui?.title || latest?.title || t('render.title')

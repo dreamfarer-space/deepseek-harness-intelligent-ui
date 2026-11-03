@@ -63,6 +63,13 @@ export interface PatchedUi {
    * pool, so these names must stay in its scope.
    */
   readonly scope?: readonly string[]
+  /**
+   * Subset of `scope` this patch stopped publishing: the previous version had a
+   * `Form` field for the key and the new one does not (a removed or renamed
+   * input). The pooled value it left behind is stale — the card must not read
+   * it back and show a value no visible input can produce any more.
+   */
+  readonly staleFields?: readonly string[]
 }
 
 export function patchedUiOf(meta: unknown): PatchedUi | undefined {

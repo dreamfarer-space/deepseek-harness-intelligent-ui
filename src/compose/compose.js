@@ -74,9 +74,10 @@ function collectFieldKeys(components, into) {
   if (!Array.isArray(components)) return into;
   for (const node of components) {
     if (!isPlainObject(node) || node.type !== 'Form' || !isPlainObject(node.props)) continue;
-    if (typeof node.props.bindKey === 'string' && node.props.bindKey) into.add(node.props.bindKey);
-    if (!Array.isArray(node.props.fields)) continue;
-    for (const field of node.props.fields) {
+    const fields = Array.isArray(node.props.fields) ? node.props.fields : [];
+    // A form-level bindKey names the value of a single-field form only.
+    if (fields.length === 1 && typeof node.props.bindKey === 'string' && node.props.bindKey) into.add(node.props.bindKey);
+    for (const field of fields) {
       if (!isPlainObject(field)) continue;
       if (typeof field.bindKey === 'string' && field.bindKey) into.add(field.bindKey);
       if (typeof field.name === 'string' && field.name) into.add(field.name);
