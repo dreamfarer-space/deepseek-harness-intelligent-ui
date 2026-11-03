@@ -6,11 +6,12 @@ import { usePartialArguments } from '../stream/args.ts'
 import { useStashOnDrop } from '../interrupted.ts'
 import { argsRawOf, interrupted, refused, resultText, type ToolViewProps } from '../types/dsh.ts'
 import { readComposeBlocks, readComposeTitle, type ComposeBlock } from './blocks.ts'
-import { useLatestUiVersion } from '../versions.ts'
+import { isSuperseded, useLatestUiVersion, useUiVersionsRevision } from '../versions.ts'
 import { Markdown } from './Markdown.tsx'
 import { indexNodes } from '../catalog/RenderView.tsx'
 import { renderNode, type RenderEnv, type UiNode } from '../catalog/components.tsx'
 import { collectBindings, useComputedContext } from '../catalog/computed-context.ts'
+import { useLiveScope } from '../catalog/live-scope.ts'
 import { WidgetWithErrors } from '../widget/WidgetWithErrors.tsx'
 
 /**
@@ -93,6 +94,9 @@ export function ComposeView(props: ToolViewProps) {
   const raw = streaming ? streamed : settledRaw
   const blocks = useMemo(() => readComposeBlocks(raw, salvage), [raw, salvage])
   const title = useMemo(() => readComposeTitle(raw, salvage), [raw, salvage])
+  // Blocks whose ui_patch produced a newer version are pointers here, so this
+  // answer's live producers change without the arguments changing.
+  const versions = useUiVersionsRevision()
   // One shared context for the whole answer (Issue #84, Phase 2): every block's
   // form fields land in one pool and every block's `computed` array is evaluated
   // against it, so a slider in block 1 drives a chart or table in block 2.
@@ -103,19 +107,37 @@ export function ComposeView(props: ToolViewProps) {
   }, [blocks])
   const bindings = useMemo(() => {
     const all = new Map<string, unknown>()
+    // A block whose ui_patch produced a newer version is a pointer here: its
+    // inputs are gone from this answer and its live copy (the `ui_patch` card)
+    // publishes instead. Collecting its fields would resurrect a value the page
+    // no longer has an input for.
     for (const b of blocks) {
       if (b.type !== 'catalog') continue
+      if (isSuperseded(blockUiId(props.callId ?? '', b.id))) continue
       const nodes = nodesByBlock.get(b.id)
       if (!nodes) continue
       for (const [key, value] of collectBindings(nodes.values(), b.root)) if (!all.has(key)) all.set(key, value)
     }
     return all
-  }, [blocks, nodesByBlock])
+  }, [blocks, nodesByBlock, versions, props.callId])
   const computedSpecs = useMemo(
     () => blocks.filter(b => b.type === 'catalog' && Array.isArray(b.computed)).map(b => b.computed as unknown[]),
     [blocks],
   )
-  const computed = useComputedContext(props.callId, bindings, computedSpecs)
+  // Keys the blocks rendered here publish: this answer's live producers.
+  const publishedKeys = useMemo(() => [...bindings.keys()], [bindings])
+  const live = useLiveScope(props.callId, publishedKeys)
+  // A block that was patched renders as a pointer here, but its live copy (the
+  // `ui_patch` card) still renders the inputs that version kept: those keys stay
+  // readable in this answer, and a formula here keeps following them. A key no
+  // live surface publishes any more is never added, so a removed input cannot
+  // leave its last value behind as a phantom.
+  const shared = useMemo(() => {
+    const out = new Map(bindings)
+    for (const key of live.published) if (!out.has(key)) out.set(key, undefined)
+    return out
+  }, [bindings, live])
+  const computed = useComputedContext(props.callId, shared, computedSpecs)
   const meta = block?.meta
   const policy = useMemo(() => meta === undefined ? DEFAULT_POLICY : policyFromMeta(meta), [meta])
   const guard = useMemo(() => new BridgeGuard({ policy, armDelayMs: 0, minIntervalMs: 1000 }), [policy])

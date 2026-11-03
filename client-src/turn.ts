@@ -70,6 +70,13 @@ export interface PatchedUi {
    * it back and show a value no visible input can produce any more.
    */
   readonly staleFields?: readonly string[]
+  /**
+   * Every `computed` id the answer declares (this block's own plus its
+   * composition siblings'): the Host refuses a patch that would publish a
+   * field key with one of these names, because one name cannot be both a field
+   * and a formula.
+   */
+  readonly computedIds?: readonly string[]
 }
 
 export function patchedUiOf(meta: unknown): PatchedUi | undefined {

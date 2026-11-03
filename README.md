@@ -215,6 +215,7 @@ When the user asks to change a UI shown earlier ("make that bar chart a line cha
 - **Concurrency:** `baseVersion` is required; a stale patch is refused with the current version, and patches never run in parallel.
 - **Scope:** the Host stores nothing. It rebuilds the current version by replaying the conversation's own history, so a patch can only address UIs of the same conversation.
 - **State:** components keep their ids across versions, so untouched components keep their sort, filters, tab, form input, submitted lock and slider positions. A replaced component starts fresh.
+- **Linked fields:** a block keeps reading the answer-wide field pool (`scope`) after a patch, so a formula still follows a slider a sibling block publishes. A field the patch removed only goes stale when no live input backs that key any more: a sibling block still publishing it keeps it live, and a key with no producer is never read back as the removed input's last value. A patch cannot add a *new* field key (it could collide with a sibling block's `computed` id) — re-render the answer for that.
 - **Display:** while a patch streams, the previous version stays live. On success the new version renders beneath the reply and the older copy collapses to "Updated to version N". Refused, failed or stopped patches change nothing.
 - **Widgets** are re-rendered rather than patched, and keep their `UI.state`.
 
