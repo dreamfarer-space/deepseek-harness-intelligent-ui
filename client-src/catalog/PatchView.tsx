@@ -9,7 +9,12 @@ import { patchedUiOf } from '../turn.ts'
 import { argsRawOf, interrupted, refused, resultText, type ToolViewProps } from '../types/dsh.ts'
 import { useLatestUiVersion } from '../versions.ts'
 import { renderNode, type RenderEnv } from './components.tsx'
+import { collectBindings, useComputedContext } from './computed-context.ts'
+import { useLiveScope } from './live-scope.ts'
 import { indexNodes } from './RenderView.tsx'
+
+/** Stable empty list: a fresh array each render would re-register the surface. */
+const EMPTY_KEYS: readonly string[] = Object.freeze([])
 
 /** The uiId the call targets, from complete or partial arguments. */
 function targetOf(raw: string, partial: boolean): string | undefined {
@@ -39,7 +44,41 @@ export function PatchView(props: ToolViewProps) {
   const meta = block?.meta
   const policy = useMemo(() => meta === undefined ? DEFAULT_POLICY : policyFromMeta(meta), [meta])
   const guard = useMemo(() => new BridgeGuard({ policy, armDelayMs: 0, minIntervalMs: 1000 }), [policy])
+  // A patch replaces the whole tree, `computed` included: the new formulas are
+  // evaluated against the same shared state pool as the version they replace.
+  // The snapshot's `scope` names the fields sibling blocks publish, so a
+  // formula that reads one keeps working after the patch — except a key no live
+  // input backs any more. This version's `staleFields` says which keys it
+  // stopped producing, but a sibling block may still publish the same key (and
+  // another block's patch may have retired it): only the surfaces actually on
+  // the page can answer that, see `live-scope.ts`. A key no input produces must
+  // never be read back as the removed input's last value.
   const nodes = useMemo(() => indexNodes(ui?.components), [ui])
+  const ownBindings = useMemo(() => collectBindings(nodes.values(), ui?.root), [nodes, ui])
+  const ownKeys = useMemo(() => [...ownBindings.keys()], [ownBindings])
+  const retiredKeys = useMemo(() => ui?.staleFields ?? EMPTY_KEYS, [ui])
+  // A card older than the UI's latest version renders a pointer, not a tree:
+  // its inputs are not on the page, so it must not claim to produce their keys
+  // (the newer card registers the keys its own version kept).
+  const superseded = ui !== undefined && latest !== undefined && latest.version > ui.version
+  const live = useLiveScope(
+    ui?.uiId,
+    superseded ? EMPTY_KEYS : ownKeys,
+    superseded ? EMPTY_KEYS : retiredKeys,
+  )
+  const sharedScope = useMemo(
+    () => (ui?.scope ?? []).filter(key => live.published.has(key) || !live.retired.has(key)),
+    [ui, live],
+  )
+  const bindings = useMemo(() => {
+    const out = new Map(ownBindings)
+    for (const key of sharedScope) if (!out.has(key)) out.set(key, undefined)
+    return out
+  }, [ownBindings, sharedScope])
+  const computedSpecs = useMemo(() => [Array.isArray(ui?.computed) ? ui!.computed as unknown[] : []], [ui])
+  // A block's forms keep publishing into the answer-wide pool even when this
+  // block's own formulas read none of their fields: the sibling blocks still do.
+  const computed = useComputedContext(ui?.uiId, bindings, computedSpecs, sharedScope)
   const [sending, setSending] = useState(false)
   const { t } = props
   const title = ui?.title || latest?.title || t('render.title')
@@ -77,6 +116,7 @@ export function PatchView(props: ToolViewProps) {
     t,
     // The UI's identity, not this call's: state persists across versions.
     callId: ui.uiId,
+    computed,
     policy,
     sendNewSession: props.sendNewSessionPrompt
       ? async (text, nodeId) => { await props.sendNewSessionPrompt!(guard.admitPrompt(text), ui.uiId, nodeId) }

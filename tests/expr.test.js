@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkExpression, compileExpression } from '../src/catalog/expr.js'
+import { checkExpression, clearExpressionCache, compileExpression, expressionCacheStats } from '../src/catalog/expr.js'
 
 const ev = (src, scope = {}, vars = Object.keys(scope)) => compileExpression(src, vars)(scope)
 
@@ -41,5 +41,68 @@ describe('compileExpression', () => {
     expect(checkExpression('x'.repeat(501), ['x'])).toMatch(/longer than/)
     expect(checkExpression('1 2', [])).toMatch(/unexpected "2"/)
     expect(checkExpression('x^2 + 1', ['x'])).toBeUndefined()
+  })
+})
+
+describe('comparisons and boolean logic', () => {
+  it('compares numbers with < <= > >= == !=', () => {
+    expect(ev('a < b', { a: 1, b: 2 })).toBe(true)
+    expect(ev('a <= 2', { a: 2 })).toBe(true)
+    expect(ev('a > 2', { a: 2 })).toBe(false)
+    expect(ev('a >= 2.5', { a: 2 })).toBe(false)
+    expect(ev('a == 2', { a: 2 })).toBe(true)
+    expect(ev('a != 2', { a: 2 })).toBe(false)
+    expect(ev('a == b', { a: true, b: 1 })).toBe(true)
+    expect(ev('2 <= 2')).toBe(true)
+  })
+
+  it('applies the documented precedence: || < && < == < < < + < * < unary < ^', () => {
+    expect(ev('1 + 2 * 3 > 6 && 4 == 4')).toBe(true)
+    expect(ev('1 > 2 || 3 == 3')).toBe(true)
+    expect(ev('2 * 3 == 6 && 3 > 2')).toBe(true)
+    expect(ev('a > 1 || a < 0', { a: 0.5 })).toBe(false)
+    expect(ev('-2 ^ 2')).toBe(-4)
+    expect(ev('!(a > 1)', { a: 5 })).toBe(false)
+    expect(ev('!a', { a: 0 })).toBe(true)
+    expect(ev('!x + 1', { x: 0 })).toBe(2)
+  })
+
+  it('short-circuits && and ||', () => {
+    expect(ev('0 && 1/0')).toBe(0)
+    expect(ev('1 || 1/0')).toBe(1)
+    expect(ev('a || 5', { a: 0 })).toBe(5)
+    expect(ev('a && 5', { a: 0 })).toBe(0)
+  })
+
+  it('treats a missing operand as "no comparison" instead of 0', () => {
+    expect(ev('a > 0', { a: undefined })).toBe(false)
+    expect(ev('a == 0', { a: undefined })).toBe(false)
+    expect(ev('a != 0', { a: undefined })).toBe(true)
+    expect(ev('a > 0', { a: null })).toBe(false)
+    expect(ev('a < 10', { a: Number.NaN })).toBe(false)
+    expect(ev('a + b', { a: undefined, b: 1 })).toBeNaN()
+  })
+
+  it('rejects half-written operators and keeps valid logic expressions', () => {
+    expect(checkExpression('a & b', ['a', 'b'])).toMatch(/unexpected character "&" at 2; use "==", "&&" or "\|\|"/)
+    expect(checkExpression('a | b', ['a', 'b'])).toMatch(/unexpected character/)
+    expect(checkExpression('a = b', ['a', 'b'])).toMatch(/unexpected character/)
+    expect(checkExpression('a === b', ['a', 'b'])).toMatch(/unexpected character/)
+    expect(checkExpression('a >', ['a'])).toMatch(/unexpected end of expression/)
+    expect(checkExpression('a > 1 &&', ['a'])).toMatch(/unexpected end of expression/)
+    expect(checkExpression('!(a > 1)', ['a'])).toBeUndefined()
+    expect(checkExpression('a >= 1 && b != 2', ['a', 'b'])).toBeUndefined()
+  })
+})
+
+describe('compiled-expression cache', () => {
+  it('reuses the same closure and clears on demand', () => {
+    clearExpressionCache()
+    const first = compileExpression('x > 1', ['x'])
+    expect(compileExpression('x > 1', ['x'])).toBe(first)
+    const stats = expressionCacheStats()
+    expect(stats).toMatchObject({ size: 1, hits: 1, misses: 1, limit: 500 })
+    clearExpressionCache()
+    expect(expressionCacheStats()).toMatchObject({ size: 0, hits: 0, misses: 0 })
   })
 })

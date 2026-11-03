@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEven
 /** Categorical palette readable on light and dark surfaces. */
 export const PALETTE = ['#4d6bfe', '#22a06b', '#f2a33a', '#e5484d', '#8e6cef', '#12a5c4', '#e0569b', '#7fae2e', '#f07a2e', '#6b7a90', '#1aa89a', '#b25fe0']
 
-export interface ChartSeries { name: string; values: readonly number[] }
+export interface ChartSeries { name: string; values: readonly (number | null | undefined)[] }
 export interface ChartProps {
   kind: 'bar' | 'line' | 'area' | 'pie'
   labels: readonly (string | number | boolean | null)[]
@@ -59,6 +59,18 @@ export function formatNumber(v: number): string {
   return String(+v.toFixed(2))
 }
 
+/**
+ * A plotted value. A computed slot resolves to `undefined` when its formula
+ * failed and to `null` when the row has no value; neither is a number, so the
+ * point is left out instead of being drawn as 0.
+ */
+function plotted(v: number | null | undefined): v is number {
+  return typeof v === 'number' && Number.isFinite(v)
+}
+
+/** Placeholder for a point with no value (tooltip and legend). */
+const NO_VALUE = '—'
+
 export function Chart(props: ChartProps) {
   const [hidden, setHidden] = useState<ReadonlySet<number>>(new Set())
   const [hover, setHover] = useState<number | undefined>(undefined)
@@ -100,9 +112,13 @@ export function Chart(props: ChartProps) {
               {hover !== undefined && series.length > 0 && (
                 <div className="diui-tooltip" style={{ left: `${((PAD.left + ((W - PAD.left - PAD.right) / n) * (hover + 0.5)) / W) * 100}%` }}>
                   <div className="diui-tooltip-head">{String(props.labels[hover] ?? '')}</div>
-                  {series.map(s => (
-                    <div key={s.name}><i style={{ background: PALETTE[props.series.indexOf(s) % PALETTE.length] }} />{s.name}: {formatNumber(s.values[hover] ?? 0)}{props.unit ? ` ${props.unit}` : ''}</div>
-                  ))}
+                  {series.map(s => {
+                    // A formula that failed has no value: show a gap, never 0.
+                    const v = s.values[hover]
+                    return (
+                      <div key={s.name}><i style={{ background: PALETTE[props.series.indexOf(s) % PALETTE.length] }} />{s.name}: {plotted(v) ? formatNumber(v) : NO_VALUE}{props.unit ? ` ${props.unit}` : ''}</div>
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -122,7 +138,8 @@ function Cartesian(props: ChartProps & { height: number; width: number; n: numbe
     let pos = 0
     let neg = 0
     for (const s of series) {
-      const v = s.values[i] ?? 0
+      const v = s.values[i]
+      if (!plotted(v)) continue // no value: it must not stretch the scale
       if (stacked) { if (v >= 0) pos += v; else neg += v } else { hi = Math.max(hi, v); lo = Math.min(lo, v) }
     }
     if (stacked) { hi = Math.max(hi, pos); lo = Math.min(lo, neg) }
@@ -146,7 +163,9 @@ function Cartesian(props: ChartProps & { height: number; width: number; n: numbe
       let pos = 0
       let neg = 0
       series.forEach((s, si) => {
-        const v = s.values[i] ?? 0
+        const v = s.values[i]
+        // A missing point draws no bar at all (0 height would read as a real 0).
+        if (!plotted(v)) return
         let from = 0
         let to = v
         if (stacked) {
@@ -165,26 +184,35 @@ function Cartesian(props: ChartProps & { height: number; width: number; n: numbe
   } else {
     const base = new Array<number>(n).fill(0)
     series.forEach((s, si) => {
-      const pts = Array.from({ length: n }, (_, i) => {
-        const v = s.values[i] ?? 0
-        const top = stacked ? base[i]! + v : v
-        return { x: xc(i), y: y(top), y0: y(stacked ? base[i]! : Math.max(yMin, Math.min(0, yMax))), v, i }
-      })
-      if (stacked) pts.forEach(p => { base[p.i] = base[p.i]! + p.v })
-      const line = pts.map((p, k) => `${k ? 'L' : 'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join('')
       const color = props.colorOf(s)
-      if (props.kind === 'area') {
-        const back = [...pts].reverse().map(p => `L${p.x.toFixed(1)},${p.y0.toFixed(1)}`).join('')
-        marks.push(<path key={`a${si}`} d={`${line}${back}Z`} fill={color} opacity={0.18} />)
+      // Consecutive categories that have a value form one path; a gap breaks
+      // the line instead of dropping it to zero.
+      const runs: { i: number; v: number; x: number; y: number; y0: number }[][] = []
+      let run: { i: number; v: number; x: number; y: number; y0: number }[] = []
+      for (let i = 0; i < n; i++) {
+        const v = s.values[i]
+        if (!plotted(v)) { if (run.length) runs.push(run); run = []; continue }
+        const top = stacked ? base[i]! + v : v
+        run.push({ i, v, x: xc(i), y: y(top), y0: y(stacked ? base[i]! : Math.max(yMin, Math.min(0, yMax))) })
+        if (stacked) base[i] = base[i]! + v
       }
-      marks.push(<path key={`l${si}`} d={line} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" />)
-      if (n <= 60) {
-        pts.forEach(p => marks.push(
-          <circle key={`p${si}-${p.i}`} cx={p.x} cy={p.y} r={3} fill={color}>
-            <title>{`${String(props.labels[p.i])} · ${s.name}: ${p.v}${unit}`}</title>
-          </circle>,
-        ))
-      }
+      if (run.length) runs.push(run)
+      runs.forEach((pts, k) => {
+        const key = k === 0 ? `${si}` : `${si}-${k}`
+        const line = pts.map((p, j) => `${j ? 'L' : 'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join('')
+        if (props.kind === 'area') {
+          const back = [...pts].reverse().map(p => `L${p.x.toFixed(1)},${p.y0.toFixed(1)}`).join('')
+          marks.push(<path key={`a${key}`} d={`${line}${back}Z`} fill={color} opacity={0.18} />)
+        }
+        marks.push(<path key={`l${key}`} d={line} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" />)
+        if (n <= 60) {
+          pts.forEach(p => marks.push(
+            <circle key={`p${key}-${p.i}`} cx={p.x} cy={p.y} r={3} fill={color}>
+              <title>{`${String(props.labels[p.i])} · ${s.name}: ${p.v}${unit}`}</title>
+            </circle>,
+          ))
+        }
+      })
     })
   }
 
@@ -228,7 +256,9 @@ function Cartesian(props: ChartProps & { height: number; width: number; n: numbe
 
 function Pie(props: ChartProps & { height: number; width: number }) {
   const W = props.width
-  const values = (props.series[0]?.values ?? []).map(v => Math.max(0, v))
+  const raw = props.series[0]?.values ?? []
+  // A missing slice has no angle; it is left out of the total (never counted as 0).
+  const values = raw.map(v => (plotted(v) ? Math.max(0, v) : 0))
   const total = values.reduce((a, b) => a + b, 0)
   if (total <= 0) return <div className="diui-empty">{props.emptyText}</div>
   const H = props.height
@@ -240,6 +270,7 @@ function Pie(props: ChartProps & { height: number; width: number }) {
   return (
     <svg className="diui-chart-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={props.title ?? 'chart'}>
       {values.map((v, i) => {
+        if (!plotted(raw[i])) return null
         const a0 = angle
         const a1 = angle + (v / total) * Math.PI * 2
         angle = a1
@@ -259,14 +290,14 @@ function Pie(props: ChartProps & { height: number; width: number }) {
   )
 }
 
-function PieLegend(props: { labels: ChartProps['labels']; values: readonly number[]; unit?: string }) {
-  const total = props.values.reduce((a, b) => a + Math.max(0, b), 0) || 1
+function PieLegend(props: { labels: ChartProps['labels']; values: ChartSeries['values']; unit?: string }) {
+  const total = props.values.reduce((a: number, b) => a + (plotted(b) ? Math.max(0, b) : 0), 0) || 1
   return (
     <div className="diui-legend">
       {props.labels.map((l, i) => (
         <span key={i} className="diui-legend-item">
           <i style={{ background: PALETTE[i % PALETTE.length] }} />
-          {String(l)} · {(((props.values[i] ?? 0) / total) * 100).toFixed(1)}%
+          {String(l)} · {plotted(props.values[i]) ? `${((props.values[i]! / total) * 100).toFixed(1)}%` : NO_VALUE}
         </span>
       ))}
     </div>

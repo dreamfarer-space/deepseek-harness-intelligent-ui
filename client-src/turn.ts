@@ -55,6 +55,28 @@ export interface PatchedUi {
   readonly title?: string
   readonly root: string
   readonly components: readonly unknown[]
+  /** Root-level computed formulas of the patched tree, when it declares any. */
+  readonly computed?: readonly unknown[]
+  /**
+   * Field keys the patched tree's formulas may read from sibling blocks of its
+   * composition (see `compose.js`): the patch card evaluates against the same
+   * pool, so these names must stay in its scope.
+   */
+  readonly scope?: readonly string[]
+  /**
+   * Subset of `scope` this patch stopped publishing: the previous version had a
+   * `Form` field for the key and the new one does not (a removed or renamed
+   * input). The pooled value it left behind is stale — the card must not read
+   * it back and show a value no visible input can produce any more.
+   */
+  readonly staleFields?: readonly string[]
+  /**
+   * Every `computed` id the answer declares (this block's own plus its
+   * composition siblings'): the Host refuses a patch that would publish a
+   * field key with one of these names, because one name cannot be both a field
+   * and a formula.
+   */
+  readonly computedIds?: readonly string[]
 }
 
 export function patchedUiOf(meta: unknown): PatchedUi | undefined {

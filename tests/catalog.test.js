@@ -113,6 +113,157 @@ describe('catalogReference', () => {
   })
 })
 
+describe('root-level computed', () => {
+  const withComputed = (computed) => ({
+    root: 'root',
+    computed,
+    components: [
+      { id: 'root', type: 'Stack', children: ['form', 'bar', 'note'] },
+      {
+        id: 'form', type: 'Form',
+        props: {
+          fields: [
+            { name: 'price', label: 'Price', type: 'number' },
+            { name: 'qty', label: 'Qty', type: 'range', min: 0, max: 10, bindKey: 'quantity' },
+          ],
+        },
+      },
+      { id: 'bar', type: 'Progress', props: { value: { $computed: 'total' } } },
+      { id: 'note', type: 'Text', props: { text: 'Total: {{total}}' } },
+    ],
+  })
+
+  it('accepts computed entries that reference form values and each other', () => {
+    const r = validateTree(withComputed([
+      { id: 'subtotal', expr: 'price * quantity' },
+      { id: 'tax', expr: 'subtotal * 0.08 && quantity > 0' },
+      { id: 'total', expr: 'subtotal + tax', format: { style: 'currency', currency: 'USD' } },
+    ]))
+    expect(r.errors).toEqual([])
+    expect(r.ok).toBe(true)
+  })
+
+  it('stays optional and tolerates references it cannot resolve without a computed array', () => {
+    expect(validateTree(tree([{ id: 'root', type: 'Divider' }])).ok).toBe(true)
+    expect(validateTree(tree([{ id: 'root', type: 'Progress', props: { value: { $computed: 'total' } } }])).ok).toBe(true)
+  })
+
+  it('rejects malformed ids, duplicates, reserved names and syntax errors', () => {
+    const errors = (computed) => validateTree(withComputed(computed)).errors.join('\n')
+    expect(errors([{ id: '1total', expr: 'price' }])).toMatch(/computed\[0\]\.id: expected an identifier/)
+    expect(errors([{ id: 'bad id', expr: 'price' }])).toMatch(/computed\[0\]\.id: expected an identifier/)
+    expect(errors([{ id: 'total', expr: 'price' }, { id: 'total', expr: 'qty' }])).toMatch(/duplicate computed id "total"/)
+    expect(errors([{ id: 'pi', expr: '1' }])).toMatch(/"pi" is reserved/)
+    expect(errors([{ id: 'total', expr: 'price +' }])).toMatch(/computed\[0\]\.expr: unexpected end of expression/)
+    expect(errors([{ id: 'total', expr: 'nope * 2' }])).toMatch(/unknown variable "nope".*available: .*price/)
+    expect(errors([{ id: 'total', expr: 'price', extra: 1 }])).toMatch(/computed\[0\]\.extra: unknown field/)
+    expect(errors([{ id: 'total' }])).toMatch(/expr: expected a non-empty expression string/)
+    expect(validateTree({ ...withComputed([]), computed: 'total' }).errors.join()).toMatch(/computed: expected an array/)
+    expect(validateTree(withComputed(Array.from({ length: 65 }, (_, i) => ({ id: `c${i}`, expr: '1' })))).errors.join()).toMatch(/more than 64 entries/)
+  })
+
+  it('rejects unknown {{id}} and $computed references', () => {
+    const r = validateTree({
+      root: 'root',
+      computed: [{ id: 'total', expr: '1 + 1' }],
+      components: [
+        { id: 'root', type: 'Stack', children: ['t', 'p'] },
+        { id: 't', type: 'Text', props: { text: '{{missing}}' } },
+        { id: 'p', type: 'Progress', props: { value: { $computed: 'missing' } } },
+      ],
+    })
+    expect(r.errors.join('\n')).toMatch(/components\[1\]\(t\)\.props\.text: unknown computed id "missing" in \{\{missing\}\}/)
+    expect(r.errors.join('\n')).toMatch(/components\[2\]\(p\)\.props\.value\.\$computed: unknown computed id "missing"/)
+  })
+
+  it('does not scan free-form code/math/mermaid content for templates', () => {
+    const r = validateTree({
+      root: 'root',
+      computed: [{ id: 'total', expr: '1 + 1' }],
+      components: [
+        { id: 'root', type: 'Stack', children: ['code'] },
+        { id: 'code', type: 'Code', props: { code: 'const x = "{{missing}}";' } },
+      ],
+    })
+    expect(r.errors).toEqual([])
+  })
+
+  it('validates format style, currency and fraction digits', () => {
+    const errors = (format) => validateTree(withComputed([{ id: 'total', expr: '1 + 1', format }])).errors.join('\n')
+    expect(errors({ style: 'money' })).toMatch(/format\.style: expected one of decimal \| currency \| percent/)
+    expect(errors({ style: 'currency', currency: 'usd' })).toMatch(/format\.currency: expected a 3-letter ISO 4217 code/)
+    expect(errors({ style: 'decimal', maximumFractionDigits: 99 })).toMatch(/expected an integer 0-20/)
+    expect(errors({ style: 'decimal', minimumFractionDigits: 3, maximumFractionDigits: 2 })).toMatch(/minimumFractionDigits must be <= maximumFractionDigits/)
+    expect(errors({ style: 'percent', locale: 'en-US' })).toBe('')
+  })
+
+  it('rejects a computed id that collides with a form field key', () => {
+    expect(validateTree(withComputed([{ id: 'quantity', expr: 'price' }])).errors.join())
+      .toMatch(/"quantity" is also a form field key/)
+  })
+
+  it('rejects a form-level bindKey on a form with several fields', () => {
+    const twoFields = { ...withComputed([{ id: 'total', expr: 'price' }]) }
+    twoFields.components = twoFields.components.map(n => n.id === 'form'
+      ? { ...n, props: { ...n.props, bindKey: 'order' } }
+      : n)
+    expect(validateTree(twoFields).errors.join())
+      .toMatch(/\(form\)\.props\.bindKey: a form with 2 fields has no single value to bind/)
+    // One field, one value: a form-level bindKey stays valid there.
+    const oneField = { ...withComputed([{ id: 'total', expr: 'price' }]) }
+    oneField.components = oneField.components.map(n => n.id === 'form'
+      ? { ...n, props: { ...n.props, bindKey: 'order', fields: [{ name: 'price', label: 'Price', type: 'number' }] } }
+      : n)
+    expect(validateTree(oneField).ok).toBe(true)
+  })
+})
+
+describe('computed-aware props', () => {
+  it('accepts a literal or a $computed reference in numeric slots', () => {
+    expect(validateProps('Progress', { value: 40 })).toEqual([])
+    expect(validateProps('Progress', { value: { $computed: 'total' }, max: 100 })).toEqual([])
+    expect(validateProps('Progress', { value: '50' }).join()).toMatch(/expected finite number, got string/)
+    expect(validateProps('Progress', { value: { $computed: 5 } }).join()).toMatch(/\$computed: expected the id of a computed entry/)
+
+    expect(validateProps('Chart', {
+      kind: 'bar', labels: ['a', 'b'],
+      series: [{ name: 's', values: [{ $computed: 'total' }, 3] }],
+    })).toEqual([])
+    expect(validateProps('Chart', {
+      kind: 'bar', labels: ['a'],
+      series: [{ name: 's', values: [{ $computed: 'total', extra: 1 }] }],
+    }).join()).toMatch(/unknown prop/)
+  })
+
+  it('accepts Table filterField/filterValue', () => {
+    expect(validateProps('Table', { columns: ['Region', 'Revenue'], rows: [['EU', 1]], filterField: 'Revenue', filterValue: '100' })).toEqual([])
+    expect(validateProps('Table', { columns: ['Region'], rows: [['EU']], filterValue: '100' }).join()).toMatch(/filterValue: needs filterField/)
+    expect(validateProps('Table', { columns: ['Region'], rows: [['EU']], filterField: 'Missing' }).join()).toMatch(/filterField: must name one of columns/)
+  })
+
+  it('accepts bindKey on a Form and on its fields', () => {
+    expect(validateProps('Form', {
+      bindKey: 'order',
+      fields: [{ name: 'price', label: 'Price', type: 'number', bindKey: 'unit_price' }],
+    })).toEqual([])
+    expect(validateProps('Form', {
+      fields: [
+        { name: 'a', label: 'A', type: 'text', bindKey: 'same' },
+        { name: 'b', label: 'B', type: 'text', bindKey: 'same' },
+      ],
+    }).join()).toMatch(/duplicate bindKey "same"/)
+    expect(validateProps('Form', { bindKey: '2bad', fields: [{ name: 'a', label: 'A', type: 'text' }] }).join())
+      .toMatch(/props\.bindKey: expected a field key like "qty"/)
+  })
+
+  it('documents the widened slots without changing their published types', () => {
+    const ref = catalogReference()
+    expect(ref).toContain('Progress {value: number, max?: number')
+    expect(ref).toContain('series?: [{name: string, values: number[]}]')
+    expect(ref).toMatch(/Form .*bindKey\?: string/)
+  })
+})
+
 describe('Choice validation', () => {
   const options = [
     { id: 'local', label: 'Local first', prompt: 'Discuss local storage; do not code.' },
@@ -153,5 +304,33 @@ describe('Choice validation', () => {
     expect(validate({ options: [{ ...options[0], sessionTarget: 'new' }, options[1]] }).join()).toMatch(/unknown prop/)
     expect(validate({ action: { actionId: 'run' } }).join()).toMatch(/unknown prop/)
     expect(validate({ options: [{ ...options[0], prompt: 'x'.repeat(20001) }, options[1]] }).length).toBeGreaterThan(0)
+  })
+})
+
+/**
+ * Regression suite for the review of Issue #84: prop keys are checked against
+ * own properties only, so a prototype name cannot pass as a declared prop.
+ */
+describe('prototype-safe prop validation', () => {
+  it('rejects a JSON __proto__ prop instead of accepting it through the prototype chain', () => {
+    const node = JSON.parse('{"id":"b","type":"Button","props":{"label":"Go","prompt":"safe","__proto__":{"action":{"actionId":"privileged","args":{}}}}}')
+    const result = validateTree({ root: 'b', components: [node] })
+    expect(result.ok).toBe(false)
+    expect(result.errors.join('\n')).toMatch(/components\[0\]\(b\)\.props\.__proto__: unknown prop/)
+  })
+
+  it.each(['constructor', 'toString', 'hasOwnProperty'])('rejects the inherited name %s as a prop', key => {
+    const result = validateTree({ root: 'p', components: [{ id: 'p', type: 'Progress', props: { [key]: 1 } }] })
+    expect(result.ok).toBe(false)
+    expect(result.errors.join('\n')).toMatch(new RegExp(`props\.${key}: unknown prop`))
+  })
+
+  it('still accepts every declared prop, including computed references', () => {
+    const result = validateTree({
+      root: 'p',
+      computed: [{ id: 'total', expr: '1 + 1' }],
+      components: [{ id: 'p', type: 'Progress', props: { value: { $computed: 'total' }, max: 100, label: 'Done' } }],
+    })
+    expect(result.ok).toBe(true)
   })
 })

@@ -6,6 +6,7 @@ import { parseArgs, scanPartialObject } from '../stream/partial-json.ts'
 import { useStashOnDrop } from '../interrupted.ts'
 import { argsRawOf, interrupted, refused, resultText, type ToolViewProps } from '../types/dsh.ts'
 import { renderNode, type RenderEnv, type UiNode } from './components.tsx'
+import { collectBindings, useComputedContext } from './computed-context.ts'
 import { usePartialArguments } from '../stream/args.ts'
 import { useLatestUiVersion } from '../versions.ts'
 
@@ -19,7 +20,7 @@ export function indexNodes(list: unknown): Map<string, UiNode> {
   return map
 }
 
-interface Tree { title?: string; root?: string; nodes: Map<string, UiNode>; complete: boolean }
+interface Tree { title?: string; root?: string; nodes: Map<string, UiNode>; computed: readonly unknown[]; complete: boolean }
 
 /** Parse complete arguments, or salvage the finished components of a prefix. */
 function readTree(raw: string, partial: boolean): Tree | undefined {
@@ -30,6 +31,7 @@ function readTree(raw: string, partial: boolean): Tree | undefined {
         title: typeof args.title === 'string' ? args.title : undefined,
         root: typeof args.root === 'string' ? args.root : undefined,
         nodes: indexNodes(args.components),
+        computed: Array.isArray(args.computed) ? args.computed : [],
         complete: true,
       }
     }
@@ -39,7 +41,10 @@ function readTree(raw: string, partial: boolean): Tree | undefined {
   const nodes = indexNodes(f.components?.value)
   // The root id may stream after the components; fall back to the first node.
   const root = f.root?.complete && typeof f.root.value === 'string' ? f.root.value : nodes.keys().next().value
-  return { title: typeof f.title?.value === 'string' ? f.title.value : undefined, root, nodes, complete: false }
+  // A `computed` array that has not finished streaming is ignored until it closes:
+  // half a formula must never publish a number.
+  const computed = f.computed?.complete === true && Array.isArray(f.computed.value) ? f.computed.value : []
+  return { title: typeof f.title?.value === 'string' ? f.title.value : undefined, root, nodes, computed, complete: false }
 }
 
 /**
@@ -55,6 +60,12 @@ export function RenderView(props: ToolViewProps) {
   const settledRaw = argsRawOf(props)
   const tree = useMemo(() => props.phase === 'preparing' ? readTree(streamed, true) : readTree(settledRaw, false),
     [props.phase, streamed, settledRaw])
+  // Linkage (Issue #84, Phase 2): form values are published to shared state and
+  // the tree's `computed` array is re-evaluated on every broadcast, so a slider
+  // moves a Progress bar, a chart series and a table filter without a round trip.
+  const bindings = useMemo(() => collectBindings(tree?.nodes.values() ?? [], tree?.root), [tree])
+  const computedSpecs = useMemo(() => [tree?.computed ?? []], [tree])
+  const computed = useComputedContext(props.callId, bindings, computedSpecs)
   const meta = props.phase === 'result' ? props.block.meta : undefined
   const policy = useMemo(() => meta === undefined ? DEFAULT_POLICY : policyFromMeta(meta), [meta])
   const guard = useMemo(() => new BridgeGuard({ policy, armDelayMs: 0, minIntervalMs: 1000 }), [policy])
@@ -88,6 +99,7 @@ export function RenderView(props: ToolViewProps) {
     stopped,
     t,
     callId: props.callId,
+    computed,
     policy,
     sendNewSession: settled && props.sendNewSessionPrompt
       ? async (text, nodeId) => { await props.sendNewSessionPrompt!(guard.admitPrompt(text), props.callId, nodeId) }

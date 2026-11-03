@@ -6,10 +6,12 @@ import { usePartialArguments } from '../stream/args.ts'
 import { useStashOnDrop } from '../interrupted.ts'
 import { argsRawOf, interrupted, refused, resultText, type ToolViewProps } from '../types/dsh.ts'
 import { readComposeBlocks, readComposeTitle, type ComposeBlock } from './blocks.ts'
-import { useLatestUiVersion } from '../versions.ts'
+import { isSuperseded, useLatestUiVersion, useUiVersionsRevision } from '../versions.ts'
 import { Markdown } from './Markdown.tsx'
 import { indexNodes } from '../catalog/RenderView.tsx'
 import { renderNode, type RenderEnv, type UiNode } from '../catalog/components.tsx'
+import { collectBindings, useComputedContext } from '../catalog/computed-context.ts'
+import { useLiveScope } from '../catalog/live-scope.ts'
 import { WidgetWithErrors } from '../widget/WidgetWithErrors.tsx'
 
 /**
@@ -92,6 +94,50 @@ export function ComposeView(props: ToolViewProps) {
   const raw = streaming ? streamed : settledRaw
   const blocks = useMemo(() => readComposeBlocks(raw, salvage), [raw, salvage])
   const title = useMemo(() => readComposeTitle(raw, salvage), [raw, salvage])
+  // Blocks whose ui_patch produced a newer version are pointers here, so this
+  // answer's live producers change without the arguments changing.
+  const versions = useUiVersionsRevision()
+  // One shared context for the whole answer (Issue #84, Phase 2): every block's
+  // form fields land in one pool and every block's `computed` array is evaluated
+  // against it, so a slider in block 1 drives a chart or table in block 2.
+  const nodesByBlock = useMemo(() => {
+    const out = new Map<string, Map<string, UiNode>>()
+    for (const b of blocks) if (b.type === 'catalog') out.set(b.id, indexNodes(b.components))
+    return out
+  }, [blocks])
+  const bindings = useMemo(() => {
+    const all = new Map<string, unknown>()
+    // A block whose ui_patch produced a newer version is a pointer here: its
+    // inputs are gone from this answer and its live copy (the `ui_patch` card)
+    // publishes instead. Collecting its fields would resurrect a value the page
+    // no longer has an input for.
+    for (const b of blocks) {
+      if (b.type !== 'catalog') continue
+      if (isSuperseded(blockUiId(props.callId ?? '', b.id))) continue
+      const nodes = nodesByBlock.get(b.id)
+      if (!nodes) continue
+      for (const [key, value] of collectBindings(nodes.values(), b.root)) if (!all.has(key)) all.set(key, value)
+    }
+    return all
+  }, [blocks, nodesByBlock, versions, props.callId])
+  const computedSpecs = useMemo(
+    () => blocks.filter(b => b.type === 'catalog' && Array.isArray(b.computed)).map(b => b.computed as unknown[]),
+    [blocks],
+  )
+  // Keys the blocks rendered here publish: this answer's live producers.
+  const publishedKeys = useMemo(() => [...bindings.keys()], [bindings])
+  const live = useLiveScope(props.callId, publishedKeys)
+  // A block that was patched renders as a pointer here, but its live copy (the
+  // `ui_patch` card) still renders the inputs that version kept: those keys stay
+  // readable in this answer, and a formula here keeps following them. A key no
+  // live surface publishes any more is never added, so a removed input cannot
+  // leave its last value behind as a phantom.
+  const shared = useMemo(() => {
+    const out = new Map(bindings)
+    for (const key of live.published) if (!out.has(key)) out.set(key, undefined)
+    return out
+  }, [bindings, live])
+  const computed = useComputedContext(props.callId, shared, computedSpecs)
   const meta = block?.meta
   const policy = useMemo(() => meta === undefined ? DEFAULT_POLICY : policyFromMeta(meta), [meta])
   const guard = useMemo(() => new BridgeGuard({ policy, armDelayMs: 0, minIntervalMs: 1000 }), [policy])
@@ -118,6 +164,7 @@ export function ComposeView(props: ToolViewProps) {
     stopped,
     t,
     callId: props.callId,
+    computed,
     policy,
     send: settled
       ? async (text) => { await props.sendPrompt(guard.admitPrompt(text)) }
@@ -151,6 +198,7 @@ export function ComposeView(props: ToolViewProps) {
             <div className="diui-compose">
               {blocks.map((entry, index) => (
                 <BlockItem key={`${entry.id}:${index}`} block={entry} env={env} settled={settled} policy={policy}
+                  nodes={nodesByBlock.get(entry.id) ?? EMPTY_NODES}
                   sendNewSessionPrompt={settled && props.sendNewSessionPrompt
                     ? async (text, uiId, nodeId) => { await props.sendNewSessionPrompt!(guard.admitPrompt(text), uiId, nodeId) }
                     : undefined} />
@@ -161,10 +209,9 @@ export function ComposeView(props: ToolViewProps) {
   )
 }
 
-function BlockItem(props: { block: ComposeBlock; env: RenderEnv; settled: boolean; policy: ReturnType<typeof policyFromMeta>; sendNewSessionPrompt?: ToolViewProps['sendNewSessionPrompt'] }) {
+function BlockItem(props: { block: ComposeBlock; env: RenderEnv; settled: boolean; policy: ReturnType<typeof policyFromMeta>; nodes: ReadonlyMap<string, UiNode>; sendNewSessionPrompt?: ToolViewProps['sendNewSessionPrompt'] }) {
   const { block, env } = props
   // Hooks run for every block; only catalog blocks use their nodes/version.
-  const nodes = useMemo(() => block.type === 'catalog' ? indexNodes(block.components) : new Map<string, UiNode>(), [block])
   const latest = useLatestUiVersion(block.type === 'catalog' ? blockUiId(env.callId ?? '', block.id) : undefined)
   if (block.type === 'markdown') return <Markdown text={block.text ?? ''} />
   if (block.type === 'widget') {
@@ -177,5 +224,8 @@ function BlockItem(props: { block: ComposeBlock; env: RenderEnv; settled: boolea
       </div>
     )
   }
-  return <CatalogBlock block={block} env={env} nodes={nodes} sendNewSessionPrompt={props.sendNewSessionPrompt} />
+  return <CatalogBlock block={block} env={env} nodes={props.nodes} sendNewSessionPrompt={props.sendNewSessionPrompt} />
 }
+
+/** Placeholder nodes for non-catalog blocks (kept stable so memoization holds). */
+const EMPTY_NODES: ReadonlyMap<string, UiNode> = new Map()

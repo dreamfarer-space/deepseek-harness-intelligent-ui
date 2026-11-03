@@ -57,6 +57,7 @@ export function createPatchTool(config) {
       '- replaceNode {id, node:{type, props, children?}, nodes?}: replace one component\'s type/props/children, keeping its id (its state resets).',
       '- insertChild {parent, id, index?, nodes}: add the new component `id` (defined in `nodes`, with any descendants) under `parent`, at `index` (default: last).',
       '- removeNode {id}: remove a component and everything under it (not the root). Keep Tabs labels in step with their children in the same patch.',
+      'A patch may drop a `Form` field or reuse a field key the answer already publishes, but it cannot introduce a NEW field key: the name could collide with a `computed` id that another block declares, which this block cannot see. Remove/reuse keys, or re-render the whole answer.',
       `On ok=false nothing changed; fix the listed problems and retry. A stale baseVersion means the UI changed: patch the current version. Use ${RENDER_TOOL} instead for a new UI, a different root, or when most of the UI changes. Widgets (ui_render_widget) cannot be patched; render them again.`,
     ].join('\n'),
     get parameters() { return {

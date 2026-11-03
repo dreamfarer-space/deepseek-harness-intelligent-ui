@@ -12,7 +12,7 @@
  * across restarts and confines patches to UIs of the same conversation.
  * @module deepseek-harness-intelligent-ui/catalog/patch
  */
-import { composeUiId, validateComposition } from '../compose/compose.js';
+import { composeUiId, compositionFieldKeys, validateComposition } from '../compose/compose.js';
 import { CATALOG, LIMITS, validateTree } from './catalog.js';
 
 export const PATCH_OPS = Object.freeze(['setProps', 'replaceNode', 'insertChild', 'removeNode']);
@@ -30,7 +30,7 @@ const OP_FIELDS = Object.freeze({
 
 /**
  * @typedef {{ id: string, type: string, props?: Record<string, unknown>, children?: string[] }} UiNode
- * @typedef {{ uiId: string, version: number, title?: string, root: string, components: UiNode[] }} UiSnapshot
+ * @typedef {{ uiId: string, version: number, title?: string, root: string, components: UiNode[], computed?: unknown[], scope?: string[], computedIds?: string[], staleFields?: string[] }} UiSnapshot
  */
 
 function isPlainObject(v) {
@@ -41,7 +41,7 @@ const clone = v => JSON.parse(JSON.stringify(v));
 
 /** Legacy built-ins alone accept props.children; extensions use their exact schema. */
 function normalize(node) {
-  if (Object.hasOwn(CATALOG, node.type) && isPlainObject(node.props) && 'children' in node.props) {
+  if (Object.hasOwn(CATALOG, node.type) && isPlainObject(node.props) && Object.hasOwn(node.props, 'children')) {
     if (node.children === undefined && Array.isArray(node.props.children)) node.children = node.props.children;
     delete node.props.children;
   }
@@ -52,17 +52,27 @@ function normalize(node) {
  * Normalize a validated `ui_render` payload into a snapshot.
  * @param {string} uiId
  * @param {any} args - `ui_render` arguments that passed {@link validateTree}.
+ * @param {{ scope?: readonly string[], computedIds?: readonly string[] }} [extra] -
+ *   answer-wide context of a composition block: the field keys its siblings
+ *   publish and the computed ids they declare (a block patch may collide with
+ *   neither, and the block itself cannot see them).
  * @returns {UiSnapshot}
  */
-export function snapshotOf(uiId, args) {
+export function snapshotOf(uiId, args, extra = {}) {
   const tree = clone(args);
   const byId = new Map(tree.components.map(n => [n.id, normalize(n)]));
+  const scope = Array.isArray(extra.scope) ? [...extra.scope] : undefined;
+  const computedIds = Array.isArray(extra.computedIds) ? [...extra.computedIds] : undefined;
   return {
     uiId,
     version: 1,
     ...(typeof tree.title === 'string' && tree.title ? { title: tree.title } : {}),
     root: tree.root,
     components: reachable(tree.root, byId),
+    // Formulas travel with the version: a patch must not drop them.
+    ...(Array.isArray(tree.computed) ? { computed: tree.computed } : {}),
+    ...(scope && scope.length ? { scope } : {}),
+    ...(computedIds && computedIds.length ? { computedIds } : {}),
   };
 }
 
@@ -79,6 +89,28 @@ function reachable(root, byId) {
   };
   walk(root);
   return out;
+}
+
+/**
+ * Field keys published by the `Form` nodes of one tree: a field's `bindKey`
+ * (with its `name` as an alias) and a single-field form's `bindKey`. The same
+ * rule `compositionFieldKeys` and the renderer use, so a patch can tell which
+ * shared values this block itself produced.
+ * @param {readonly UiNode[]} components
+ * @returns {Set<string>}
+ */
+function publishedFieldKeys(components) {
+  const keys = new Set();
+  for (const node of components ?? []) {
+    if (!isPlainObject(node) || node.type !== 'Form' || !isPlainObject(node.props)) continue;
+    const fields = Array.isArray(node.props.fields) ? node.props.fields.filter(isPlainObject) : [];
+    for (const field of fields) {
+      if (typeof field.bindKey === 'string' && field.bindKey) keys.add(field.bindKey);
+      if (typeof field.name === 'string' && field.name) keys.add(field.name);
+    }
+    if (fields.length === 1 && typeof node.props.bindKey === 'string' && node.props.bindKey) keys.add(node.props.bindKey);
+  }
+  return keys;
 }
 
 /**
@@ -160,7 +192,7 @@ export function applyPatch(ui, args) {
         if (problem) break;
         if (op.props === undefined && op.unset === undefined) { problem = `${at}: give props and/or unset`; break; }
         if (op.props !== undefined && !isPlainObject(op.props)) { problem = `${at}.props: expected object`; break; }
-        if (op.props && 'children' in op.props) { problem = `${at}.props.children: children are not props; use insertChild/removeNode/replaceNode`; break; }
+        if (op.props && Object.hasOwn(op.props, 'children')) { problem = `${at}.props.children: children are not props; use insertChild/removeNode/replaceNode`; break; }
         if (op.unset !== undefined && (!Array.isArray(op.unset) || op.unset.some(k => typeof k !== 'string'))) { problem = `${at}.unset: expected array of prop names`; break; }
         const node = nodes.get(op.id);
         const props = { ...(node.props ?? {}), ...clone(op.props ?? {}) };
@@ -224,15 +256,56 @@ export function applyPatch(ui, args) {
 
   const title = args.title !== undefined ? args.title : ui.title;
   const components = reachable(ui.root, nodes);
+  const computed = Array.isArray(ui.computed) ? ui.computed : undefined;
+  // A composition block's formulas may also read fields a sibling block
+  // publishes; `scope` carries those names (see collectUis).
+  const scope = Array.isArray(ui.scope) ? ui.scope : undefined;
+  const computedIds = Array.isArray(ui.computedIds) ? ui.computedIds : undefined;
+  const before = publishedFieldKeys(ui.components);
+  const after = publishedFieldKeys(components);
+  // A patch may only (re)publish field keys the answer already knows: its own
+  // previous keys or one `scope` declares. A brand-new name would join the
+  // answer-wide pool without the Host being able to rule out a collision with
+  // another block's `computed` id (this block cannot see its siblings) — the
+  // resulting one-name-two-values state is exactly what ui_compose rejects.
+  const introduced = [...after].filter(key => !before.has(key));
+  // This block's own ids are checked against its own fields by validateTree
+  // below (with the precise path); only a sibling's id is invisible here.
+  const ownIds = new Set(Array.isArray(computed) ? computed.filter(isPlainObject).map(c => c.id).filter(id => typeof id === 'string') : []);
+  const reserved = new Set((computedIds ?? []).filter(id => !ownIds.has(id)));
+  for (const key of introduced) {
+    if (reserved.has(key)) {
+      return fail([`ops: the patched components publish field key ${JSON.stringify(key)}, but another block of this answer declares the computed id ${JSON.stringify(key)}; one name cannot be both a field and a formula. Pick a different field name.`]);
+    }
+    if (scope && !scope.includes(key)) {
+      return fail([`ops: the patched components publish the new field key ${JSON.stringify(key)}; a block patch may only re-publish the field keys this answer already shares (${scope.length ? scope.join(', ') : 'none'}), because a new name can collide with a sibling block's computed id. Remove the field, reuse an existing key, or call ui_compose again with the complete answer.`]);
+    }
+  }
+  // A block that removes (or renames) the form it published a shared value
+  // through leaves a value no input of its own backs any more. `scope` stays
+  // (a sibling block may publish the same key), but the browser is told which
+  // keys this version no longer produces and must not resurrect their last
+  // value as if the removed input were still there.
+  const staleFields = scope ? scope.filter(key => before.has(key) && !after.has(key)) : [];
+  const previous = Array.isArray(ui.staleFields) ? ui.staleFields.filter(key => scope?.includes(key) && !after.has(key)) : [];
+  const retired = [...new Set([...previous, ...staleFields])];
   // The whole next version passes the same checks as a fresh ui_render.
-  const check = validateTree(clone({ ...(title ? { title } : {}), root: ui.root, components }));
+  const check = validateTree(
+    clone({ ...(title ? { title } : {}), root: ui.root, components, ...(computed ? { computed } : {}) }),
+    scope ? { fields: scope } : undefined,
+  );
   if (!check.ok) return fail(check.errors.slice(0, 40));
   const reached = new Set(components.map(n => n.id));
   const dropped = [...added].filter(id => !reached.has(id));
   const warnings = dropped.length ? [`new components not attached anywhere (dropped): ${dropped.join(', ')}`] : [];
   return {
     ok: true,
-    ui: { uiId: ui.uiId, version: ui.version + 1, ...(title ? { title } : {}), root: ui.root, components },
+    ui: {
+      uiId: ui.uiId, version: ui.version + 1, ...(title ? { title } : {}), root: ui.root, components,
+      ...(computed ? { computed } : {}), ...(scope ? { scope } : {}),
+      ...(computedIds ? { computedIds } : {}),
+      ...(retired.length ? { staleFields: retired } : {}),
+    },
     changed: [...changed].filter(id => reached.has(id)),
     warnings,
   };
@@ -277,10 +350,23 @@ export function collectUis(messages, tools) {
         requireWidget: config.enableWidget !== false,
       });
       if (composed.ok) {
+        const scope = [...compositionFieldKeys(composed.blocks)];
+        // Every computed id of the answer, so a block patch can recognise a
+        // field key that a *sibling* block already uses for a formula.
+        const computedIds = [];
+        for (const block of composed.blocks) {
+          if (block.type !== 'catalog' || !Array.isArray(block.computed)) continue;
+          for (const formula of block.computed) {
+            if (isPlainObject(formula) && typeof formula.id === 'string') computedIds.push(formula.id);
+          }
+        }
         for (const block of composed.blocks) {
           if (block.type !== 'catalog') continue;
           const uiId = composeUiId(call.id, block.id);
-          uis.set(uiId, snapshotOf(uiId, { title: block.title, root: block.root, components: block.components }));
+          uis.set(uiId, snapshotOf(uiId, {
+            title: block.title, root: block.root, components: block.components,
+            ...(Array.isArray(block.computed) ? { computed: block.computed } : {}),
+          }, { scope, computedIds }));
         }
       }
       continue;
