@@ -9,6 +9,7 @@ import { patchedUiOf } from '../turn.ts'
 import { argsRawOf, interrupted, refused, resultText, type ToolViewProps } from '../types/dsh.ts'
 import { useLatestUiVersion } from '../versions.ts'
 import { renderNode, type RenderEnv } from './components.tsx'
+import { collectBindings, useComputedContext } from './computed-context.ts'
 import { indexNodes } from './RenderView.tsx'
 
 /** The uiId the call targets, from complete or partial arguments. */
@@ -40,6 +41,11 @@ export function PatchView(props: ToolViewProps) {
   const policy = useMemo(() => meta === undefined ? DEFAULT_POLICY : policyFromMeta(meta), [meta])
   const guard = useMemo(() => new BridgeGuard({ policy, armDelayMs: 0, minIntervalMs: 1000 }), [policy])
   const nodes = useMemo(() => indexNodes(ui?.components), [ui])
+  // A patch replaces the whole tree, `computed` included: the new formulas are
+  // evaluated against the same shared state pool as the version they replace.
+  const bindings = useMemo(() => collectBindings(nodes.values()), [nodes])
+  const computedSpecs = useMemo(() => [Array.isArray(ui?.computed) ? ui!.computed as unknown[] : []], [ui])
+  const computed = useComputedContext(ui?.uiId, bindings, computedSpecs)
   const [sending, setSending] = useState(false)
   const { t } = props
   const title = ui?.title || latest?.title || t('render.title')
@@ -77,6 +83,7 @@ export function PatchView(props: ToolViewProps) {
     t,
     // The UI's identity, not this call's: state persists across versions.
     callId: ui.uiId,
+    computed,
     policy,
     sendNewSession: props.sendNewSessionPrompt
       ? async (text, nodeId) => { await props.sendNewSessionPrompt!(guard.admitPrompt(text), ui.uiId, nodeId) }

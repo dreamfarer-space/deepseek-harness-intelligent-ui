@@ -154,3 +154,28 @@ describe('ui_render identity', () => {
     expect(value.summary).toMatch(/uiId toolu_1, version 1/)
   })
 })
+
+describe('computed fields across a patch', () => {
+  const CALC = {
+    root: 's',
+    computed: [{ id: 'pct', expr: 'score' }],
+    components: [
+      { id: 's', type: 'Stack', children: ['p', 'f'] },
+      { id: 'p', type: 'Progress', props: { value: { $computed: 'pct' } } },
+      { id: 'f', type: 'Form', props: { fields: [{ name: 'score', label: 'Score', type: 'range', min: 0, max: 100, default: 10, bindKey: 'score' }] } },
+    ],
+  }
+
+  it('keeps the formulas in the snapshot and in the next version', () => {
+    const v1 = snapshotOf('calc', CALC)
+    expect(v1.computed).toEqual([{ id: 'pct', expr: 'score' }])
+    const r = applyPatch(v1, { uiId: 'calc', baseVersion: 1, ops: [{ op: 'setProps', id: 'p', props: { max: 50 } }] })
+    expect(r.ok).toBe(true)
+    expect(r.ui.computed).toEqual([{ id: 'pct', expr: 'score' }])
+    expect(byId(r.ui).get('p').props).toEqual({ max: 50, value: { $computed: 'pct' } })
+    // The replayed history produces the same version.
+    const uis = collectUis(history({ id: 'calc', name: RENDER_TOOL, args: CALC },
+      { id: 'c1', name: PATCH_TOOL, args: { uiId: 'calc', baseVersion: 1, ops: [{ op: 'setProps', id: 'p', props: { max: 50 } }] } }), TOOLS)
+    expect(uis.get('calc').computed).toHaveLength(1)
+  })
+})

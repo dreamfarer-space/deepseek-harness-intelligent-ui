@@ -20,6 +20,8 @@ export interface ComposeBlock {
   title?: string
   root?: string
   components?: unknown
+  /** catalog: root-level computed formulas of this block. */
+  computed?: unknown
   /** widget */
   initialHeight?: number
   placeholderMessages?: string[]

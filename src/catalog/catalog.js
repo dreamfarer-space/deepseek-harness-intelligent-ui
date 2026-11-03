@@ -910,10 +910,13 @@ function checkComputedRefs(props, path, ids, errors, depth = 0) {
  * Validate the root-level `computed` array and the references that point at it.
  * @param {unknown} entries
  * @param {Map<string, any>} byId - nodes of the tree, for bindKey collection.
+ * @param {Map<string, string>} paths
  * @param {string[]} errors
+ * @param {Iterable<string>} [extraFields] - field keys published by sibling
+ *   blocks of a composition: they are readable but not declared here.
  * @returns {Set<string>} declared computed ids (empty when the tree has none).
  */
-function checkComputed(entries, byId, paths, errors) {
+function checkComputed(entries, byId, paths, errors, extraFields) {
   const ids = new Set();
   if (entries === undefined) return ids;
   if (!Array.isArray(entries)) { errors.push('computed: expected an array of { id, expr, format? }'); return ids; }
@@ -934,7 +937,7 @@ function checkComputed(entries, byId, paths, errors) {
 
   // Scope names a formula may read: declared computed ids plus the values a
   // Form binds (field `bindKey`, else its `name`, plus the form-level key).
-  const fieldKeys = new Set();
+  const fieldKeys = new Set(extraFields ?? []);
   for (const node of byId.values()) {
     if (node.type !== 'Form' || !isPlainObject(node.props)) continue;
     if (typeof node.props.bindKey === 'string') fieldKeys.add(node.props.bindKey);
@@ -1025,9 +1028,11 @@ export function validateProps(type, props, path = 'props') {
  * Validate a whole `ui_render` payload: node shape, ids, references, cycles,
  * single parent, depth, and per-type props.
  * @param {unknown} args - tool arguments.
+ * @param {{ fields?: Iterable<string> }} [options] - extra readable field names
+ *   (a composition's shared scope).
  * @returns {{ ok: boolean, errors: string[], warnings: string[], types: Record<string, number>, count: number }}
  */
-export function validateTree(args) {
+export function validateTree(args, options) {
   const errors = [];
   const warnings = [];
   const types = {};
@@ -1073,7 +1078,7 @@ export function validateTree(args) {
     }
   });
 
-  checkComputed(args.computed, byId, paths, errors);
+  checkComputed(args.computed, byId, paths, errors, options?.fields);
 
   const parentOf = new Map();
   for (const node of byId.values()) {

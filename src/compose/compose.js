@@ -53,9 +53,47 @@ const BLOCK_ID = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
 /** Fields a block may carry, per type (`id` is common to all). */
 const BLOCK_FIELDS = Object.freeze({
   markdown: ['id', 'type', 'text'],
-  catalog: ['id', 'type', 'title', 'root', 'components'],
+  catalog: ['id', 'type', 'title', 'root', 'components', 'computed'],
   widget: ['id', 'type', 'title', 'initialHeight', 'placeholderMessages', 'css', 'html', 'jsFunctions', 'jsExpressions'],
 });
+
+/**
+ * Names a catalog block's formulas may read from sibling blocks: every `Form`
+ * field key it declares (`bindKey`, else the field name) plus the form-level
+ * bindKey of a single-field form. A composition shares one field pool, so a
+ * slider in block 1 can feed a chart in block 3.
+ * @param {unknown} components
+ * @param {Set<string>} into
+ */
+function collectFieldKeys(components, into) {
+  if (!Array.isArray(components)) return into;
+  for (const node of components) {
+    if (!isPlainObject(node) || node.type !== 'Form' || !isPlainObject(node.props)) continue;
+    if (typeof node.props.bindKey === 'string' && node.props.bindKey) into.add(node.props.bindKey);
+    if (!Array.isArray(node.props.fields)) continue;
+    for (const field of node.props.fields) {
+      if (!isPlainObject(field)) continue;
+      if (typeof field.bindKey === 'string' && field.bindKey) into.add(field.bindKey);
+      else if (typeof field.name === 'string' && field.name) into.add(field.name);
+    }
+  }
+  return into;
+}
+
+/**
+ * Field keys readable by every catalog block of a composition, i.e. the shared
+ * scope a block's formulas may name even when the Form lives in another block.
+ * @param {readonly any[]} blocks
+ * @returns {Set<string>}
+ */
+export function compositionFieldKeys(blocks) {
+  const keys = new Set();
+  if (!Array.isArray(blocks)) return keys;
+  for (const block of blocks) {
+    if (isPlainObject(block) && block.type === 'catalog') collectFieldKeys(block.components, keys);
+  }
+  return keys;
+}
 
 /**
  * Which UI capabilities the model may use, from config.
@@ -99,6 +137,9 @@ export function validateComposition(args, config, capabilities = {}) {
   const seen = new Set();
   const blocks = [];
   let total = 0;
+  // One scope for the whole answer: a formula in any catalog block may read the
+  // form fields another block publishes (Issue #84, Phase 2).
+  const fieldKeys = compositionFieldKeys(args.blocks);
   args.blocks.forEach((block, i) => {
     const at = `blocks[${i}]`;
     if (!isPlainObject(block)) { errors.push(`${at}: expected object`); return; }
@@ -138,8 +179,8 @@ export function validateComposition(args, config, capabilities = {}) {
       total += block.text.length;
       entry.text = block.text;
     } else if (block.type === 'catalog') {
-      const tree = { root: block.root, components: block.components, ...(block.title !== undefined ? { title: block.title } : {}) };
-      const result = validateTree(tree);
+      const tree = { root: block.root, components: block.components, ...(block.title !== undefined ? { title: block.title } : {}), ...(block.computed !== undefined ? { computed: block.computed } : {}) };
+      const result = validateTree(tree, { fields: fieldKeys });
       for (const error of result.errors) errors.push(`${at}(${block.id}).${error}`);
       for (const warning of result.warnings) warnings.push(`${block.id}: ${warning}`);
       stats.catalog++;
@@ -148,6 +189,7 @@ export function validateComposition(args, config, capabilities = {}) {
       entry.title = typeof block.title === 'string' ? block.title : undefined;
       entry.root = block.root;
       entry.components = block.components;
+      if (block.computed !== undefined) entry.computed = block.computed;
     } else {
       const widgetArgs = {};
       for (const key of BLOCK_FIELDS.widget) if (key !== 'type' && block[key] !== undefined) widgetArgs[key] = block[key];
@@ -172,7 +214,7 @@ export function validateComposition(args, config, capabilities = {}) {
  * @param {ComposeBlock[]} blocks - validated blocks.
  */
 export function catalogTrees(blocks, callId) {
-  return blocks.filter(b => b.type === 'catalog').map(b => ({ blockId: b.id, uiId: composeUiId(callId, b.id), tree: { root: b.root, components: b.components, ...(b.title ? { title: b.title } : {}) } }));
+  return blocks.filter(b => b.type === 'catalog').map(b => ({ blockId: b.id, uiId: composeUiId(callId, b.id), tree: { root: b.root, components: b.components, ...(b.title ? { title: b.title } : {}), ...(Array.isArray(b.computed) ? { computed: b.computed } : {}) } }));
 }
 
 /**

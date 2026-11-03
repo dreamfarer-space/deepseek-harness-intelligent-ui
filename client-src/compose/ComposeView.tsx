@@ -10,6 +10,7 @@ import { useLatestUiVersion } from '../versions.ts'
 import { Markdown } from './Markdown.tsx'
 import { indexNodes } from '../catalog/RenderView.tsx'
 import { renderNode, type RenderEnv, type UiNode } from '../catalog/components.tsx'
+import { collectBindings, useComputedContext } from '../catalog/computed-context.ts'
 import { WidgetWithErrors } from '../widget/WidgetWithErrors.tsx'
 
 /**
@@ -92,6 +93,26 @@ export function ComposeView(props: ToolViewProps) {
   const raw = streaming ? streamed : settledRaw
   const blocks = useMemo(() => readComposeBlocks(raw, salvage), [raw, salvage])
   const title = useMemo(() => readComposeTitle(raw, salvage), [raw, salvage])
+  // One shared context for the whole answer (Issue #84, Phase 2): every block's
+  // form fields land in one pool and every block's `computed` array is evaluated
+  // against it, so a slider in block 1 drives a chart or table in block 2.
+  const nodesByBlock = useMemo(() => {
+    const out = new Map<string, Map<string, UiNode>>()
+    for (const b of blocks) if (b.type === 'catalog') out.set(b.id, indexNodes(b.components))
+    return out
+  }, [blocks])
+  const bindings = useMemo(() => {
+    const all = new Map<string, unknown>()
+    for (const nodes of nodesByBlock.values()) {
+      for (const [key, value] of collectBindings(nodes.values())) if (!all.has(key)) all.set(key, value)
+    }
+    return all
+  }, [nodesByBlock])
+  const computedSpecs = useMemo(
+    () => blocks.filter(b => b.type === 'catalog' && Array.isArray(b.computed)).map(b => b.computed as unknown[]),
+    [blocks],
+  )
+  const computed = useComputedContext(props.callId, bindings, computedSpecs)
   const meta = block?.meta
   const policy = useMemo(() => meta === undefined ? DEFAULT_POLICY : policyFromMeta(meta), [meta])
   const guard = useMemo(() => new BridgeGuard({ policy, armDelayMs: 0, minIntervalMs: 1000 }), [policy])
@@ -118,6 +139,7 @@ export function ComposeView(props: ToolViewProps) {
     stopped,
     t,
     callId: props.callId,
+    computed,
     policy,
     send: settled
       ? async (text) => { await props.sendPrompt(guard.admitPrompt(text)) }
@@ -151,6 +173,7 @@ export function ComposeView(props: ToolViewProps) {
             <div className="diui-compose">
               {blocks.map((entry, index) => (
                 <BlockItem key={`${entry.id}:${index}`} block={entry} env={env} settled={settled} policy={policy}
+                  nodes={nodesByBlock.get(entry.id) ?? EMPTY_NODES}
                   sendNewSessionPrompt={settled && props.sendNewSessionPrompt
                     ? async (text, uiId, nodeId) => { await props.sendNewSessionPrompt!(guard.admitPrompt(text), uiId, nodeId) }
                     : undefined} />
@@ -161,10 +184,9 @@ export function ComposeView(props: ToolViewProps) {
   )
 }
 
-function BlockItem(props: { block: ComposeBlock; env: RenderEnv; settled: boolean; policy: ReturnType<typeof policyFromMeta>; sendNewSessionPrompt?: ToolViewProps['sendNewSessionPrompt'] }) {
+function BlockItem(props: { block: ComposeBlock; env: RenderEnv; settled: boolean; policy: ReturnType<typeof policyFromMeta>; nodes: ReadonlyMap<string, UiNode>; sendNewSessionPrompt?: ToolViewProps['sendNewSessionPrompt'] }) {
   const { block, env } = props
   // Hooks run for every block; only catalog blocks use their nodes/version.
-  const nodes = useMemo(() => block.type === 'catalog' ? indexNodes(block.components) : new Map<string, UiNode>(), [block])
   const latest = useLatestUiVersion(block.type === 'catalog' ? blockUiId(env.callId ?? '', block.id) : undefined)
   if (block.type === 'markdown') return <Markdown text={block.text ?? ''} />
   if (block.type === 'widget') {
@@ -177,5 +199,8 @@ function BlockItem(props: { block: ComposeBlock; env: RenderEnv; settled: boolea
       </div>
     )
   }
-  return <CatalogBlock block={block} env={env} nodes={nodes} sendNewSessionPrompt={props.sendNewSessionPrompt} />
+  return <CatalogBlock block={block} env={env} nodes={props.nodes} sendNewSessionPrompt={props.sendNewSessionPrompt} />
 }
+
+/** Placeholder nodes for non-catalog blocks (kept stable so memoization holds). */
+const EMPTY_NODES: ReadonlyMap<string, UiNode> = new Map()

@@ -12,7 +12,7 @@
  * across restarts and confines patches to UIs of the same conversation.
  * @module deepseek-harness-intelligent-ui/catalog/patch
  */
-import { composeUiId, validateComposition } from '../compose/compose.js';
+import { composeUiId, compositionFieldKeys, validateComposition } from '../compose/compose.js';
 import { CATALOG, LIMITS, validateTree } from './catalog.js';
 
 export const PATCH_OPS = Object.freeze(['setProps', 'replaceNode', 'insertChild', 'removeNode']);
@@ -30,7 +30,7 @@ const OP_FIELDS = Object.freeze({
 
 /**
  * @typedef {{ id: string, type: string, props?: Record<string, unknown>, children?: string[] }} UiNode
- * @typedef {{ uiId: string, version: number, title?: string, root: string, components: UiNode[] }} UiSnapshot
+ * @typedef {{ uiId: string, version: number, title?: string, root: string, components: UiNode[], computed?: unknown[], scope?: string[] }} UiSnapshot
  */
 
 function isPlainObject(v) {
@@ -63,6 +63,8 @@ export function snapshotOf(uiId, args) {
     ...(typeof tree.title === 'string' && tree.title ? { title: tree.title } : {}),
     root: tree.root,
     components: reachable(tree.root, byId),
+    // Formulas travel with the version: a patch must not drop them.
+    ...(Array.isArray(tree.computed) ? { computed: tree.computed } : {}),
   };
 }
 
@@ -224,15 +226,25 @@ export function applyPatch(ui, args) {
 
   const title = args.title !== undefined ? args.title : ui.title;
   const components = reachable(ui.root, nodes);
+  const computed = Array.isArray(ui.computed) ? ui.computed : undefined;
+  // A composition block's formulas may also read fields a sibling block
+  // publishes; `scope` carries those names (see collectUis).
+  const scope = Array.isArray(ui.scope) ? ui.scope : undefined;
   // The whole next version passes the same checks as a fresh ui_render.
-  const check = validateTree(clone({ ...(title ? { title } : {}), root: ui.root, components }));
+  const check = validateTree(
+    clone({ ...(title ? { title } : {}), root: ui.root, components, ...(computed ? { computed } : {}) }),
+    scope ? { fields: scope } : undefined,
+  );
   if (!check.ok) return fail(check.errors.slice(0, 40));
   const reached = new Set(components.map(n => n.id));
   const dropped = [...added].filter(id => !reached.has(id));
   const warnings = dropped.length ? [`new components not attached anywhere (dropped): ${dropped.join(', ')}`] : [];
   return {
     ok: true,
-    ui: { uiId: ui.uiId, version: ui.version + 1, ...(title ? { title } : {}), root: ui.root, components },
+    ui: {
+      uiId: ui.uiId, version: ui.version + 1, ...(title ? { title } : {}), root: ui.root, components,
+      ...(computed ? { computed } : {}), ...(scope ? { scope } : {}),
+    },
     changed: [...changed].filter(id => reached.has(id)),
     warnings,
   };
@@ -277,10 +289,17 @@ export function collectUis(messages, tools) {
         requireWidget: config.enableWidget !== false,
       });
       if (composed.ok) {
+        const scope = [...compositionFieldKeys(composed.blocks)];
         for (const block of composed.blocks) {
           if (block.type !== 'catalog') continue;
           const uiId = composeUiId(call.id, block.id);
-          uis.set(uiId, snapshotOf(uiId, { title: block.title, root: block.root, components: block.components }));
+          uis.set(uiId, {
+            ...snapshotOf(uiId, {
+              title: block.title, root: block.root, components: block.components,
+              ...(Array.isArray(block.computed) ? { computed: block.computed } : {}),
+            }),
+            ...(scope.length ? { scope } : {}),
+          });
         }
       }
       continue;

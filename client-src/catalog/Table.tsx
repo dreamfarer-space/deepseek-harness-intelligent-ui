@@ -91,9 +91,58 @@ export interface TableProps {
   filterable?: boolean
   pageSize?: number
   exportable?: boolean
+  /** Column a computed value filters on (see `matchesExpression`). */
+  filterField?: string
+  /** Filter expression: `>= 50`, `!= Gold`, or a case-insensitive substring. */
+  filterValue?: string
   t: Translate
   callId?: string
   nodeId: string
+}
+
+/** Leading comparison operator of a filter expression (`">= 50"`). */
+const OPERATOR = /^(>=|<=|!=|==|>|<)\s*(.*)$/
+
+/**
+ * One-cell match for a computed `filterValue`, so a slider can narrow a table
+ * with no message to the model:
+ *
+ * - `">= 50"`, `"< 3"`, `"== 0"`, `"!= Gold"` compare numerically when both
+ *   sides are numeric, otherwise as text (ISO dates compare correctly);
+ * - anything else is a case-insensitive substring test.
+ * @param v - the cell.
+ * @param expression - the computed filter text.
+ */
+export function matchesExpression(v: Cell | undefined, expression: string): boolean {
+  const text = expression.trim()
+  const m = OPERATOR.exec(text)
+  if (!m) return v !== null && v !== undefined && String(v).toLowerCase().includes(text.toLowerCase())
+  const op = m[1]!
+  const right = m[2]!.trim()
+  if (!right) return true
+  const left = v === null || v === undefined ? '' : String(v).trim()
+  const numeric = left !== '' && Number.isFinite(Number(left)) && Number.isFinite(Number(right))
+  if (numeric) {
+    const a = Number(left)
+    const b = Number(right)
+    switch (op) {
+      case '>=': return a >= b
+      case '<=': return a <= b
+      case '>': return a > b
+      case '<': return a < b
+      case '==': return a === b
+      default: return a !== b
+    }
+  }
+  const order = left.localeCompare(right, undefined, { numeric: true })
+  switch (op) {
+    case '>=': return order >= 0
+    case '<=': return order <= 0
+    case '>': return order > 0
+    case '<': return order < 0
+    case '==': return order === 0
+    default: return order !== 0
+  }
 }
 
 /**
@@ -116,14 +165,22 @@ export function Table(props: TableProps) {
   // A patch may drop columns; a sort on a column that no longer exists is void.
   const sort = stored && stored.col < columns.length ? stored : null
   const types = useMemo(() => inferTypes(columns, props.rows, props.columnTypes), [columns, props.rows, props.columnTypes])
+  const filterField = props.filterField
+  const filterValue = typeof props.filterValue === 'string' ? props.filterValue : ''
   const view = useMemo(() => {
     const q = props.searchable ? search.trim().toLowerCase() : ''
     let rows = props.rows.filter(r =>
       (!q || r.some(v => v !== null && v !== undefined && String(v).toLowerCase().includes(q))) &&
       (!props.filterable || columns.every((_, c) => !active(filters[c]) || matches(r[c], filters[c]!, types[c]!))))
+    // Linkage filter: a computed `filterValue` (e.g. ">= {{threshold}}") narrows
+    // the rows first, so paging and export see the filtered view.
+    if (filterField && filterValue !== '') {
+      const col = columns.indexOf(filterField)
+      if (col >= 0) rows = rows.filter(r => matchesExpression(r[col], filterValue))
+    }
     if (sort) rows = [...rows].sort((a, b) => compareTyped(a[sort.col], b[sort.col], types[sort.col]!, sort.dir))
     return rows
-  }, [props.rows, props.searchable, props.filterable, search, filters, sort, types, columns])
+  }, [props.rows, props.searchable, props.filterable, search, filters, sort, types, columns, filterField, filterValue])
   const size = props.pageSize && props.pageSize > 0 ? Math.floor(props.pageSize) : 0
   const pages = size ? Math.max(1, Math.ceil(view.length / size)) : 1
   const current = Math.min(page, pages - 1)

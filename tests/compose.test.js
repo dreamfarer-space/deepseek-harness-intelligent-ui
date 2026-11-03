@@ -184,3 +184,41 @@ describe('compose guidance', () => {
     expect(uiPrompt('show x', { enableCatalog: true, enableWidget: true })).toMatch(/ui_compose/)
   })
 })
+
+describe('computed linkage across blocks', () => {
+  const controls = { id: 'controls', type: 'catalog', root: 'f', components: [
+    { id: 'f', type: 'Form', props: { fields: [{ name: 'threshold', label: 'Threshold', type: 'range', min: 0, max: 100, default: 40, bindKey: 'threshold' }] } },
+  ] }
+  const report = (expr) => ({ id: 'report', type: 'catalog', root: 'p', computed: [{ id: 'pct', expr }], components: [
+    { id: 'p', type: 'Progress', props: { value: { $computed: 'pct' } } },
+  ] })
+
+  it('accepts computed on a catalog block and reads a field another block publishes', () => {
+    const result = validateComposition({ blocks: [controls, report('threshold')] }, config)
+    expect(result.errors).toEqual([])
+    expect(result.blocks[1].computed).toEqual([{ id: 'pct', expr: 'threshold' }])
+    expect(catalogTrees(result.blocks, 'comp-1')[1].tree.computed).toHaveLength(1)
+  })
+
+  it('still rejects a name no block publishes', () => {
+    const result = validateComposition({ blocks: [controls, report('nope * 2')] }, config)
+    expect(result.ok).toBe(false)
+    expect(result.errors.join('\n')).toMatch(/unknown variable "nope"/)
+  })
+
+  it('keeps a cross-block formula valid when the composition is patched', async () => {
+    const messages = [
+      { role: 'user', content: [{ type: 'text', text: 'go' }] },
+      { role: 'assistant', content: [{ type: 'tool-call', id: 'comp-9', name: COMPOSE_TOOL, arguments: JSON.stringify({ blocks: [controls, report('threshold')] }) }] },
+      { role: 'tool', toolCallId: 'comp-9', content: [{ type: 'text', text: 'Composed answer is now displayed in order.' }] },
+    ]
+    const uis = collectUis(messages, { render: RENDER_TOOL, patch: PATCH_TOOL, compose: COMPOSE_TOOL, config })
+    expect(uis.get('comp-9#report').computed).toHaveLength(1)
+    const value = await createPatchTool(config).execute(
+      { uiId: 'comp-9#report', baseVersion: 1, ops: [{ op: 'setProps', id: 'p', props: { max: 200 } }] },
+      { callId: 'p9', agent: { session: { deriveMessages: () => messages } } },
+    )
+    expect(value.ok).toBe(true)
+    expect(value.ui.computed).toHaveLength(1)
+  })
+})

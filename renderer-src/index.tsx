@@ -12,6 +12,7 @@ import { DEFAULT_POLICY, policyFromMeta } from '../client-src/policy.ts'
 import { STYLES } from '../client-src/styles.ts'
 import { en, zh } from '../client-src/locales.ts'
 import { renderNode, type UiNode, type RenderEnv } from '../client-src/catalog/components.tsx'
+import { collectBindings, useComputedContext } from '../client-src/catalog/computed-context.ts'
 import { WidgetWithErrors } from '../client-src/widget/WidgetWithErrors.tsx'
 import { Markdown } from '../client-src/compose/Markdown.tsx'
 import type { WidgetPolicy } from '../client-src/policy.ts'
@@ -52,6 +53,21 @@ const CSS = STYLES + '\n' + baseCss
 const readDefinition = (value: unknown): Record<string, unknown> | undefined =>
   value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === 'object' && !Array.isArray(value)
+
+/** Index a catalog tree's components by id (first definition wins). */
+function treeNodes(list: unknown): Map<string, UiNode> {
+  const map = new Map<string, UiNode>()
+  if (Array.isArray(list)) {
+    for (const node of list) {
+      if (!isRecord(node) || typeof node.id !== 'string' || typeof node.type !== 'string') continue
+      if (!map.has(node.id as string)) map.set(node.id as string, node as unknown as UiNode)
+    }
+  }
+  return map
+}
+
 function Surface({ artifact, host, theme, locale = 'en' }: { artifact: PortableUiArtifact; host: RendererHost; theme: 'light' | 'dark'; locale?: string }) {
   useSyncExternalStore(subscribeCatalog, catalogRevision, catalogRevision)
   const definition = readDefinition(artifact.definition)
@@ -85,8 +101,36 @@ function Surface({ artifact, host, theme, locale = 'en' }: { artifact: PortableU
         ).map(node => [node.id, node])
       : [],
   ), [definition])
+  // Linkage (Issue #84, Phase 2): one field pool and one evaluated `computed`
+  // context per artifact, shared by every catalog block of a composition.
+  const blocks = useMemo(
+    () => (Array.isArray(definition?.blocks) ? definition.blocks.filter(isRecord) : []),
+    [definition],
+  )
+  const blockNodes = useMemo(() => {
+    const out = new Map<string, Map<string, UiNode>>()
+    for (const block of blocks) {
+      if (block.type === 'catalog' && typeof block.id === 'string') out.set(block.id, treeNodes(block.components))
+    }
+    return out
+  }, [blocks])
+  const bindings = useMemo(() => {
+    const all = new Map<string, unknown>()
+    for (const map of blockNodes.values()) {
+      for (const [key, value] of collectBindings(map.values())) if (!all.has(key)) all.set(key, value)
+    }
+    return all
+  }, [blockNodes])
+  const computedSpecs = useMemo(
+    () => artifact.kind === 'composition'
+      ? blocks.filter(block => Array.isArray(block.computed)).map(block => block.computed as unknown[])
+      : [Array.isArray(definition?.computed) ? definition.computed : []],
+    [artifact.kind, blocks, definition],
+  )
+  const computed = useComputedContext(artifact.uiId, bindings, computedSpecs)
   const env: RenderEnv = {
     nodes, streaming: false, t, callId: artifact.uiId, policy,
+    computed,
     controlled: host.controlled, sessionId: host.sessionId,
     send: text => host.sendPrompt(guard.admitPrompt(text)),
   }
@@ -98,14 +142,10 @@ function Surface({ artifact, host, theme, locale = 'en' }: { artifact: PortableU
           ? <div className="diui-render">{renderNode(String(definition.root), env)}</div>
           : artifact.kind === 'composition'
             ? <div className="diui-compose">
-                {(definition.blocks as any[]).map((block, i) => {
-                  if (!block || typeof block !== 'object') return null
+                {blocks.map((block, i) => {
                   if (block.type === 'markdown') return <Markdown key={i} text={typeof block.text === 'string' ? block.text : ''} />
                   if (block.type === 'catalog') {
-                    const nodes = new Map<string, UiNode>(Array.isArray(block.components)
-                      ? block.components.filter((n: unknown): n is UiNode => !!n && typeof n === 'object' && typeof (n as UiNode).id === 'string' && typeof (n as UiNode).type === 'string').map((n: UiNode) => [n.id, n])
-                      : [])
-                    return <div className="diui-render" key={i}>{renderNode(String(block.root), { ...env, nodes, callId: `${artifact.uiId}#${block.id}` })}</div>
+                    return <div className="diui-render" key={i}>{renderNode(String(block.root), { ...env, nodes: blockNodes.get(String(block.id)) ?? new Map(), callId: `${artifact.uiId}#${String(block.id)}` })}</div>
                   }
                   if (block.type !== 'widget' || typeof block.html !== 'string' || block.html === '') return null
                   return (

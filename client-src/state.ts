@@ -22,6 +22,26 @@ type Bag = Record<string, unknown>
 const memory = new Map<string, Bag>()
 const listeners = new Map<string, Set<() => void>>()
 
+/**
+ * Root identity of a UI: the tool call that owns it. A composition block is
+ * addressed as `<root>#<blockId>` (see `blockUiId`), so several blocks of one
+ * answer share a root.
+ */
+export function rootCallId(callId: string): string {
+  const at = callId.indexOf('#')
+  return at > 0 ? callId.slice(0, at) : callId
+}
+
+/**
+ * Keys carry their own visibility. A key prefixed with `<nodeId>:` (table page,
+ * open tab, form values, a widget's state) is private to that component; any
+ * other key is a shared variable (`threshold`, `rate`) stored under the root
+ * call id, so every block of one answer reads and writes the same value.
+ */
+function scopeOf(callId: string, key: string): string {
+  return key.includes(':') ? callId : rootCallId(callId)
+}
+
 function storage(): Storage | undefined {
   try { return typeof localStorage === 'undefined' ? undefined : localStorage } catch { return undefined }
 }
@@ -69,12 +89,12 @@ function evict(s: Storage): void {
 
 /** Read one value of a call's state. */
 export function getUiState<T>(callId: string, key: string): T | undefined {
-  return load(callId)[key] as T | undefined
+  return load(scopeOf(callId, key))[key] as T | undefined
 }
 
 /** Never interpret unavailable or corrupt recovery storage as a missing launch. */
 export function getPersistentUiState<T>(callId: string, key: string): T | undefined {
-  return readPersistentBag(callId)[key] as T | undefined
+  return readPersistentBag(scopeOf(callId, key))[key] as T | undefined
 }
 
 function readPersistentBag(callId: string): Bag {
@@ -102,27 +122,61 @@ export function setPersistentUiState(callId: string, key: string, value: unknown
 }
 
 function writeUiState(callId: string, key: string, value: unknown, requirePersistence: boolean): boolean {
+  const scope = scopeOf(callId, key)
   let persisted: Bag = {}
   if (requirePersistence) {
-    try { persisted = readPersistentBag(callId) } catch { return false }
+    try { persisted = readPersistentBag(scope) } catch { return false }
   }
-  const prev = { ...persisted, ...load(callId) }
+  const prev = { ...persisted, ...load(scope) }
   const next = { ...prev, [key]: value }
   let json: string
   try { json = JSON.stringify(next) } catch { return false }
   if (json.length > MAX_STATE_CHARS) return false
-  if (requirePersistence && !persist(callId, next)) return false
-  memory.set(callId, next)
-  if (!requirePersistence) persist(callId, next)
-  for (const l of [...(listeners.get(callId) ?? [])]) l()
+  if (requirePersistence && !persist(scope, next)) return false
+  memory.set(scope, next)
+  if (!requirePersistence) persist(scope, next)
+  touch(scope)
+  for (const l of [...(listeners.get(scope) ?? [])]) l()
   return true
 }
 
+/** Global, monotonically increasing write clock: `uiStateRevision` never goes back. */
+let clock = 0
+/** Last write tick per storage scope (root id for shared keys, call id for private ones). */
+const changedAt = new Map<string, number>()
+
+function touch(scope: string): void {
+  changedAt.set(scope, ++clock)
+}
+
+/**
+ * Revision of everything a component under `callId` can see: its own private
+ * keys and the shared keys of its root. Subscribing to it re-renders a surface
+ * whenever a form field in any block broadcasts a new shared value.
+ */
+export function uiStateRevision(callId: string): number {
+  return Math.max(changedAt.get(rootCallId(callId)) ?? 0, changedAt.get(callId) ?? 0)
+}
+
+/**
+ * Shared keys live under the root id, so a listener attached to a block must
+ * hear the root's writes (and its own); a root listener hears only itself.
+ */
 function subscribe(callId: string, l: () => void): () => void {
-  let set = listeners.get(callId)
-  if (!set) listeners.set(callId, set = new Set())
-  set.add(l)
-  return () => { set!.delete(l) }
+  const ids = callId === rootCallId(callId) ? [callId] : [callId, rootCallId(callId)]
+  for (const id of ids) {
+    let set = listeners.get(id)
+    if (!set) listeners.set(id, set = new Set())
+    set.add(l)
+  }
+  return () => { for (const id of ids) listeners.get(id)?.delete(l) }
+}
+
+/** `useUiState`-style subscription to {@link uiStateRevision}. */
+export function useUiStateRevision(callId: string | undefined): number {
+  const id = callId ?? ''
+  const sub = useCallback((l: () => void) => subscribe(id, l), [id])
+  return useSyncExternalStore(sub, () => uiStateRevision(id), () => uiStateRevision(id))
 }
 
 /**
@@ -131,19 +185,21 @@ function subscribe(callId: string, l: () => void): () => void {
  */
 export function useUiState<T>(callId: string | undefined, key: string, initial: T | (() => T)): [T, (next: T | ((prev: T) => T)) => void] {
   const id = callId ?? ''
+  const scope = scopeOf(id, key)
   const sub = useCallback((l: () => void) => subscribe(id, l), [id])
-  const stored = useSyncExternalStore(sub, () => load(id)[key], () => load(id)[key]) as T | undefined
+  const stored = useSyncExternalStore(sub, () => load(scope)[key], () => load(scope)[key]) as T | undefined
   const value = stored === undefined ? (typeof initial === 'function' ? (initial as () => T)() : initial) : stored
   const set = useCallback((next: T | ((prev: T) => T)) => {
-    const prev = (load(id)[key] as T | undefined) ?? (typeof initial === 'function' ? (initial as () => T)() : initial)
+    const prev = (load(scope)[key] as T | undefined) ?? (typeof initial === 'function' ? (initial as () => T)() : initial)
     setUiState(id, key, typeof next === 'function' ? (next as (p: T) => T)(prev) : next)
   // `initial` is only a fallback for a missing value; it need not be fresh.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, key])
+  }, [id, key, scope])
   return [value, set]
 }
 
 /** Test hook: forget in-memory state (storage is left alone). */
 export function resetUiStateMemory(): void {
   memory.clear()
+  changedAt.clear()
 }

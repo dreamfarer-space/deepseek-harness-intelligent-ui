@@ -115,6 +115,7 @@ export function projectNativeUiEvents(events, { hostId, sessionId }) {
         ...(typeof next.title === 'string' ? { title: next.title } : {}),
         root: next.root,
         components: next.components,
+        ...(Array.isArray(next.computed) ? { computed: next.computed } : {}),
       }),
     };
     blockVersions.set(args.uiId, next.version);

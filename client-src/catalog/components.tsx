@@ -1,12 +1,14 @@
-import { useId, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
+import { useId, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { newRequestId, projectData } from '../../src/controlled/runtime.js'
 import { contextOf, type ControlledEnv, type DataRef } from '../controlled.ts'
 import { componentEntry, validateProps, validateComponentVersion } from '../../src/catalog/catalog.js'
+import { resolveComputedProps } from '../../src/catalog/computed.js'
 import { subscribeCatalog } from '../../src/catalog/extensions.js'
+import { bindKeyOf, fieldInitialValue, type BoundField, type ComputedContext } from './computed-context.ts'
 import { ExtensionBoundary, ExtensionSurface, extensionRenderer } from './extensions.tsx'
 import { BridgeGuard, formatFormSubmission } from '../bridge.ts'
 import type { WidgetPolicy } from '../policy.ts'
-import { getUiState, setPersistentUiState, useUiState } from '../state.ts'
+import { getUiState, setPersistentUiState, setUiState, useUiState } from '../state.ts'
 import type { Translate } from '../types/dsh.ts'
 import { Chart, formatNumber, type ChartProps } from './Chart.tsx'
 import { Inline } from './inline.tsx'
@@ -35,6 +37,11 @@ export interface RenderEnv extends ControlledEnv {
   sendNewSession?: (text: string, nodeId: string) => Promise<void>
   /** Tool call id: interaction state (tabs, sort, form values, sliders) persists under it. */
   callId?: string
+  /**
+   * Resolved `computed` values of this surface, recomputed on every shared-state
+   * broadcast. Absent when the tree declares no `computed` array.
+   */
+  computed?: ComputedContext
   /** CDN/network policy for library-backed components (Math, Mermaid). */
   policy: WidgetPolicy
 }
@@ -61,11 +68,14 @@ function CatalogNode({ id, env, depth, trail }: { id: string; env: RenderEnv; de
     return <div key={id} className="diui-node-error" title={errors.join('\n')}>{env.t('node.invalid', { id, type: node.type })}</div>
   }
   const nextTrail = new Set(trail).add(id)
+  // Components consume resolved props: `{"$computed":"pct"}` becomes 85 and
+  // `{{total}}` becomes its formatted text, in this node and its children.
+  const shaped = env.computed ? resolveComputedProps(node, env.computed) : node
   const kids = entry?.children
     ? (node.children ?? []).map(c => renderNode(c, env, depth + 1, nextTrail))
     : []
-  if (renderer) return <ExtensionBoundary key={`${node.type}:${node.componentVersion}:${entry.generation}`}><ExtensionSurface renderer={renderer} node={node} env={env}>{kids}</ExtensionSurface></ExtensionBoundary>
-  return <Component key={id} node={node} env={env}>{kids}</Component>
+  if (renderer) return <ExtensionBoundary key={`${node.type}:${node.componentVersion}:${entry.generation}`}><ExtensionSurface renderer={renderer} node={shaped} env={env}>{kids}</ExtensionSurface></ExtensionBoundary>
+  return <Component key={id} node={shaped} env={env}>{kids}</Component>
 }
 
 function Component({ node, env, children }: { node: UiNode; env: RenderEnv; children: ReactNode[] }) {
@@ -126,11 +136,13 @@ function Component({ node, env, children }: { node: UiNode; env: RenderEnv; chil
       )
     case 'Progress': {
       const max = p.max && p.max > 0 ? p.max : 100
-      const pct = Math.max(0, Math.min(100, (p.value / max) * 100))
+      // A computed value can be missing (formula error): fall back to 0, never NaN.
+      const value = typeof p.value === 'number' && Number.isFinite(p.value) ? p.value : 0
+      const pct = Math.max(0, Math.min(100, (value / max) * 100))
       return (
-        <div className="diui-progress" data-tone={p.tone ?? 'default'}>
+        <div className="diui-progress" data-tone={p.tone ?? 'default'} data-value={value}>
           {p.label && <div className="diui-progress-label"><span>{p.label}</span><span>{Math.round(pct)}%</span></div>}
-          <div className="diui-progress-track" role="progressbar" aria-valuenow={p.value} aria-valuemin={0} aria-valuemax={max}>
+          <div className="diui-progress-track" role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={max}>
             <div className="diui-progress-bar" style={{ width: `${pct}%` }} />
           </div>
         </div>
@@ -143,16 +155,22 @@ function Component({ node, env, children }: { node: UiNode; env: RenderEnv; chil
     case 'Table':
       if (p.dataRef) return <BoundData kind="Table" props={p} env={env} nodeId={node.id} />
       return <Table columns={p.columns} rows={p.rows} caption={p.caption} sortable={p.sortable} columnTypes={p.columnTypes}
-        searchable={p.searchable} filterable={p.filterable} pageSize={p.pageSize} exportable={p.exportable} t={env.t} callId={env.callId} nodeId={node.id} />
-    case 'Chart':
+        searchable={p.searchable} filterable={p.filterable} pageSize={p.pageSize} exportable={p.exportable}
+        filterField={p.filterField} filterValue={p.filterValue} t={env.t} callId={env.callId} nodeId={node.id} />
+    case 'Chart': {
       if (p.dataRef) return <BoundData kind="Chart" props={p} env={env} nodeId={node.id} />
+      // A computed series value resolves to a number; a formula that failed
+      // leaves the slot empty instead of inventing a data point.
+      const series = Array.isArray(p.series) ? p.series as ChartProps['series'] : []
+      const labels = Array.isArray(p.labels) ? p.labels as Cell[] : []
       return (
         <div className="diui-chart-block">
-          <Chart {...(p as ChartProps)} emptyText={env.t('chart.empty')} />
-          {p.exportable && <ExportButtons columns={['', ...(p.series as ChartProps['series']).map(x => x.name)]} name={p.title}
-            rows={(p.labels as Cell[]).map((l, i) => [l, ...(p.series as ChartProps['series']).map(x => x.values[i] ?? null)])} t={env.t} />}
+          <Chart {...(p as ChartProps)} labels={labels} series={series} emptyText={env.t('chart.empty')} />
+          {p.exportable && <ExportButtons columns={['', ...series.map(x => x.name)]} name={p.title}
+            rows={labels.map((l, i) => [l, ...series.map(x => x.values[i] ?? null)])} t={env.t} />}
         </div>
       )
+    }
     case 'Scatter':
       return <Scatter {...(p as ScatterProps)} emptyText={env.t('chart.empty')} missingText={count => env.t('chart.missingPoints', { count })} />
     case 'Heatmap':
@@ -395,13 +413,10 @@ function Choice({ props, env, nodeId }: { props: ChoiceProps; env: RenderEnv; no
 }
 
 
-interface FieldSpec { name: string; label: string; type: string; options?: string[]; required?: boolean; placeholder?: string; default?: Cell; min?: number; max?: number; step?: number }
+interface FieldSpec { name: string; label: string; type: string; options?: string[]; required?: boolean; placeholder?: string; default?: Cell; min?: number; max?: number; step?: number; bindKey?: string }
 
 function initialValue(f: FieldSpec): unknown {
-  if (f.type === 'checkbox') return f.default === true
-  if (f.type === 'range') return typeof f.default === 'number' ? f.default : ((f.min ?? 0) + (f.max ?? 100)) / 2
-  if (f.default === undefined || f.default === null) return ''
-  return f.type === 'number' ? Number(f.default) : String(f.default)
+  return fieldInitialValue(f as BoundField)
 }
 
 function Form({ props, env, nodeId }: { props: Record<string, any>; env: RenderEnv; nodeId: string }) {
@@ -413,7 +428,33 @@ function Form({ props, env, nodeId }: { props: Record<string, any>; env: RenderE
   // Submitted forms stay locked across remounts and reloads.
   const [done, setDone] = useUiState(env.callId, `${nodeId}:submitted`, false)
   const uid = useId()
-  const set = (name: string, v: unknown) => setValues(prev => ({ ...prev, [name]: v }))
+  // Linkage: a field with `bindKey` — or one a computed formula reads — publishes
+  // its value to the shared state pool, so a Progress/Chart/Table anywhere in the
+  // same answer recomputes on every keystroke and drag. Internal form values stay
+  // under `${nodeId}:values`, untouched by other blocks.
+  const live = env.computed?.liveKeys
+  const publishes = (f: FieldSpec) => (typeof f.bindKey === 'string' && f.bindKey !== '') || (live?.has(f.name) ?? false)
+  const publish = (f: FieldSpec, v: unknown) => {
+    const key = bindKeyOf(f as BoundField)
+    if (key !== undefined) setUiState(env.callId ?? '', key, v)
+    // A form-level bindKey names the value of a single-field form.
+    if (typeof props.bindKey === 'string' && props.bindKey && fields.length === 1) setUiState(env.callId ?? '', props.bindKey, v)
+  }
+  useEffect(() => {
+    for (const f of fields) {
+      if (!publishes(f)) continue
+      const key = bindKeyOf(f as BoundField)
+      if (key === undefined || getUiState(env.callId ?? '', key) !== undefined) continue
+      setUiState(env.callId ?? '', key, values[f.name])
+    }
+  // The values object changes on every edit; the guard above keeps this a one-time seed.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fields, env.callId, live])
+  const set = (name: string, v: unknown) => {
+    setValues(prev => ({ ...prev, [name]: v }))
+    const f = fields.find(x => x.name === name)
+    if (f && publishes(f)) publish(f, v)
+  }
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (busy || done || env.streaming || env.stopped) return

@@ -55,6 +55,8 @@ export interface PatchedUi {
   readonly title?: string
   readonly root: string
   readonly components: readonly unknown[]
+  /** Root-level computed formulas of the patched tree, when it declares any. */
+  readonly computed?: readonly unknown[]
 }
 
 export function patchedUiOf(meta: unknown): PatchedUi | undefined {
