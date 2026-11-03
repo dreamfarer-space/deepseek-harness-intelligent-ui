@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Declarative computed fields, Phase 1 (engine + protocol, #84): a `ui_render` payload may carry a root-level `computed` array of `{ id, expr, format? }`. Expressions are compiled by the same zero-`eval` recursive-descent compiler as `Plot`, now extended with `<`, `<=`, `>`, `>=`, `==`, `!=`, `&&`, `||` and unary `!` (precedence `||` < `&&` < equality < comparison < `+ -` < `* / %` < unary < `^`), and compiled closures are memoized in a 500-entry LRU cache. New `src/catalog/computed.js` collects dependencies, topologically sorts them, detects cycles (`Cyclic dependency: a -> b -> a`), isolates per-formula errors (a failure only poisons its downstream), and formats results with `Intl.NumberFormat` (`currency` / `percent` / `decimal`). Fields gated away by `when` are passed as `hiddenFieldKeys` and treated as empty, so a hidden input can never feed a phantom total. `catalog` accepts `$computed` references in `Progress.value` and `Chart` series values, `{{id}}` interpolation in string props, `Table.filterField`/`filterValue`, and `bindKey` on `Form` and its fields; the Host validates ids, duplicate names, reserved names, expression syntax, formats and unknown references.
+
 ## [0.2.13]
 
 ### Added

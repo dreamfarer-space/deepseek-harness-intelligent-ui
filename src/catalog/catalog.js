@@ -10,6 +10,7 @@
  */
 
 import { checkExpression, FUNCTIONS } from './expr.js';
+import { COMPUTED_ID, computedIdProblem, COMPUTED_FORMATS } from './computed.js';
 import { extensionEntry, extensionTypes } from './extensions.js';
 import { validateSchema } from '../controlled/runtime.js';
 import { embedSource, PROVIDER_NAMES, videoPlatform } from './video.js';
@@ -57,7 +58,41 @@ export const LIMITS = Object.freeze({
   mapTotalRoutePoints: 5000,
   galleryImages: 24,
   urlChars: 2048,
+  computed: 64,
 });
+
+/** Identifier rule for names the model invents (Plot params, `bindKey`, computed ids). */
+const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const RESERVED = new Set(['x', 'pi', 'e', 'tau', ...Object.keys(FUNCTIONS)]);
+
+/** A computed reference in a numeric prop slot: `{"$computed": "total"}`. */
+const COMPUTED_REF = {
+  type: 'object',
+  label: '{"$computed": "id"}',
+  props: {
+    $computed: {
+      type: 'string', required: true, max: 64, pattern: COMPUTED_ID,
+      expect: 'expected the id of a computed entry (letters, digits, "_")',
+    },
+  },
+};
+
+/**
+ * A slot that takes a literal number or a computed reference. `expect` is the
+ * wording used in errors, `label` the wording used by {@link catalogReference}.
+ */
+const numberOrComputed = (expect) => ({
+  type: 'union',
+  label: 'number',
+  expect,
+  anyOf: [{ type: 'number' }, COMPUTED_REF],
+});
+
+/** Field key a form value is bound to in the computed scope. */
+const BIND_KEY = {
+  type: 'string', max: 64, pattern: IDENT,
+  expect: 'expected a field key like "qty" (letters, digits, "_")',
+};
 
 /** Media sources and credit links: absolute https URLs (no credentials), checked in {@link checkSemantics}. */
 const URL_SPEC = { type: 'string', max: LIMITS.urlChars };
@@ -84,9 +119,10 @@ export function httpsUrlProblem(value) {
 }
 
 /**
- * Prop spec language: `{ type, required?, values?, items?, max?, min? }` where
- * type is one of string | number | boolean | scalar | enum | array | object | any.
- * `scalar` accepts string, number, boolean or null.
+ * Prop spec language: `{ type, required?, values?, items?, max?, min?, pattern?, anyOf?, label?, expect? }`
+ * where type is one of string | number | boolean | scalar | enum | array | object | union | any.
+ * `scalar` accepts string, number, boolean or null; `union` accepts the first
+ * matching spec in `anyOf`; `pattern` constrains identifiers.
  */
 export const CATALOG = Object.freeze({
   Card: {
@@ -162,10 +198,10 @@ export const CATALOG = Object.freeze({
     },
   },
   Progress: {
-    description: 'Progress bar; value out of max (default 100).',
+    description: 'Progress bar; value out of max (default 100). `value` may be a computed reference {"$computed":"id"} instead of a literal number.',
     children: false,
     props: {
-      value: { type: 'number', required: true },
+      value: { ...numberOrComputed('finite number'), required: true },
       max: { type: 'number', min: 0 },
       label: { type: 'string' },
       tone: { type: 'enum', values: TONES },
@@ -196,6 +232,8 @@ export const CATALOG = Object.freeze({
       },
       caption: { type: 'string' },
       sortable: { type: 'boolean' },
+      filterField: { type: 'string', max: 200 },
+      filterValue: { type: 'string', max: 500 },
     },
   },
   Chart: {
@@ -213,7 +251,10 @@ export const CATALOG = Object.freeze({
           type: 'object',
           props: {
             name: { type: 'string', required: true },
-            values: { type: 'array', required: true, items: { type: 'number' }, max: LIMITS.chartPoints },
+            values: {
+              type: 'array', required: true, max: LIMITS.chartPoints,
+              items: { type: 'union', label: 'number', anyOf: [{ type: 'number' }, COMPUTED_REF] },
+            },
           },
         },
       },
@@ -413,13 +454,14 @@ export const CATALOG = Object.freeze({
     },
   },
   Form: {
-    description: 'Input form. Submit sends all field values prefixed by prompt. sessionTarget defaults to current; new creates an independent session in the same workspace and submits automatically. For new, prompt must contain complete task context and user constraints; conversation history is not copied.',
+    description: 'Input form. Submit sends all field values prefixed by prompt. sessionTarget defaults to current; new creates an independent session in the same workspace and submits automatically. For new, prompt must contain complete task context and user constraints; conversation history is not copied. bindKey (on the form or a field) names the value in the computed scope; a field without bindKey binds to its name.',
     children: false,
     props: {
       title: { type: 'string' },
       submitLabel: { type: 'string' },
       prompt: { type: 'string' },
       sessionTarget: { type: 'enum', values: ['current', 'new'] },
+      bindKey: BIND_KEY,
       fields: {
         type: 'array', required: true, max: LIMITS.formFields,
         items: {
@@ -435,6 +477,7 @@ export const CATALOG = Object.freeze({
             min: { type: 'number' },
             max: { type: 'number' },
             step: { type: 'number', min: 0 },
+            bindKey: BIND_KEY,
           },
         },
       },
@@ -545,6 +588,9 @@ function checkValue(value, spec, path, errors) {
     case 'string':
       if (typeof value !== 'string') { errors.push(`${path}: expected string, got ${describe(value)}`); return; }
       if (spec.max !== undefined && value.length > spec.max) errors.push(`${path}: longer than ${spec.max} characters`);
+      if (spec.pattern instanceof RegExp && !spec.pattern.test(value)) {
+        errors.push(`${path}: ${spec.expect ?? `must match ${spec.pattern}`}, got ${JSON.stringify(value)}`);
+      }
       return;
     case 'number':
       if (typeof value !== 'number' || !Number.isFinite(value)) { errors.push(`${path}: expected finite number, got ${describe(value)}`); return; }
@@ -571,6 +617,25 @@ function checkValue(value, spec, path, errors) {
       if (!isPlainObject(value)) { errors.push(`${path}: expected object, got ${describe(value)}`); return; }
       checkProps(value, spec.props || {}, path, errors);
       return;
+    case 'union': {
+      for (const sub of spec.anyOf ?? []) {
+        const subErrors = [];
+        checkValue(value, sub, path, subErrors);
+        if (subErrors.length === 0) return;
+      }
+      if (isPlainObject(value) && Object.hasOwn(value, '$computed') && typeof value.$computed !== 'string') {
+        errors.push(`${path}.$computed: expected the id of a computed entry (letters, digits, "_")`);
+        return;
+      }
+      if (isPlainObject(value) && typeof value.$computed === 'string') {
+        // They wrote a computed reference; report its own problems (extra keys, bad id).
+        const refSpec = (spec.anyOf ?? []).find(sub => sub.type === 'object');
+        if (refSpec) { checkValue(value, refSpec, path, errors); return; }
+      }
+      const expected = spec.expect ?? (spec.anyOf ?? []).map(sub => sub.label ?? sub.type).join(' or ');
+      errors.push(`${path}: expected ${expected}, got ${describe(value)}`);
+      return;
+    }
     default:
       errors.push(`${path}: unknown spec type ${spec.type}`);
   }
@@ -611,6 +676,13 @@ function checkSemantics(type, props, path, errors) {
   }
   if (type === 'Button' && ((props.prompt === undefined) === (props.action === undefined))) errors.push(`${path}: needs exactly one of prompt or action`);
   if (type === 'Button' && props.sessionTarget !== undefined && props.action !== undefined) errors.push(`${path}.sessionTarget: only supported with prompt`);
+  if (type === 'Table' && props.filterValue !== undefined && props.filterField === undefined) {
+    errors.push(`${path}.filterValue: needs filterField (the column name it filters)`);
+  }
+  if (type === 'Table' && props.filterField !== undefined && props.dataRef === undefined && Array.isArray(props.columns)
+    && !props.columns.includes(props.filterField)) {
+    errors.push(`${path}.filterField: must name one of columns`);
+  }
   if (type === 'Form' && props.sessionTarget === 'new' && (typeof props.prompt !== 'string' || !props.prompt.trim())) errors.push(`${path}.prompt: new session needs a non-empty task prompt`);
   if (type === 'Choice') {
     for (const name of ['question', 'submitLabel']) {
@@ -641,10 +713,15 @@ function checkSemantics(type, props, path, errors) {
   }
   if (type === 'Form' && Array.isArray(props.fields)) {
     const seen = new Set();
+    const binds = new Set();
     props.fields.forEach((f, i) => {
       if (!isPlainObject(f)) return;
       if (seen.has(f.name)) errors.push(`${path}.fields[${i}].name: duplicate field name ${JSON.stringify(f.name)}`);
       seen.add(f.name);
+      if (f.bindKey !== undefined) {
+        if (binds.has(f.bindKey)) errors.push(`${path}.fields[${i}].bindKey: duplicate bindKey ${JSON.stringify(f.bindKey)}`);
+        binds.add(f.bindKey);
+      }
       if (f.type === 'select' && (!Array.isArray(f.options) || f.options.length === 0)) {
         errors.push(`${path}.fields[${i}].options: a select field needs options`);
       }
@@ -755,8 +832,141 @@ function jsonDepth(v, d = 0) {
   return max;
 }
 
-const IDENT = /^[A-Za-z_][A-Za-z_0-9]*$/;
-const RESERVED = new Set(['x', 'pi', 'e', 'tau', ...Object.keys(FUNCTIONS)]);
+/** Component types whose text is free-form content, not a computed template. */
+const VERBATIM_TYPES = new Set(['Code', 'CodeDiff', 'Math', 'Mermaid', 'JsonView']);
+
+/** `{{id}}` placeholders inside any string prop. */
+const TEMPLATE_REF = /\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g;
+
+const COMPUTED_KEYS = ['id', 'expr', 'format'];
+const FORMAT_KEYS = ['style', 'currency', 'minimumFractionDigits', 'maximumFractionDigits', 'locale'];
+
+/**
+ * Validate a computed `format` object.
+ * @param {unknown} format
+ * @param {string} at - error path prefix (the entry, e.g. `computed[0]`).
+ * @param {string[]} errors
+ */
+function checkComputedFormat(format, at, errors) {
+  if (format === undefined) return;
+  if (!isPlainObject(format)) { errors.push(`${at}.format: expected object`); return; }
+  for (const key of Object.keys(format)) {
+    if (!FORMAT_KEYS.includes(key)) errors.push(`${at}.format.${key}: unknown field`);
+  }
+  if (format.style !== undefined && !COMPUTED_FORMATS.includes(format.style)) {
+    errors.push(`${at}.format.style: expected one of ${COMPUTED_FORMATS.join(' | ')}`);
+  }
+  if (format.currency !== undefined && (typeof format.currency !== 'string' || !/^[A-Z]{3}$/.test(format.currency))) {
+    errors.push(`${at}.format.currency: expected a 3-letter ISO 4217 code like "USD"`);
+  }
+  for (const key of ['minimumFractionDigits', 'maximumFractionDigits']) {
+    const digits = format[key];
+    if (digits !== undefined && (!Number.isInteger(digits) || digits < 0 || digits > 20)) {
+      errors.push(`${at}.format.${key}: expected an integer 0-20`);
+    }
+  }
+  if (Number.isInteger(format.minimumFractionDigits) && Number.isInteger(format.maximumFractionDigits)
+    && format.minimumFractionDigits > format.maximumFractionDigits) {
+    errors.push(`${at}.format: minimumFractionDigits must be <= maximumFractionDigits`);
+  }
+  if (format.locale !== undefined && (typeof format.locale !== 'string' || !format.locale)) {
+    errors.push(`${at}.format.locale: expected a locale like "en-US"`);
+  }
+}
+
+/**
+ * Report `{{id}}` / `{"$computed": "id"}` references that name no declared
+ * computed entry, anywhere inside a node's props.
+ * @param {unknown} props
+ * @param {string} path
+ * @param {Set<string>} ids - declared computed ids.
+ * @param {string[]} errors
+ * @param {number} [depth]
+ */
+function checkComputedRefs(props, path, ids, errors, depth = 0) {
+  if (depth > 8 || props === null || props === undefined) return;
+  if (typeof props === 'string') {
+    TEMPLATE_REF.lastIndex = 0;
+    let m;
+    while ((m = TEMPLATE_REF.exec(props)) !== null) {
+      if (!ids.has(m[1])) errors.push(`${path}: unknown computed id "${m[1]}" in {{${m[1]}}}`);
+    }
+    return;
+  }
+  if (Array.isArray(props)) {
+    props.forEach((item, i) => checkComputedRefs(item, `${path}[${i}]`, ids, errors, depth + 1));
+    return;
+  }
+  if (!isPlainObject(props)) return;
+  if (Object.hasOwn(props, '$computed')) {
+    const id = props.$computed;
+    if (typeof id === 'string' && !ids.has(id)) errors.push(`${path}.$computed: unknown computed id ${JSON.stringify(id)}`);
+    return;
+  }
+  for (const [key, item] of Object.entries(props)) checkComputedRefs(item, `${path}.${key}`, ids, errors, depth + 1);
+}
+
+/**
+ * Validate the root-level `computed` array and the references that point at it.
+ * @param {unknown} entries
+ * @param {Map<string, any>} byId - nodes of the tree, for bindKey collection.
+ * @param {string[]} errors
+ * @returns {Set<string>} declared computed ids (empty when the tree has none).
+ */
+function checkComputed(entries, byId, paths, errors) {
+  const ids = new Set();
+  if (entries === undefined) return ids;
+  if (!Array.isArray(entries)) { errors.push('computed: expected an array of { id, expr, format? }'); return ids; }
+  if (entries.length > LIMITS.computed) errors.push(`computed: more than ${LIMITS.computed} entries`);
+
+  entries.forEach((entry, i) => {
+    const at = `computed[${i}]`;
+    if (!isPlainObject(entry)) { errors.push(`${at}: expected object`); return; }
+    for (const key of Object.keys(entry)) {
+      if (!COMPUTED_KEYS.includes(key)) errors.push(`${at}.${key}: unknown field`);
+    }
+    const problem = computedIdProblem(entry.id);
+    if (problem) errors.push(`${at}.id: ${problem}`);
+    else if (ids.has(entry.id)) errors.push(`${at}.id: duplicate computed id ${JSON.stringify(entry.id)}`);
+    else ids.add(entry.id);
+    checkComputedFormat(entry.format, at, errors);
+  });
+
+  // Scope names a formula may read: declared computed ids plus the values a
+  // Form binds (field `bindKey`, else its `name`, plus the form-level key).
+  const fieldKeys = new Set();
+  for (const node of byId.values()) {
+    if (node.type !== 'Form' || !isPlainObject(node.props)) continue;
+    if (typeof node.props.bindKey === 'string') fieldKeys.add(node.props.bindKey);
+    if (!Array.isArray(node.props.fields)) continue;
+    for (const field of node.props.fields) {
+      if (!isPlainObject(field)) continue;
+      if (typeof field.name === 'string' && field.name) fieldKeys.add(field.name);
+      if (typeof field.bindKey === 'string' && field.bindKey) fieldKeys.add(field.bindKey);
+    }
+  }
+
+  const variables = [...ids, ...fieldKeys];
+  entries.forEach((entry, i) => {
+    if (!isPlainObject(entry) || typeof entry.id !== 'string' || !ids.has(entry.id)) return;
+    if (typeof entry.expr !== 'string' || !entry.expr.trim()) {
+      errors.push(`computed[${i}].expr: expected a non-empty expression string`);
+      return;
+    }
+    if (fieldKeys.has(entry.id)) errors.push(`computed[${i}].id: "${entry.id}" is also a form field key; pick one name per value`);
+    const problem = checkExpression(entry.expr, variables);
+    if (problem) errors.push(`computed[${i}].expr: ${problem}`);
+  });
+
+  if (ids.size > 0) {
+    for (const node of byId.values()) {
+      if (VERBATIM_TYPES.has(node.type) || !isPlainObject(node.props)) continue;
+      const at = paths.get(node.id) ?? node.id;
+      checkComputedRefs(node.props, `${at}(${node.id}).props`, ids, errors);
+    }
+  }
+  return ids;
+}
 
 function checkPlot(props, path, errors) {
   const xMin = typeof props.xMin === 'number' ? props.xMin : -10;
@@ -833,12 +1043,14 @@ export function validateTree(args) {
   if (components.length > LIMITS.components) errors.push(`components: more than ${LIMITS.components} nodes`);
 
   const byId = new Map();
+  const paths = new Map();
   components.forEach((node, i) => {
     const at = `components[${i}]`;
     if (!isPlainObject(node)) { errors.push(`${at}: expected object`); return; }
     if (typeof node.id !== 'string' || node.id === '') { errors.push(`${at}.id: expected non-empty string`); return; }
     if (byId.has(node.id)) { errors.push(`${at}.id: duplicate id ${JSON.stringify(node.id)}`); return; }
     byId.set(node.id, node);
+    paths.set(node.id, at);
     if (Object.hasOwn(CATALOG, node.type) && isPlainObject(node.props) && 'children' in node.props) {
       if (node.children === undefined && Array.isArray(node.props.children)) {
         node.children = node.props.children;
@@ -860,6 +1072,8 @@ export function validateTree(args) {
       if (!['id', 'type', 'componentVersion', 'props', 'children'].includes(key)) errors.push(`${at}(${node.id}).${key}: unknown field`);
     }
   });
+
+  checkComputed(args.computed, byId, paths, errors);
 
   const parentOf = new Map();
   for (const node of byId.values()) {
@@ -907,13 +1121,13 @@ export function validateTree(args) {
  * @returns {string}
  */
 export function catalogReference() {
-  const fmt = (specs) => Object.entries(specs).map(([k, s]) => {
-    let t = s.type;
-    if (s.type === 'enum') t = s.values.join('|');
-    else if (s.type === 'object') t = `{${fmt(s.props || {})}}`;
-    else if (s.type === 'array') t = s.items ? (s.items.type === 'object' ? `[{${fmt(s.items.props)}}]` : `${s.items.type === 'array' ? `${s.items.items.type}[]` : s.items.type}[]`) : 'array';
-    return `${k}${s.required ? '' : '?'}: ${t}`;
-  }).join(', ');
+  const typeName = (s) => (s.label !== undefined ? s.label
+    : s.type === 'enum' ? s.values.join('|')
+      : s.type === 'union' ? (s.anyOf ?? []).map(typeName).join('|')
+        : s.type === 'object' ? `{${fmt(s.props || {})}}`
+          : s.type === 'array' ? (s.items ? (s.items.type === 'object' ? `[{${fmt(s.items.props)}}]` : `${typeName(s.items)}[]`) : 'array')
+            : s.type);
+  const fmt = (specs) => Object.entries(specs).map(([k, s]) => `${k}${s.required ? '' : '?'}: ${typeName(s)}`).join(', ');
   return componentTypes().map((name) => {
     const e = componentEntry(name);
     if (e.propsSchema) return `- ${name} (componentVersion: ${e.version}${e.children ? ', children' : ''}) propsSchema=${JSON.stringify(e.propsSchema)}: ${e.description}${e.actions.length ? `; allowed host actionIds: ${e.actions.join(', ')}` : ''}`;
