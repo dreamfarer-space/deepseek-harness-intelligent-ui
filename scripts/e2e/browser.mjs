@@ -144,6 +144,7 @@ async function waitFor(fn, timeout = 15000, every = 150) {
   return undefined
 }
 async function shot(name) { await page.screenshot({ path: path.join(shots, name) }) }
+/** Capture a clipped screenshot around the latest live `.diui-shell` matching `title`. */
 async function shellShot(name, title) {
   const el = await page.evaluateHandle((t) => [...document.querySelectorAll('.diui-tail .diui-shell, .diui-shell')].filter(x => x.querySelector('.diui-shell-body') && x.querySelector('.diui-shell-title')?.textContent === t).at(-1), title)
   const box = el.asElement() && await el.asElement().boundingBox()
@@ -390,8 +391,9 @@ async function checkCompose() {
   await shellShot('17-compose.png', 'Route decision')
 }
 
+/** Verify declarative `computed` formulas, live form-to-component linkage, and `/ui` slash command rendering. */
 async function checkComputedAndSlash() {
-  await caption('15 · Declarative computed engine & live cross-component linkage')
+  await caption('15 · Declarative computed engine & live cross-component linkage (zero model calls)')
   await send('E2E computed planner')
   await waitIdle()
   const plannerReady = await waitFor(() => page.evaluate(() =>
@@ -416,10 +418,8 @@ async function checkComputedAndSlash() {
     })
     if (numInput.asElement()) {
       await scrollIntoView(numInput.asElement())
-      await numInput.asElement().focus()
-      await page.keyboard.down('Control')
-      await page.keyboard.press('KeyA')
-      await page.keyboard.up('Control')
+      await numInput.asElement().click({ clickCount: 3 })
+      await page.evaluate(el => el.select(), numInput)
       await page.keyboard.press('Backspace')
       await page.keyboard.type('10')
       await sleep(350)
@@ -483,6 +483,7 @@ async function checkNewSession() {
   await shot('15-new-session.png')
 }
 
+/** Verify DSH 0.2.2+ PTC (`run_code` -> `tool/ptc-dispatch`) rendering, patching, and Plugin Manager listing. */
 async function checkPtcAndPluginManager() {
   // DSH 0.2.2+ features: PTC agent preset (`run_code` -> `tool/ptc-dispatch`) and Plugin Manager panel.
   // Click "New conversation" / "新对话" in the sidebar to return to the Hero screen where the preset chip lives.
@@ -547,7 +548,11 @@ async function checkPtcAndPluginManager() {
         !!ptcPatched && ptcPatched.live === 1 && /Version 2|第 2 版/.test(ptcPatched.status) && ptcPatched.lines >= 1 && ptcPatched.bars === 0,
         JSON.stringify(ptcPatched))
       if (ptcPatched) await shellShot('20-ptc-mode.png', 'PTC pipeline monitor')
+    } else {
+      console.log('SKIP  17 · PTC menu item not found (pre-0.2.2 DSH)')
     }
+  } else {
+    console.log('SKIP  17 · PTC preset chip not found (pre-0.2.2 DSH)')
   }
 
   // Open the Settings / Plugin Inventory view if present in this DSH version (DSH 0.2.2+).
@@ -564,26 +569,36 @@ async function checkPtcAndPluginManager() {
     await sleep(600)
     await page.evaluate(() => {
       const tab = [...document.querySelectorAll('button, [role="tab"], a, li')].find(el =>
-        /插件|Plugins|Intelligent UI|智能 UI/i.test((el.textContent || '').trim()))
+        /^(插件|Plugins)$/i.test((el.textContent || '').trim()))
       tab?.click()
     })
     await caption('18 · DSH 0.2.2 Plugin / Settings UI showing deepseek-harness-intelligent-ui active')
-    const pluginListed = await waitFor(() => page.evaluate(() => {
-      const text = document.body.innerText || ''
-      return /deepseek-harness-intelligent-ui|智能 UI|Intelligent UI/i.test(text) ? text.slice(0, 400) : null
-    }), 15000)
-    if (pluginListed) {
+    const pluginState = await waitFor(() => page.evaluate(() => {
+      const entry = [...document.querySelectorAll('h2, h3, div, span, section, li')].find(el =>
+        /deepseek-harness-intelligent-ui|智能界面 Intelligent UI|DeepSeek Harness 智能 UI|DeepSeek Harness Intelligent UI/i.test((el.textContent || '').trim())
+        && (el.textContent || '').length < 240)
+      if (!entry) return null
+      const card = entry.closest('li, article, section, div') || entry
+      const text = (card.textContent || '').replace(/\s+/g, ' ').trim()
+      const active = !/已禁用|Disabled/i.test(text)
+      return { ok: active, detail: text.slice(0, 160) }
+    }), 5000)
+    if (pluginState) {
       await page.evaluate(() => {
         const target = [...document.querySelectorAll('h2, h3, div, span, section')].find(el =>
-          /deepseek-harness-intelligent-ui|DeepSeek Harness 智能 UI|DeepSeek Harness Intelligent UI|已安装插件|Installed plugins/i.test((el.textContent || '').trim())
+          /deepseek-harness-intelligent-ui|智能界面 Intelligent UI|DeepSeek Harness 智能 UI|DeepSeek Harness Intelligent UI|已安装插件|Installed plugins/i.test((el.textContent || '').trim())
           && (el.textContent || '').length < 120)
         target?.scrollIntoView({ block: 'center' })
       })
       check('18. DSH Settings / Plugin UI lists deepseek-harness-intelligent-ui as installed and active',
-        true, pluginListed.replace(/\s+/g, ' ').slice(0, 160))
+        pluginState.ok, pluginState.detail)
       await sleep(500)
       await shot('21-plugin-manager.png')
+    } else {
+      console.log('SKIP  18 · Plugin inventory entry not present in this DSH build')
     }
+  } else {
+    console.log('SKIP  18 · Plugin / Settings button not present in this DSH version')
   }
 }
 

@@ -312,4 +312,37 @@ describe('PTC tool/ptc-dispatch and SessionProjection folding', () => {
     expect(res.ui.version).toBe(2)
     expect(byId(res.ui).get('r').props.text).toBe('v2')
   })
+
+  it('guards projection state against __proto__ keys and non-append surfaceOp events', () => {
+    const unit = createUiSessionProjection(fullTools)
+    let state = unit.init()
+    const nonAppend = unit.apply(state, {
+      type: 'tool/ptc-dispatch',
+      surfaceOp: 'replace',
+      seq: 1,
+      data: {
+        subCallId: 'rc1:ptc:1',
+        name: RENDER_TOOL,
+        arguments: DASHBOARD,
+        isError: false,
+        meta: { ok: true },
+      },
+    })
+    expect(nonAppend).toBe(state)
+
+    state = unit.apply(state, {
+      type: 'tool/ptc-dispatch',
+      seq: 2,
+      data: {
+        subCallId: '__proto__',
+        name: RENDER_TOOL,
+        arguments: DASHBOARD,
+        isError: false,
+        meta: { ok: true },
+      },
+    })
+    expect(Object.getPrototypeOf(state.uis)).toBeNull()
+    expect(state.uis['__proto__']?.version).toBe(1)
+    expect(({}).version).toBeUndefined()
+  })
 })

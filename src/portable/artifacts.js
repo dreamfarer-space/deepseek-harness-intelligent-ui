@@ -12,6 +12,11 @@ const object = value => value !== null && typeof value === 'object' && !Array.is
 const text = value => typeof value === 'string' && value.length > 0;
 const clone = value => JSON.parse(JSON.stringify(value));
 
+/**
+ * Parse and size-bound raw tool arguments (string JSON or pre-parsed object).
+ * @param {unknown} input
+ * @returns {Record<string, any> | undefined}
+ */
 function argumentsOf(input) {
   if (typeof input === 'string' && input.length <= MAX_ARGUMENT_CHARS) {
     try { const parsed = JSON.parse(input); return object(parsed) ? parsed : undefined; }
@@ -66,15 +71,18 @@ export function projectNativeUiEvents(events, { hostId, sessionId }) {
       continue;
     }
     if (event.type === 'tool/ptc-dispatch' && TOOLS.has(data.name) && text(data.subCallId)) {
+      if (event.surfaceOp !== undefined && event.surfaceOp !== 'append') continue;
       const meta = data.meta;
       if (!object(meta) || meta.ok !== true || data.isError === true || object(data.error)) continue;
       const args = argumentsOf(data.arguments);
       if (!args) continue;
-      const turn = data.turn !== undefined ? data.turn : (text(data.rootCallId) ? rootTurns.get(data.rootCallId) : undefined);
+      const rootId = text(data.rootCallId) ? data.rootCallId : (text(data.parentCallId) ? data.parentCallId : undefined);
+      const turn = data.turn !== undefined ? data.turn : (rootId ? rootTurns.get(rootId) : undefined);
       settled.push({ id: data.subCallId, call: { kind: data.name, args, turn }, meta, seq: event.seq });
       continue;
     }
     if (event.type !== 'tool/result') continue;
+    if (event.surfaceOp !== undefined && event.surfaceOp !== 'append') continue;
     const message = object(data.message) ? data.message : {};
     const id = object(message.source) ? message.source.callId : data.callId;
     if (!text(id)) continue;

@@ -311,11 +311,37 @@ export function applyPatch(ui, args) {
   };
 }
 
+const MAX_CALL_ARGUMENT_CHARS = 512_000;
+
+/**
+ * Parse raw tool call arguments (JSON string or pre-parsed plain object) within
+ * a defensive size bound.
+ * @param {unknown} raw
+ * @returns {Record<string, any> | undefined}
+ */
 function parseCallArguments(raw) {
   if (typeof raw === 'string') {
-    try { return JSON.parse(raw); } catch { return undefined; }
+    if (raw.length > MAX_CALL_ARGUMENT_CHARS) return undefined;
+    try {
+      const parsed = JSON.parse(raw);
+      return isPlainObject(parsed) ? parsed : undefined;
+    } catch { return undefined; }
   }
   return isPlainObject(raw) ? raw : undefined;
+}
+
+/**
+ * Convert a Map or plain object into a null-prototype dictionary so keys like
+ * `__proto__` or `constructor` remain inert own properties.
+ * @param {Iterable<[string, any]>} entries
+ * @returns {Record<string, any>}
+ */
+function toSafeRecord(entries) {
+  const out = Object.create(null);
+  for (const [k, v] of entries) {
+    if (typeof k === 'string' && k !== '') out[k] = v;
+  }
+  return out;
 }
 
 /**
@@ -428,8 +454,10 @@ export function foldUiEvent(state, event, tools) {
   const data = event.data;
   if (event.type === 'tool/call') {
     if (!relevant(data.name) || typeof data.callId !== 'string' || data.callId === '') return state;
+    const nextPending = toSafeRecord(Object.entries(state.pending));
+    nextPending[data.callId] = { name: data.name, arguments: data.arguments };
     return {
-      pending: { ...state.pending, [data.callId]: { name: data.name, arguments: data.arguments } },
+      pending: nextPending,
       uis: state.uis,
     };
   }
@@ -441,7 +469,7 @@ export function foldUiEvent(state, event, tools) {
       : (typeof data.callId === 'string' ? data.callId : '');
     if (!callId || !Object.hasOwn(state.pending, callId)) return state;
     const call = state.pending[callId];
-    const nextPending = { ...state.pending };
+    const nextPending = toSafeRecord(Object.entries(state.pending));
     delete nextPending[callId];
     const failed = message.isError === true || data.isError === true || isPlainObject(data.error)
       || (isPlainObject(data.meta) && data.meta.ok === false);
@@ -450,17 +478,18 @@ export function foldUiEvent(state, event, tools) {
     const changed = applySettledUiCall(map, callId, call.name, call.arguments, { content: message.content, meta: data.meta }, tools);
     return {
       pending: nextPending,
-      uis: changed ? Object.fromEntries(map) : state.uis,
+      uis: changed ? toSafeRecord(map) : state.uis,
     };
   }
   if (event.type === 'tool/ptc-dispatch') {
+    if (event.surfaceOp !== undefined && event.surfaceOp !== 'append') return state;
     if (!relevant(data.name) || typeof data.subCallId !== 'string' || data.subCallId === '') return state;
     const failed = data.isError === true || isPlainObject(data.error)
       || (isPlainObject(data.meta) && data.meta.ok === false);
     if (failed) return state;
     const map = new Map(Object.entries(state.uis));
     const changed = applySettledUiCall(map, data.subCallId, data.name, data.arguments, { content: data.content, meta: data.meta }, tools);
-    return changed ? { pending: state.pending, uis: Object.fromEntries(map) } : state;
+    return changed ? { pending: state.pending, uis: toSafeRecord(map) } : state;
   }
   return state;
 }
@@ -473,7 +502,7 @@ export function foldUiEvent(state, event, tools) {
  * @returns {Map<string, UiSnapshot>}
  */
 export function collectUisFromEvents(events, tools) {
-  let state = { pending: {}, uis: {} };
+  let state = { pending: Object.create(null), uis: Object.create(null) };
   for (const row of events ?? []) {
     const event = isPlainObject(row?.event) ? row.event : row;
     state = foldUiEvent(state, event, tools);
@@ -488,18 +517,19 @@ export function collectUisFromEvents(events, tools) {
  * @param {{ render: string, patch: string, compose?: string, config?: any }} tools
  */
 export function createUiSessionProjection(tools) {
+  const isRecord = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
   return {
     key: 'intelligent-ui.catalog-uis',
     stateVersion: 1,
     stateSchema: {
       parse(value) {
-        if (!isPlainObject(value) || !isPlainObject(value.pending) || !isPlainObject(value.uis)) {
+        if (!isRecord(value) || !isRecord(value.pending) || !isRecord(value.uis)) {
           throw new Error('invalid intelligent-ui session projection state');
         }
         return value;
       },
     },
-    init: () => ({ pending: {}, uis: {} }),
+    init: () => ({ pending: Object.create(null), uis: Object.create(null) }),
     apply: (state, event) => foldUiEvent(state, event, tools),
   };
 }

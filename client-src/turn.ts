@@ -115,6 +115,10 @@ function noteVersion(callId: string, call: CallHead, meta: unknown): void {
  */
 const MAX_ROOT_CALL_TURNS = 5000
 const rootCallTurns = new Map<string, string>()
+/**
+ * Record the owning Turn id for a root `tool/call` so nested `tool/ptc-dispatch`
+ * sub-calls can resolve their Turn when `event.data.turn` is omitted.
+ */
 function rememberRootCallTurn(callId: unknown, turn: unknown): void {
   if (typeof callId !== 'string' || callId === '' || turn === undefined || turn === null) return
   if (rootCallTurns.size >= MAX_ROOT_CALL_TURNS && !rootCallTurns.has(callId)) {
@@ -134,10 +138,12 @@ export const uiTurnDefinition = {
       return { id: String(event.data.turn), role: 'update' as const }
     }
     if (event.type === 'tool/result' && event.surfaceOp === 'append') return { id: String(event.data.turn), role: 'update' as const }
-    if (event.type === 'tool/ptc-dispatch') {
+    if (event.type === 'tool/ptc-dispatch' && (event.surfaceOp === undefined || event.surfaceOp === 'append')) {
       const directTurn = event.data?.turn
       if (directTurn !== undefined && directTurn !== null) return { id: String(directTurn), role: 'update' as const }
-      const rootCallId = typeof event.data?.rootCallId === 'string' ? event.data.rootCallId : ''
+      const rootCallId = typeof event.data?.rootCallId === 'string' && event.data.rootCallId
+        ? event.data.rootCallId
+        : (typeof event.data?.parentCallId === 'string' ? event.data.parentCallId : '')
       const turn = rootCallId ? rootCallTurns.get(rootCallId) : undefined
       return turn !== undefined ? { id: turn, role: 'update' as const } : null
     }

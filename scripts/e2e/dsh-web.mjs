@@ -60,24 +60,29 @@ export function installSpec(spec) {
   return `file:${path.resolve(spec).replace(/\\/g, '/')}`
 }
 
+/**
+ * Install a plugin spec into `dshHome/profiles/<profile>`. On Windows, when a
+ * local `.tgz` path is deep enough to push pnpm's store index filename close
+ * to `MAX_PATH` (260 chars), copy the archive into `dshHome` and keep it there
+ * for the lifetime of `dshHome` so subsequent `dsh plugin add` calls on the
+ * same profile can still resolve it.
+ * @param {string} spec
+ * @param {string} dshHome
+ * @param {string} [profile]
+ */
 export function installPlugin(spec, dshHome, profile = 'web') {
   mkdirSync(dshHome, { recursive: true })
   let targetSpec = spec
-  let staged
   const localPath = typeof spec === 'string' && spec.startsWith('file:') ? spec.slice(5) : spec
-  // Windows MAX_PATH (260 chars): pnpm encodes the full file: path into its store index filename.
-  // Staging a deep worktree .tgz into a short directory keeps the store index filename under 260 chars.
-  if (WIN && typeof localPath === 'string' && localPath.endsWith('.tgz') && existsSync(localPath) && path.resolve(localPath).length > 80) {
-    const baseDir = tmpdir().length <= dshHome.length ? tmpdir() : dshHome
-    staged = path.join(baseDir, `_diui-${process.pid}.tgz`)
-    copyFileSync(localPath, staged)
-    targetSpec = staged
+  if (WIN && typeof localPath === 'string' && localPath.endsWith('.tgz') && existsSync(localPath)) {
+    const resolved = path.resolve(localPath)
+    const candidate = path.join(dshHome, '_diui-pkg.tgz')
+    if (resolved.length > 120 && candidate.length < resolved.length) {
+      copyFileSync(resolved, candidate)
+      targetSpec = candidate
+    }
   }
-  try {
-    run(DSH, ['plugin', '--profile', profile, 'add', installSpec(targetSpec)], { cwd: dshHome, env: { ...process.env, DSH_HOME: dshHome } })
-  } finally {
-    if (staged) { try { rmSync(staged, { force: true }) } catch { /* ignore */ } }
-  }
+  run(DSH, ['plugin', '--profile', profile, 'add', installSpec(targetSpec)], { cwd: dshHome, env: { ...process.env, DSH_HOME: dshHome } })
 }
 
 /**

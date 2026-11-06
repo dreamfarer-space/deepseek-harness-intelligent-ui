@@ -13,7 +13,7 @@ import { homedir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import semver from 'semver'
-import { MIN_NODE_VERSION, SUPPORTED_DSH_RANGE } from '../src/compat.js'
+import { MIN_NODE_VERSION, SUPPORTED_DSH_RANGE, minNodeVersionForDsh } from '../src/compat.js'
 
 const pkg = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'))
 
@@ -74,9 +74,14 @@ export function isSupportedDsh(version) {
   return semver.valid(version) !== null && semver.satisfies(version, SUPPORTED_DSH_RANGE, { includePrerelease: true })
 }
 
-export function isSupportedNode(version) {
+/**
+ * Check whether `version` satisfies the minimum Node.js requirement.
+ * @param {string} version
+ * @param {string} [minVersion]
+ */
+export function isSupportedNode(version, minVersion = MIN_NODE_VERSION) {
   const v = semver.coerce(version)
-  return v !== null && semver.gte(v, MIN_NODE_VERSION)
+  return v !== null && semver.gte(v, minVersion)
 }
 
 /** `$DSH_HOME/profiles/<profile>`, defaulting DSH_HOME to `~/.dsh` like dsh-home-paths. */
@@ -134,12 +139,14 @@ export function doctor(opts, { run = defaultRun, env = process.env, nodeVersion 
   const bad = (msg, fix) => { ok = false; lines.push(`  FAIL  ${msg}`, `        → ${fix}`) }
   const warn = (msg, fix) => lines.push(`  warn  ${msg}`, ...(fix ? [`        → ${fix}`] : []))
 
-  if (isSupportedNode(nodeVersion)) good(`Node.js ${nodeVersion}`)
-  else bad(`Node.js ${nodeVersion} is older than ${MIN_NODE_VERSION}`, `install Node.js ${MIN_NODE_VERSION} or newer (https://nodejs.org)`)
-
   const dsh = dshBin(opts, env)
   const v = run(dsh, ['--version'])
   const dshVersion = v.status === 0 ? parseVersionOutput(v.stdout) : null
+  const minNode = minNodeVersionForDsh(dshVersion)
+
+  if (isSupportedNode(nodeVersion, minNode)) good(`Node.js ${nodeVersion}`)
+  else bad(`Node.js ${nodeVersion} is older than ${minNode}${dshVersion && minNode !== MIN_NODE_VERSION ? ` (required by dsh ${dshVersion})` : ''}`, `install Node.js ${minNode} or newer (https://nodejs.org)`)
+
   if (!dshVersion) {
     bad(`could not run "${dsh} --version"`, 'install DeepSeek Harness: npm install -g @deepseek-ai/dsh (or pass --dsh <path>)')
   } else if (isSupportedDsh(dshVersion)) {

@@ -4,7 +4,7 @@
 
 | Plugin | DeepSeek Harness (`@deepseek-ai/dsh`) | Node.js | OS |
 |---|---|---|---|
-| 0.2.x | `>=0.1.7-rc.1 <0.3.0` (0.1.7 – 0.2.x, prereleases included) | ≥ 22.13 | Windows, Linux, macOS |
+| 0.2.x | `>=0.1.7-rc.1 <0.3.0` (0.1.7 – 0.2.x, prereleases included) | ≥ 22.13 for the plugin; DSH ≥ 0.2.2 requires ≥ 24.9 (check the DSH release) | Windows, Linux, macOS |
 | 0.1.0 | `0.2.0-rc.1` only (installed from a checkout as `dsh-intelligent-ui`) | ≥ 22.13 | Windows |
 
 DSH enforces the range itself. Before it adds a plugin to a profile, its plugin manager checks the plugin's `@deepseek-ai/dsh*` `peerDependencies` against the running DSH (`evaluatePluginCompatibility`, prereleases included). A version outside the range is refused with `… is incompatible with dsh X`, and nothing is installed. `npx deepseek-harness-intelligent-ui doctor` reports the same result before you try.

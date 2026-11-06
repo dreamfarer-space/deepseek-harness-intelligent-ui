@@ -281,6 +281,10 @@ export const PTC_CARD = {
   ],
 }
 
+/**
+ * Build the `ui_patch` payload that updates the PTC pipeline monitor chart to a line chart.
+ * @param {string} uiId
+ */
 export function ptcPatch(uiId) {
   return {
     uiId,
