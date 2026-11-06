@@ -29,23 +29,52 @@ const nodeSchema = () => ({
 
 /**
  * The UIs of the calling conversation, or an explanation why there are none.
+ * Combines the incremental `sessionProjections` state (which covers PTC
+ * `tool/ptc-dispatch` sub-calls and pre-compaction turns) with
+ * `session.deriveMessages()` fallback for older hosts and unit tests.
  * @param {any} exec - ToolRunContext.
  * @param {ReturnType<import('../config.js').resolveConfig>} config
+ * @param {() => any} [getProjection]
  */
-function conversationUis(exec, config) {
+async function conversationUis(exec, config, getProjection) {
   const session = exec?.agent?.session;
-  if (!session || typeof session.deriveMessages !== 'function') return undefined;
-  return collectUis(session.deriveMessages(), {
-    render: RENDER_TOOL,
-    patch: PATCH_TOOL,
-    ...(config.enableCompose !== false ? { compose: COMPOSE_TOOL, config } : {}),
-  });
+  if (!session) return undefined;
+  let projected;
+  try {
+    const handle = typeof getProjection === 'function' ? await getProjection() : undefined;
+    if (handle && typeof handle.stateOf === 'function') {
+      const state = await handle.stateOf(session);
+      if (state && typeof state.uis === 'object' && state.uis !== null) {
+        projected = new Map(Object.entries(state.uis));
+      }
+    }
+  } catch { /* fallback to deriveMessages when session is a test double */ }
+  let derived;
+  if (typeof session.deriveMessages === 'function') {
+    try {
+      derived = collectUis(session.deriveMessages(), {
+        render: RENDER_TOOL,
+        patch: PATCH_TOOL,
+        ...(config.enableCompose !== false ? { compose: COMPOSE_TOOL, config } : {}),
+      });
+    } catch { /* preserve projected state if deriveMessages fails */ }
+  }
+  if (!projected && !derived) return undefined;
+  if (!projected) return derived;
+  if (!derived) return projected;
+  const merged = new Map(derived);
+  for (const [id, ui] of projected) {
+    const existing = merged.get(id);
+    if (!existing || (ui?.version ?? 0) >= (existing?.version ?? 0)) merged.set(id, ui);
+  }
+  return merged;
 }
 
 /**
  * @param {ReturnType<import('../config.js').resolveConfig>} config
+ * @param {() => any} [getProjection]
  */
-export function createPatchTool(config) {
+export function createPatchTool(config, getProjection) {
   return {
     name: PATCH_TOOL,
     description: [
@@ -125,7 +154,7 @@ export function createPatchTool(config) {
       if (typeof args !== 'object' || args === null || typeof args.uiId !== 'string' || args.uiId === '') {
         return refuse(['uiId: expected the uiId of a UI shown earlier in this conversation']);
       }
-      const uis = conversationUis(exec, config);
+      const uis = await conversationUis(exec, config, getProjection);
       if (!uis) return refuse([`${PATCH_TOOL} is only available inside a conversation; call ${RENDER_TOOL} with the complete UI`], 'unavailable');
       const ui = uis.get(args.uiId);
       if (!ui) {

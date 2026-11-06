@@ -188,3 +188,107 @@ export function explainSphere(text) {
   return `At R = ${R}, completing the square gives x² + y² + (z − ${R})² = ${R}²: a sphere of radius ${R} centred at (0, 0, ${R}). `
     + `It touches the xy-plane only at the origin, its surface area is ${(4 * Math.PI * R * R).toFixed(2)} and its volume ${(4 / 3 * Math.PI * R ** 3).toFixed(2)}.`
 }
+
+/** Issue #84: Declarative computed engine and live cross-component linkage. */
+export const COMPUTED_PLANNER = {
+  title: 'Cloud capacity planner',
+  root: 'card',
+  computed: [
+    { id: 'nodeCount', expr: 'nodes', format: { style: 'decimal', maximumFractionDigits: 0 } },
+    { id: 'monthlyCost', expr: 'nodes * 120', format: { style: 'currency', currency: 'USD', maximumFractionDigits: 0 } },
+    { id: 'annualCost', expr: 'monthlyCost * 12', format: { style: 'currency', currency: 'USD', maximumFractionDigits: 0 } },
+    { id: 'utilization', expr: 'min(100, nodes * 10)', format: { style: 'decimal', maximumFractionDigits: 0 } },
+    { id: 'minTierNodes', expr: 'nodes', format: { style: 'decimal', maximumFractionDigits: 0 } },
+  ],
+  components: [
+    { id: 'card', type: 'Card', props: { title: 'Cluster sizing · Live computed linkage', subtitle: 'Adjust nodes to recompute KPIs, progress, chart and table filter locally' }, children: ['controls', 'kpis', 'util', 'chart', 'tiers'] },
+    { id: 'controls', type: 'Form', props: {
+      title: 'Cluster parameters',
+      fields: [
+        { name: 'nodes', label: 'Worker nodes', type: 'number', min: 1, max: 20, step: 1, default: 4, bindKey: 'nodes' },
+      ],
+    } },
+    { id: 'kpis', type: 'Grid', props: { columns: 2 }, children: ['mCost', 'aCost'] },
+    { id: 'mCost', type: 'Stat', props: { label: 'Monthly cost', value: '{{monthlyCost}}', delta: '{{nodeCount}} nodes @ $120', trend: 'up' } },
+    { id: 'aCost', type: 'Stat', props: { label: 'Annual run-rate', value: '{{annualCost}}', delta: '12-month projection', trend: 'flat' } },
+    { id: 'util', type: 'Progress', props: { label: 'Capacity utilization ({{utilization}}%)', value: { $computed: 'utilization' }, max: 100 } },
+    { id: 'chart', type: 'Chart', props: {
+      kind: 'bar', title: 'Monthly budget comparison (USD)', labels: ['Baseline (4)', 'Selected', 'Enterprise (12)'],
+      series: [{ name: 'USD/mo', values: [480, { $computed: 'monthlyCost' }, 1440] }],
+    } },
+    { id: 'tiers', type: 'Table', props: {
+      caption: 'Eligible support tiers',
+      columns: ['Tier', 'MinNodes', 'SLA'],
+      rows: [
+        ['Starter', 1, '99.5%'],
+        ['Growth', 4, '99.9%'],
+        ['Enterprise', 10, '99.99%'],
+      ],
+      filterField: 'MinNodes',
+      filterValue: '>= {{minTierNodes}}',
+    } },
+  ],
+}
+
+/** Slash `/ui` command scenario with FileTree, JsonView, Badge and Code. */
+export const SYSTEM_INSPECTOR = {
+  title: 'Runtime inspector',
+  root: 'card',
+  components: [
+    { id: 'card', type: 'Card', props: { title: 'DSH 0.2.2 Runtime Compatibility Inspector', subtitle: 'Triggered via /ui slash command' }, children: ['badges', 'split'] },
+    { id: 'badges', type: 'Stack', props: { direction: 'horizontal' }, children: ['b1', 'b2', 'b3'] },
+    { id: 'b1', type: 'Badge', props: { text: 'cordis 4.1.0', tone: 'success' } },
+    { id: 'b2', type: 'Badge', props: { text: 'PTC ready', tone: 'info' } },
+    { id: 'b3', type: 'Badge', props: { text: 'SessionProjection v1', tone: 'success' } },
+    { id: 'split', type: 'Grid', props: { columns: 2 }, children: ['tree', 'json'] },
+    { id: 'tree', type: 'FileTree', props: {
+      title: 'Plugin structure',
+      expandDepth: 2,
+      entries: [
+        { path: 'src/plugin.js', status: 'modified', note: 'SessionProjection' },
+        { path: 'src/compat.js', status: 'modified', note: 'cordis 4.1.0' },
+        { path: 'src/catalog/computed.js' },
+        { path: 'src/catalog/patch.js', status: 'modified', note: 'PTC fold' },
+        { path: 'client-src/turn.ts', status: 'modified', note: 'PTC TurnTail' },
+      ],
+    } },
+    { id: 'json', type: 'JsonView', props: {
+      title: 'Compatibility contract',
+      expandDepth: 2,
+      data: {
+        runtime: '0.2.2-rc.1 / master',
+        cordis: '4.1.0',
+        transports: ['native', 'ptc'],
+        tools: ['ui_render', 'ui_patch', 'ui_render_widget', 'ui_compose'],
+      },
+    } },
+  ],
+}
+
+/** DSH 0.2.2+ PTC (`run_code` -> `tool/ptc-dispatch`) scenario and patch. */
+export const PTC_CARD = {
+  title: 'PTC pipeline monitor',
+  root: 'card',
+  components: [
+    { id: 'card', type: 'Card', props: { title: 'PTC Mode · Programmatic Tool Calling', subtitle: 'Dispatched inside run_code via await tools.ui_render(...)' }, children: ['kpis', 'chart'] },
+    { id: 'kpis', type: 'Grid', props: { columns: 2 }, children: ['s1', 's2'] },
+    { id: 's1', type: 'Stat', props: { label: 'Transport', value: 'tool/ptc-dispatch', delta: 'nested sub-call', trend: 'up' } },
+    { id: 's2', type: 'Stat', props: { label: 'Projection', value: 'Active', delta: 'sessionProjections', trend: 'up' } },
+    { id: 'chart', type: 'Chart', props: {
+      kind: 'bar', title: 'Sub-call latency (ms)', labels: ['Turn 1', 'Turn 2', 'Turn 3'],
+      series: [{ name: 'Latency', values: [18, 12, 9] }],
+    } },
+  ],
+}
+
+/**
+ * Build the `ui_patch` payload that updates the PTC pipeline monitor chart to a line chart.
+ * @param {string} uiId
+ */
+export function ptcPatch(uiId) {
+  return {
+    uiId,
+    baseVersion: 1,
+    ops: [{ op: 'setProps', id: 'chart', props: { kind: 'line', title: 'Sub-call latency (patched via PTC)' } }],
+  }
+}

@@ -108,13 +108,49 @@ function noteVersion(callId: string, call: CallHead, meta: unknown): void {
   }
 }
 
+/**
+ * Map root `tool/call` ids (including PTC `run_code` calls) to their owning
+ * Turn id so `tool/ptc-dispatch` sub-calls — which carry `rootCallId` rather
+ * than `turn` — route to the same Turn accumulator.
+ */
+const MAX_ROOT_CALL_TURNS = 5000
+const rootCallTurns = new Map<string, string>()
+/**
+ * Record the owning Turn id for a root `tool/call` so nested `tool/ptc-dispatch`
+ * sub-calls can resolve their Turn when `event.data.turn` is omitted.
+ */
+function rememberRootCallTurn(callId: unknown, turn: unknown): void {
+  if (typeof callId !== 'string' || callId === '' || turn === undefined || turn === null) return
+  if (rootCallTurns.size >= MAX_ROOT_CALL_TURNS && !rootCallTurns.has(callId)) {
+    const oldest = rootCallTurns.keys().next().value
+    if (oldest !== undefined) rootCallTurns.delete(oldest)
+  }
+  rootCallTurns.set(callId, String(turn))
+}
+
 /** The Conversation Node Definition (accumulator only; publishes no view node). */
 export const uiTurnDefinition = {
   kind: TURN_DATA_KEY,
   match: (event: SessionEventLike) => {
     if (event.type === 'turn/start') return { id: String(event.data.turn), role: 'start' as const }
-    if (event.type === 'tool/call') return { id: String(event.data.turn), role: 'update' as const }
+    if (event.type === 'tool/call') {
+      rememberRootCallTurn(event.data?.callId, event.data?.turn)
+      return { id: String(event.data.turn), role: 'update' as const }
+    }
     if (event.type === 'tool/result' && event.surfaceOp === 'append') return { id: String(event.data.turn), role: 'update' as const }
+    if (event.type === 'tool/ptc-dispatch' && (event.surfaceOp === undefined || event.surfaceOp === 'append')) {
+      const directTurn = event.data?.turn
+      if (directTurn !== undefined && directTurn !== null) {
+        rememberRootCallTurn(event.data?.subCallId, directTurn)
+        return { id: String(directTurn), role: 'update' as const }
+      }
+      const rootCallId = typeof event.data?.rootCallId === 'string' && event.data.rootCallId
+        ? event.data.rootCallId
+        : (typeof event.data?.parentCallId === 'string' ? event.data.parentCallId : '')
+      const turn = rootCallId ? rootCallTurns.get(rootCallId) : undefined
+      if (turn !== undefined) rememberRootCallTurn(event.data?.subCallId, turn)
+      return turn !== undefined ? { id: turn, role: 'update' as const } : null
+    }
     return null
   },
   start: (_context: unknown, match: MatchLike): UiTurnState => {
@@ -124,10 +160,36 @@ export const uiTurnDefinition = {
   update: (context: ContextLike, match: MatchLike): UiTurnState => {
     const { event } = match
     if (event.type === 'tool/call') {
+      rememberRootCallTurn(event.data?.callId, event.data?.turn ?? context.state.turn)
       if (!UI_TOOLS.has(event.data.name)) return context.state
       const calls = new Map(context.state.calls)
       calls.set(String(event.data.callId), { name: event.data.name, argsRaw: event.data.arguments })
       return { ...context.state, calls }
+    }
+    if (event.type === 'tool/ptc-dispatch') {
+      if (event.surfaceOp !== undefined && event.surfaceOp !== 'append') return context.state
+      const name = String(event.data?.name ?? '')
+      const callId = typeof event.data?.subCallId === 'string' ? event.data.subCallId : ''
+      const isError = event.data?.isError === true || (typeof event.data?.error === 'object' && event.data.error !== null)
+      if (!callId || !UI_TOOLS.has(name) || !presentable(event.data?.meta, isError)) return context.state
+      const rawArgs = event.data.arguments
+      const argsRaw = typeof rawArgs === 'string' ? rawArgs : JSON.stringify(rawArgs ?? {})
+      const call: CallHead = { name, argsRaw }
+      noteVersion(callId, call, event.data.meta)
+      const node: ToolResultNode = {
+        kind: 'tool-result',
+        callId,
+        call,
+        content: Array.isArray(event.data.content) ? event.data.content : [],
+        isError: false,
+        meta: event.data.meta,
+        seq: event.seq,
+      } as ToolResultNode
+      const existing = context.state.results.findIndex(r => r.callId === callId)
+      const results = existing < 0
+        ? [...context.state.results, node]
+        : context.state.results.map((r, i) => i === existing ? node : r)
+      return { ...context.state, results }
     }
     if (event.type !== 'tool/result') return context.state
     const message = event.data.message

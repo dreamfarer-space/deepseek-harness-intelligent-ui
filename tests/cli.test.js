@@ -117,6 +117,16 @@ describe('cli commands', () => {
     expect(calls.map(c => c[0])).toEqual(['/x/dsh', 'pnpm'])
     expect(planCommand(parseArgs(['--spec', 'file:/tmp/p.tgz']), {})[1].at(-1)).toBe('file:/tmp/p.tgz')
   })
+
+  it('reports the Node 24.9.0 requirement when DSH >= 0.2.2 is detected on Node 22', () => {
+    const { run } = fakeRun({ dsh: '0.2.2-rc.1' })
+    const io = quiet()
+    expect(main(['doctor'], { run, env: { DSH_HOME: home() }, nodeVersion: '22.13.0', ...io })).toBe(1)
+    expect(io.out.join('\n')).toMatch(/Node\.js 22\.13\.0 is older than 24\.9\.0 \(required by dsh 0\.2\.2-rc\.1\)/)
+
+    const ioOk = quiet()
+    expect(main(['doctor'], { run, env: { DSH_HOME: home() }, nodeVersion: '24.9.0', ...ioOk })).toBe(0)
+  })
 })
 
 describe('cli helpers', () => {

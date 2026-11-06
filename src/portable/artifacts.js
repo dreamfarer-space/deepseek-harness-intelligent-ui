@@ -12,10 +12,20 @@ const object = value => value !== null && typeof value === 'object' && !Array.is
 const text = value => typeof value === 'string' && value.length > 0;
 const clone = value => JSON.parse(JSON.stringify(value));
 
+/**
+ * Parse and size-bound raw tool arguments (string JSON or pre-parsed object).
+ * @param {unknown} input
+ * @returns {Record<string, any> | undefined}
+ */
 function argumentsOf(input) {
   if (typeof input === 'string' && input.length <= MAX_ARGUMENT_CHARS) {
     try { const parsed = JSON.parse(input); return object(parsed) ? parsed : undefined; }
     catch { return undefined; }
+  }
+  if (object(input)) {
+    try {
+      return JSON.stringify(input).length <= MAX_ARGUMENT_CHARS ? clone(input) : undefined;
+    } catch { return undefined; }
   }
   return undefined;
 }
@@ -45,18 +55,35 @@ function validTree(input, fields) {
 export function projectNativeUiEvents(events, { hostId, sessionId }) {
   if (!text(hostId) || !text(sessionId)) return [];
   const calls = new Map();
+  const rootTurns = new Map();
   const settled = [];
   const sorted = events.map(row => row?.event ?? row)
     .filter(event => object(event) && typeof event.seq === 'number')
     .sort((a, b) => a.seq - b.seq);
   for (const event of sorted) {
     const data = object(event.data) ? event.data : {};
-    if (event.type === 'tool/call' && TOOLS.has(data.name) && text(data.callId)) {
+    if (event.type === 'tool/call' && text(data.callId)) {
+      if (data.turn !== undefined) rootTurns.set(data.callId, data.turn);
+      if (TOOLS.has(data.name)) {
+        const args = argumentsOf(data.arguments);
+        if (args) calls.set(data.callId, { kind: data.name, args, turn: data.turn });
+      }
+      continue;
+    }
+    if (event.type === 'tool/ptc-dispatch' && TOOLS.has(data.name) && text(data.subCallId)) {
+      if (event.surfaceOp !== undefined && event.surfaceOp !== 'append') continue;
+      const meta = data.meta;
+      if (!object(meta) || meta.ok !== true || data.isError === true || object(data.error)) continue;
       const args = argumentsOf(data.arguments);
-      if (args) calls.set(data.callId, { kind: data.name, args, turn: data.turn });
+      if (!args) continue;
+      const rootId = text(data.rootCallId) ? data.rootCallId : (text(data.parentCallId) ? data.parentCallId : undefined);
+      const turn = data.turn !== undefined ? data.turn : (rootId ? rootTurns.get(rootId) : undefined);
+      if (turn !== undefined) rootTurns.set(data.subCallId, turn);
+      settled.push({ id: data.subCallId, call: { kind: data.name, args, turn }, meta, seq: event.seq });
       continue;
     }
     if (event.type !== 'tool/result') continue;
+    if (event.surfaceOp !== undefined && event.surfaceOp !== 'append') continue;
     const message = object(data.message) ? data.message : {};
     const id = object(message.source) ? message.source.callId : data.callId;
     if (!text(id)) continue;

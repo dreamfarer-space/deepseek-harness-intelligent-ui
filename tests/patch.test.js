@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { applyPatch, collectUis, snapshotOf } from '../src/catalog/patch.js'
+import { applyPatch, collectUis, collectUisFromEvents, createUiSessionProjection, foldUiEvent, snapshotOf } from '../src/catalog/patch.js'
 import { clientPolicy, resolveConfig } from '../src/config.js'
+import { COMPOSE_TOOL } from '../src/compose/constants.js'
 import { createPatchTool, PATCH_TOOL } from '../src/tools/patch.js'
 import { createRenderTool, RENDER_TOOL } from '../src/tools/render.js'
 import { DASHBOARD } from '../scripts/e2e/scenarios.mjs'
@@ -199,5 +200,149 @@ describe('computed fields across a patch', () => {
     })
     expect(restored.ok).toBe(true)
     expect(restored.ui.staleFields).toBeUndefined()
+  })
+})
+
+describe('PTC tool/ptc-dispatch and SessionProjection folding', () => {
+  const fullTools = { render: RENDER_TOOL, patch: PATCH_TOOL, compose: COMPOSE_TOOL, config }
+
+  it('folds native tool/call+tool/result and PTC tool/ptc-dispatch while preserving state identity on unrelated events', () => {
+    const unit = createUiSessionProjection(fullTools)
+    const s0 = unit.init()
+    expect(unit.stateSchema.parse(s0)).toBe(s0)
+    expect(() => unit.stateSchema.parse(null)).toThrow()
+    // Unrelated events return the exact same state reference (Object.is).
+    expect(unit.apply(s0, { type: 'turn/start', seq: 1, data: { turn: 1 } })).toBe(s0)
+    expect(unit.apply(s0, { type: 'tool/call', seq: 2, data: { callId: 'rc1', name: 'run_code', arguments: '{}' } })).toBe(s0)
+    // PTC sub-call for ui_render (arguments already parsed as an object).
+    const s1 = unit.apply(s0, {
+      type: 'tool/ptc-dispatch',
+      seq: 3,
+      data: {
+        rootCallId: 'rc1',
+        parentCallId: 'rc1',
+        subCallId: 'rc1:ptc:1',
+        name: RENDER_TOOL,
+        arguments: DASHBOARD,
+        isError: false,
+        content: [{ type: 'text', text: 'rendered' }],
+        meta: { ok: true },
+      },
+    })
+    expect(s1.uis['rc1:ptc:1'].version).toBe(1)
+    // PTC sub-call for ui_patch updating rc1:ptc:1 in place.
+    const s2 = unit.apply(s1, {
+      type: 'tool/ptc-dispatch',
+      seq: 4,
+      data: {
+        rootCallId: 'rc2',
+        parentCallId: 'rc2',
+        subCallId: 'rc2:ptc:1',
+        name: PATCH_TOOL,
+        arguments: { uiId: 'rc1:ptc:1', baseVersion: 1, ops: [{ op: 'setProps', id: 'chart', props: { kind: 'line' } }] },
+        isError: false,
+        content: [{ type: 'text', text: 'patched' }],
+        meta: { ok: true },
+      },
+    })
+    expect(s2.uis['rc1:ptc:1'].version).toBe(2)
+    expect(byId(s2.uis['rc1:ptc:1']).get('chart').props.kind).toBe('line')
+  })
+
+  it('allows ui_patch to update PTC-created and compacted UIs via the projection handle when deriveMessages() omits them', async () => {
+    const events = [
+      {
+        type: 'tool/ptc-dispatch',
+        seq: 10,
+        data: {
+          rootCallId: 'rc1',
+          parentCallId: 'rc1',
+          subCallId: 'rc1:ptc:1',
+          name: RENDER_TOOL,
+          arguments: DASHBOARD,
+          isError: false,
+          meta: { ok: true },
+        },
+      },
+    ]
+    const map = collectUisFromEvents(events, fullTools)
+    const state = { pending: {}, uis: Object.fromEntries(map) }
+    const patchWithProjection = createPatchTool(config, () => ({ stateOf: () => state }))
+    // deriveMessages() is empty (as in PTC or after /compact), yet ui_patch succeeds from the projection.
+    const res = await patchWithProjection.execute(
+      { uiId: 'rc1:ptc:1', baseVersion: 1, ops: [{ op: 'setProps', id: 'chart', props: { kind: 'area' } }] },
+      { callId: 'rc2:ptc:1', agent: { session: { deriveMessages: () => [] } } },
+    )
+    expect(res.ok).toBe(true)
+    expect(res.ui.version).toBe(2)
+    expect(byId(res.ui).get('chart').props.kind).toBe('area')
+  })
+
+  it('folds PTC ui_compose sub-calls and patches one catalog block even if deriveMessages throws', async () => {
+    const events = [
+      {
+        type: 'tool/ptc-dispatch',
+        seq: 1,
+        data: {
+          rootCallId: 'rc1',
+          parentCallId: 'rc1',
+          subCallId: 'rc1:ptc:1',
+          name: COMPOSE_TOOL,
+          arguments: {
+            title: 'PTC Compose',
+            blocks: [
+              { id: 'intro', type: 'markdown', text: 'Analysis.' },
+              { id: 'panel', type: 'catalog', title: 'Panel', root: 'r', components: [{ id: 'r', type: 'Text', props: { text: 'v1' } }] },
+            ],
+          },
+          isError: false,
+          meta: { ok: true },
+        },
+      },
+    ]
+    const map = collectUisFromEvents(events, fullTools)
+    expect(map.get('rc1:ptc:1#panel')?.version).toBe(1)
+    const state = { pending: {}, uis: Object.fromEntries(map) }
+    const patchWithAsyncProjection = createPatchTool(config, () => Promise.resolve({ stateOf: () => state }))
+    const res = await patchWithAsyncProjection.execute(
+      { uiId: 'rc1:ptc:1#panel', baseVersion: 1, ops: [{ op: 'setProps', id: 'r', props: { text: 'v2' } }] },
+      { callId: 'rc2:ptc:1', agent: { session: { deriveMessages() { throw new Error('compacted') } } } },
+    )
+    expect(res.ok).toBe(true)
+    expect(res.ui.version).toBe(2)
+    expect(byId(res.ui).get('r').props.text).toBe('v2')
+  })
+
+  it('guards projection state against __proto__ keys and non-append surfaceOp events', () => {
+    const unit = createUiSessionProjection(fullTools)
+    let state = unit.init()
+    const nonAppend = unit.apply(state, {
+      type: 'tool/ptc-dispatch',
+      surfaceOp: 'replace',
+      seq: 1,
+      data: {
+        subCallId: 'rc1:ptc:1',
+        name: RENDER_TOOL,
+        arguments: DASHBOARD,
+        isError: false,
+        meta: { ok: true },
+      },
+    })
+    expect(nonAppend).toBe(state)
+
+    state = unit.apply(state, {
+      type: 'tool/ptc-dispatch',
+      seq: 2,
+      data: {
+        subCallId: '__proto__',
+        name: RENDER_TOOL,
+        arguments: DASHBOARD,
+        isError: false,
+        meta: { ok: true },
+      },
+    })
+    expect(Object.getPrototypeOf(state.uis)).toBeNull()
+    expect(state.uis['__proto__']?.version).toBe(1)
+    expect(({}).version).toBeUndefined()
   })
 })

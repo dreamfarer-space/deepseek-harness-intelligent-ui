@@ -2,9 +2,10 @@
 // run dsh, install the plugin into a throwaway DSH home, boot DSH Web against
 // the scripted mock model, find Chrome, and tear the processes down again.
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 export const WIN = process.platform === 'win32'
 export const DSH = process.env.DSH_BIN || 'dsh'
@@ -60,8 +61,31 @@ export function installSpec(spec) {
   return `file:${path.resolve(spec).replace(/\\/g, '/')}`
 }
 
+/**
+ * Install a plugin spec into `dshHome/profiles/<profile>`. On Windows, when a
+ * local `.tgz` path is deep enough to push pnpm's store index filename close
+ * to `MAX_PATH` (260 chars), copy the archive into `dshHome` and keep it there
+ * for the lifetime of `dshHome` so subsequent `dsh plugin add` calls on the
+ * same profile can still resolve it.
+ * @param {string} spec
+ * @param {string} dshHome
+ * @param {string} [profile]
+ */
 export function installPlugin(spec, dshHome, profile = 'web') {
-  run(DSH, ['plugin', '--profile', profile, 'add', installSpec(spec)], { cwd: dshHome, env: { ...process.env, DSH_HOME: dshHome } })
+  mkdirSync(dshHome, { recursive: true })
+  let targetSpec = spec
+  const localPath = typeof spec === 'string' && spec.startsWith('file:')
+    ? (spec.startsWith('file://') ? fileURLToPath(spec) : spec.slice(5))
+    : spec
+  if (WIN && typeof localPath === 'string' && localPath.endsWith('.tgz') && existsSync(localPath)) {
+    const resolved = path.resolve(localPath)
+    const candidate = path.join(dshHome, '_diui-pkg.tgz')
+    if (resolved.length > 120 && candidate.length < resolved.length) {
+      copyFileSync(resolved, candidate)
+      targetSpec = candidate
+    }
+  }
+  run(DSH, ['plugin', '--profile', profile, 'add', installSpec(targetSpec)], { cwd: dshHome, env: { ...process.env, DSH_HOME: dshHome } })
 }
 
 /**

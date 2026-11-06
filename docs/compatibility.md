@@ -4,7 +4,7 @@
 
 | Plugin | DeepSeek Harness (`@deepseek-ai/dsh`) | Node.js | OS |
 |---|---|---|---|
-| 0.2.x | `>=0.1.7-rc.1 <0.3.0` (0.1.7 – 0.2.x, prereleases included) | ≥ 22.13 | Windows, Linux, macOS |
+| 0.2.x | `>=0.1.7-rc.1 <0.3.0` (0.1.7 – 0.2.x, prereleases included) | ≥ 22.13 for the plugin; DSH ≥ 0.2.2 requires ≥ 24.9 (check the DSH release) | Windows, Linux, macOS |
 | 0.1.0 | `0.2.0-rc.1` only (installed from a checkout as `dsh-intelligent-ui`) | ≥ 22.13 | Windows |
 
 DSH enforces the range itself. Before it adds a plugin to a profile, its plugin manager checks the plugin's `@deepseek-ai/dsh*` `peerDependencies` against the running DSH (`evaluatePluginCompatibility`, prereleases included). A version outside the range is refused with `… is incompatible with dsh X`, and nothing is installed. `npx deepseek-harness-intelligent-ui doctor` reports the same result before you try.
@@ -53,10 +53,18 @@ Each release also installs the **published** package from npm on all three OSes 
 | 0.2.1-rc.4 (`next`, cordis 4.0.5) | pass | pass | pass |
 | 0.2.2-alpha.2 (`alpha`, cordis 4.0.6-alpha.1) | pass | pass | pass |
 
+### Local verification on Windows (2026-11-06, plugin 0.2.13 tarball + PTC/SessionProjection support)
+
+| DSH (cordis) | Install smoke test (9 checks) | Browser E2E (52 checks) | DSH extension E2E | Offline & Security E2E |
+|---|---|---|---|---|
+| 0.2.2-rc.1 (`latest`, cordis 4.1.0) | pass | pass (52/52) | pass | pass |
+| `master` source (`fcc0ad4621`, cordis 4.1.0) | pass | pass (51/51) | pass | pass |
+
 **Known API differences between DSH versions:**
 
 - **0.1.x:** shows a first-run notice whose Continue button is enabled only after a delay. The E2E driver waits for it.
 - **0.2.1-alpha:** dropped the `useToolCallArgumentsPartial` hook for tool views. Streaming previews now read the call's growing `block.args` view instead (`client-src/stream/args.ts`).
+- **0.2.2+:** ships with `@deepseek-ai/cordis@4.1.0` and the **PTC (`Programmatic Tool Calling`)** agent preset (`run_code`), which dispatches nested tool calls as `tool/ptc-dispatch` events omitted from `session.deriveMessages()`. `client-src/turn.ts` routes `tool/ptc-dispatch` to its owning Turn via `rootCallId` so PTC UIs render in `TurnTail`, and `src/plugin.js` registers a host-only `SessionProjection` (`intelligent-ui.catalog-uis`) so `ui_patch` works across PTC sub-calls and `/compact` compaction.
 
 Linux and macOS results come from the GitHub Actions matrix.
 

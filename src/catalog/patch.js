@@ -311,6 +311,108 @@ export function applyPatch(ui, args) {
   };
 }
 
+const MAX_CALL_ARGUMENT_CHARS = 512_000;
+
+/**
+ * Parse raw tool call arguments (JSON string or pre-parsed plain object) within
+ * a defensive size bound.
+ * @param {unknown} raw
+ * @returns {Record<string, any> | undefined}
+ */
+function parseCallArguments(raw) {
+  if (typeof raw === 'string') {
+    if (raw.length > MAX_CALL_ARGUMENT_CHARS) return undefined;
+    try {
+      const parsed = JSON.parse(raw);
+      return isPlainObject(parsed) ? parsed : undefined;
+    } catch { return undefined; }
+  }
+  if (isPlainObject(raw)) {
+    try {
+      const serialized = JSON.stringify(raw);
+      return serialized.length <= MAX_CALL_ARGUMENT_CHARS ? JSON.parse(serialized) : undefined;
+    } catch { return undefined; }
+  }
+  return undefined;
+}
+
+/**
+ * Convert a Map or plain object into a null-prototype dictionary so keys like
+ * `__proto__` or `constructor` remain inert own properties.
+ * @param {Iterable<[string, any]>} entries
+ * @returns {Record<string, any>}
+ */
+function toSafeRecord(entries) {
+  const out = Object.create(null);
+  for (const [k, v] of entries) {
+    if (typeof k === 'string' && k !== '') out[k] = v;
+  }
+  return out;
+}
+
+/**
+ * Apply one settled UI tool call (`ui_render`, `ui_compose`, `ui_patch`) to a
+ * mutable Map of UI snapshots. Returns true when `uis` changed.
+ * @param {Map<string, UiSnapshot>} uis
+ * @param {string} callId
+ * @param {string} name
+ * @param {unknown} rawArgs
+ * @param {{ content?: readonly any[], meta?: unknown }} outcome
+ * @param {{ render: string, patch: string, compose?: string, config?: any }} tools
+ */
+function applySettledUiCall(uis, callId, name, rawArgs, outcome, tools) {
+  const args = parseCallArguments(rawArgs);
+  if (!args) return false;
+  if (tools.compose !== undefined && name === tools.compose) {
+    // deriveMessages omits presentationMeta, so accept either presentationMeta.ok === true
+    // (session events / PTC dispatches) or the tool's positive text acknowledgment.
+    const metaOk = isPlainObject(outcome.meta) && outcome.meta.ok === true;
+    const textOk = Array.isArray(outcome.content) && outcome.content.some(b => b?.type === 'text' && b.text?.startsWith('Composed answer'));
+    if (!metaOk && !textOk) return false;
+    const config = tools.config ?? {};
+    const composed = validateComposition(clone(args ?? null), config, {
+      requireCatalog: config.enableCatalog !== false,
+      requireWidget: config.enableWidget !== false,
+    });
+    if (!composed.ok) return false;
+    const scope = [...compositionFieldKeys(composed.blocks)];
+    // Every computed id of the answer, so a block patch can recognise a
+    // field key that a *sibling* block already uses for a formula.
+    const computedIds = [];
+    for (const block of composed.blocks) {
+      if (block.type !== 'catalog' || !Array.isArray(block.computed)) continue;
+      for (const formula of block.computed) {
+        if (isPlainObject(formula) && typeof formula.id === 'string') computedIds.push(formula.id);
+      }
+    }
+    let changed = false;
+    for (const block of composed.blocks) {
+      if (block.type !== 'catalog') continue;
+      const uiId = composeUiId(callId, block.id);
+      uis.set(uiId, snapshotOf(uiId, {
+        title: block.title, root: block.root, components: block.components,
+        ...(Array.isArray(block.computed) ? { computed: block.computed } : {}),
+      }, { scope, computedIds }));
+      changed = true;
+    }
+    return changed;
+  }
+  if (name === tools.render) {
+    if (!validateTree(clone(args ?? null)).ok) return false;
+    uis.set(callId, snapshotOf(callId, args));
+    return true;
+  }
+  if (name === tools.patch) {
+    const ui = isPlainObject(args) && typeof args.uiId === 'string' ? uis.get(args.uiId) : undefined;
+    if (!ui) return false;
+    const result = applyPatch(ui, args);
+    if (!result.ok) return false;
+    uis.set(ui.uiId, result.ui);
+    return true;
+  }
+  return false;
+}
+
 /**
  * Rebuild the current version of every UI in one conversation from its message
  * history: each `ui_render` call that settled without error and validates, then
@@ -338,49 +440,104 @@ export function collectUis(messages, tools) {
     const call = calls.get(m.toolCallId);
     if (!call) continue;
     calls.delete(m.toolCallId);
-    let args;
-    try { args = typeof call.arguments === 'string' ? JSON.parse(call.arguments) : call.arguments; } catch { continue; }
-    if (tools.compose !== undefined && call.name === tools.compose) {
-      // deriveMessages omits presentationMeta, so require the tool's positive
-      // acknowledgment as well as valid arguments before recovering any block.
-      if (!m.content?.some(b => b?.type === 'text' && b.text?.startsWith('Composed answer'))) continue;
-      const config = tools.config ?? {};
-      const composed = validateComposition(clone(args ?? null), config, {
-        requireCatalog: config.enableCatalog !== false,
-        requireWidget: config.enableWidget !== false,
-      });
-      if (composed.ok) {
-        const scope = [...compositionFieldKeys(composed.blocks)];
-        // Every computed id of the answer, so a block patch can recognise a
-        // field key that a *sibling* block already uses for a formula.
-        const computedIds = [];
-        for (const block of composed.blocks) {
-          if (block.type !== 'catalog' || !Array.isArray(block.computed)) continue;
-          for (const formula of block.computed) {
-            if (isPlainObject(formula) && typeof formula.id === 'string') computedIds.push(formula.id);
-          }
-        }
-        for (const block of composed.blocks) {
-          if (block.type !== 'catalog') continue;
-          const uiId = composeUiId(call.id, block.id);
-          uis.set(uiId, snapshotOf(uiId, {
-            title: block.title, root: block.root, components: block.components,
-            ...(Array.isArray(block.computed) ? { computed: block.computed } : {}),
-          }, { scope, computedIds }));
-        }
-      }
-      continue;
-    }
-    if (call.name === tools.render) {
-      if (validateTree(clone(args ?? null)).ok) uis.set(call.id, snapshotOf(call.id, args));
-      continue;
-    }
-    const ui = isPlainObject(args) && typeof args.uiId === 'string' ? uis.get(args.uiId) : undefined;
-    if (!ui) continue;
-    const result = applyPatch(ui, args);
-    if (result.ok) uis.set(ui.uiId, result.ui);
+    applySettledUiCall(uis, call.id, call.name, call.arguments, { content: m.content }, tools);
   }
   return uis;
+}
+
+/**
+ * Pure incremental fold over one committed DSH SessionEvent (`tool/call`,
+ * `tool/result`, or `tool/ptc-dispatch` from the PTC executor). Returns the
+ * exact same `state` reference when an event does not change pending calls or
+ * settled UI snapshots.
+ * @param {{ pending: Record<string, { name: string, arguments: unknown }>, uis: Record<string, UiSnapshot> }} state
+ * @param {any} event
+ * @param {{ render: string, patch: string, compose?: string, config?: any }} tools
+ */
+export function foldUiEvent(state, event, tools) {
+  if (!isPlainObject(event) || !isPlainObject(event.data)) return state;
+  const relevant = name => name === tools.render || name === tools.patch || (tools.compose !== undefined && name === tools.compose);
+  const data = event.data;
+  if (event.type === 'tool/call') {
+    if (!relevant(data.name) || typeof data.callId !== 'string' || data.callId === '') return state;
+    const nextPending = toSafeRecord(Object.entries(state.pending));
+    nextPending[data.callId] = { name: data.name, arguments: data.arguments };
+    return {
+      pending: nextPending,
+      uis: state.uis,
+    };
+  }
+  if (event.type === 'tool/result') {
+    if (event.surfaceOp !== undefined && event.surfaceOp !== 'append') return state;
+    const message = isPlainObject(data.message) ? data.message : {};
+    const callId = isPlainObject(message.source) && typeof message.source.callId === 'string'
+      ? message.source.callId
+      : (typeof data.callId === 'string' ? data.callId : '');
+    if (!callId || !Object.hasOwn(state.pending, callId)) return state;
+    const call = state.pending[callId];
+    const nextPending = toSafeRecord(Object.entries(state.pending));
+    delete nextPending[callId];
+    const failed = message.isError === true || data.isError === true || isPlainObject(data.error)
+      || (isPlainObject(data.meta) && data.meta.ok === false);
+    if (failed) return { pending: nextPending, uis: state.uis };
+    const map = new Map(Object.entries(state.uis));
+    const changed = applySettledUiCall(map, callId, call.name, call.arguments, { content: message.content, meta: data.meta }, tools);
+    return {
+      pending: nextPending,
+      uis: changed ? toSafeRecord(map) : state.uis,
+    };
+  }
+  if (event.type === 'tool/ptc-dispatch') {
+    if (event.surfaceOp !== undefined && event.surfaceOp !== 'append') return state;
+    if (!relevant(data.name) || typeof data.subCallId !== 'string' || data.subCallId === '') return state;
+    const failed = data.isError === true || isPlainObject(data.error)
+      || (isPlainObject(data.meta) && data.meta.ok === false);
+    if (failed) return state;
+    const map = new Map(Object.entries(state.uis));
+    const changed = applySettledUiCall(map, data.subCallId, data.name, data.arguments, { content: data.content, meta: data.meta }, tools);
+    return changed ? { pending: state.pending, uis: toSafeRecord(map) } : state;
+  }
+  return state;
+}
+
+/**
+ * Rebuild every UI snapshot from a sequence of DSH SessionEvents (including
+ * PTC `tool/ptc-dispatch` sub-calls and pre-compaction turns).
+ * @param {readonly any[]} events
+ * @param {{ render: string, patch: string, compose?: string, config?: any }} tools
+ * @returns {Map<string, UiSnapshot>}
+ */
+export function collectUisFromEvents(events, tools) {
+  let state = { pending: Object.create(null), uis: Object.create(null) };
+  for (const row of events ?? []) {
+    const event = isPlainObject(row?.event) ? row.event : row;
+    state = foldUiEvent(state, event, tools);
+  }
+  return new Map(Object.entries(state.uis));
+}
+
+/**
+ * Host-only `SessionProjectionRegistry` unit definition (`ctx.sessionProjections`).
+ * Folds committed `tool/call`, `tool/result` and `tool/ptc-dispatch` events
+ * without calling deprecated synchronous Session event readers.
+ * @param {{ render: string, patch: string, compose?: string, config?: any }} tools
+ */
+export function createUiSessionProjection(tools) {
+  const isRecord = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
+  return {
+    key: 'intelligent-ui.catalog-uis',
+    stateVersion: 1,
+    stateSchema: {
+      parse(value) {
+        if (!isRecord(value) || !isRecord(value.pending) || !isRecord(value.uis)) {
+          throw new Error('invalid intelligent-ui session projection state');
+        }
+        return value;
+      },
+    },
+    init: () => ({ pending: Object.create(null), uis: Object.create(null) }),
+    apply: (state, event) => foldUiEvent(state, event, tools),
+  };
 }
 
 /** Compact `id:Type` outline the model can address in its next patch. */

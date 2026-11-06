@@ -70,4 +70,47 @@ describe('plugin mount', () => {
     expect(await handler({ agent: { followup }, rawInput: 'compare sorts' })).toMatchObject({ kind: 'success' })
     expect(followup.mock.calls[0][0].content[0].text).toMatch(/^compare sorts\n\n\(Answer this with an interactive UI/)
   })
+
+  it('registers the catalog UI session projection and awaits pending registration in ui_patch', async () => {
+    const ctx = new Context()
+    const tools = registry(ctx, 'tools')
+    registry(ctx, 'commands')
+    let registeredUnit
+    const fakeSession = { deriveMessages: () => [] }
+    let currentState = { pending: {}, uis: {} }
+    let resolveRegistration
+    const registrationPromise = new Promise((resolve) => { resolveRegistration = resolve })
+    ctx.provide('sessionProjections', {
+      register(unit) {
+        registeredUnit = unit
+        currentState = unit.init()
+        return registrationPromise
+      },
+    })
+    await ctx.plugin(plugin, {})
+    await new Promise(r => setTimeout(r, 0))
+    expect(registeredUnit?.key).toBe('intelligent-ui.catalog-uis')
+    // Simulate a PTC ui_render event folded by sessionProjections while registration is still settling.
+    currentState = registeredUnit.apply(currentState, {
+      type: 'tool/ptc-dispatch',
+      seq: 1,
+      data: {
+        rootCallId: 'rc1',
+        parentCallId: 'rc1',
+        subCallId: 'rc1:ptc:1',
+        name: 'ui_render',
+        arguments: { root: 'r', components: [{ id: 'r', type: 'Text', props: { text: 'v1' } }] },
+        isError: false,
+        meta: { ok: true },
+      },
+    })
+    const patchPromise = tools.get('ui_patch').execute(
+      { uiId: 'rc1:ptc:1', baseVersion: 1, ops: [{ op: 'setProps', id: 'r', props: { text: 'v2' } }] },
+      { callId: 'rc2:ptc:1', agent: { session: fakeSession } },
+    )
+    resolveRegistration({ stateOf: () => currentState })
+    const patchRes = await patchPromise
+    expect(patchRes.ok).toBe(true)
+    expect(patchRes.ui.version).toBe(2)
+  })
 })
