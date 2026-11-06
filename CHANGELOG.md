@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.14]
+
 ### Added
 
 - DeepSeek Harness 0.2.2+ compatibility and Programmatic Tool Calling (`ptc` preset) support:
