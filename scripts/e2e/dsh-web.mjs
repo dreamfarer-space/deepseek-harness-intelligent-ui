@@ -2,7 +2,7 @@
 // run dsh, install the plugin into a throwaway DSH home, boot DSH Web against
 // the scripted mock model, find Chrome, and tear the processes down again.
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -61,7 +61,23 @@ export function installSpec(spec) {
 }
 
 export function installPlugin(spec, dshHome, profile = 'web') {
-  run(DSH, ['plugin', '--profile', profile, 'add', installSpec(spec)], { cwd: dshHome, env: { ...process.env, DSH_HOME: dshHome } })
+  mkdirSync(dshHome, { recursive: true })
+  let targetSpec = spec
+  let staged
+  const localPath = typeof spec === 'string' && spec.startsWith('file:') ? spec.slice(5) : spec
+  // Windows MAX_PATH (260 chars): pnpm encodes the full file: path into its store index filename.
+  // Staging a deep worktree .tgz into a short directory keeps the store index filename under 260 chars.
+  if (WIN && typeof localPath === 'string' && localPath.endsWith('.tgz') && existsSync(localPath) && path.resolve(localPath).length > 80) {
+    const baseDir = tmpdir().length <= dshHome.length ? tmpdir() : dshHome
+    staged = path.join(baseDir, `_diui-${process.pid}.tgz`)
+    copyFileSync(localPath, staged)
+    targetSpec = staged
+  }
+  try {
+    run(DSH, ['plugin', '--profile', profile, 'add', installSpec(targetSpec)], { cwd: dshHome, env: { ...process.env, DSH_HOME: dshHome } })
+  } finally {
+    if (staged) { try { rmSync(staged, { force: true }) } catch { /* ignore */ } }
+  }
 }
 
 /**

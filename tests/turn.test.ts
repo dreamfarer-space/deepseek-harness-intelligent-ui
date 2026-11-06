@@ -55,4 +55,41 @@ describe('turn definition', () => {
     off2()
     expect(presented.has('x')).toBe(false)
   })
+
+  it('collects settled PTC tool/ptc-dispatch UI sub-calls for the turn of their root run_code call', () => {
+    const state = run([
+      ev('turn/start', 1, { turn: 2 }),
+      ev('tool/call', 2, { turn: 2, callId: 'run1', name: 'run_code', arguments: '{"code":"..."}' }),
+      ev('tool/ptc-dispatch', 3, {
+        rootCallId: 'run1',
+        parentCallId: 'run1',
+        subCallId: 'run1:ptc:1',
+        name: 'ui_render',
+        arguments: { title: 'PTC Card', root: 'r', components: [{ id: 'r', type: 'Text', props: { text: 'hi' } }] },
+        isError: false,
+        content: [{ type: 'text', text: 'ok' }],
+        meta: { ok: true },
+      }),
+      ev('tool/ptc-dispatch', 4, {
+        rootCallId: 'run1',
+        parentCallId: 'run1',
+        subCallId: 'run1:ptc:2',
+        name: 'bash',
+        arguments: { command: 'ls' },
+        isError: false,
+        content: [],
+      }),
+      ev('tool/ptc-dispatch', 5, {
+        rootCallId: 'run1',
+        parentCallId: 'run1',
+        subCallId: 'run1:ptc:3',
+        name: 'ui_render',
+        arguments: { root: 'r', components: [] },
+        isError: false,
+        meta: { ok: false },
+      }),
+    ])
+    expect(state.results.map((r: any) => [r.callId, r.call.name, r.seq])).toEqual([['run1:ptc:1', 'ui_render', 3]])
+    expect(JSON.parse(state.results[0].call.argsRaw).title).toBe('PTC Card')
+  })
 })

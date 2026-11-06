@@ -8,9 +8,11 @@
  */
 import { Config as ConfigSchema, resolveConfig } from './config.js';
 import { composeEnabled } from './compose/compose.js';
+import { COMPOSE_TOOL } from './compose/constants.js';
+import { createUiSessionProjection } from './catalog/patch.js';
 import { createComposeTool } from './tools/compose.js';
-import { createRenderTool } from './tools/render.js';
-import { createPatchTool } from './tools/patch.js';
+import { createRenderTool, RENDER_TOOL } from './tools/render.js';
+import { createPatchTool, PATCH_TOOL } from './tools/patch.js';
 import { createWidgetTool } from './tools/widget.js';
 import { GUIDANCE_ORDER, guidanceText } from './guidance.js';
 import { registerCommands } from './commands.js';
@@ -28,8 +30,28 @@ export function apply(ctx, rawConfig) {
   // tools.register / commands.register are fiber effects: unloading this
   // plugin unregisters everything, so no manual disposer bookkeeping.
   if (config.enableCatalog) {
+    const unit = createUiSessionProjection({
+      render: RENDER_TOOL,
+      patch: PATCH_TOOL,
+      ...(config.enableCompose !== false ? { compose: COMPOSE_TOOL, config } : {}),
+    });
+    let activePromise;
+    ctx.inject(['sessionProjections'], (child) => {
+      const sp = child.sessionProjections;
+      if (!sp || typeof sp.register !== 'function') return;
+      let disposed = false;
+      const promise = Promise.resolve(sp.register(unit)).then(
+        (h) => (!disposed && h && typeof h.stateOf === 'function' ? h : undefined),
+        (err) => { child.logger?.warn?.(err); return undefined; },
+      );
+      activePromise = promise;
+      child.effect(() => () => {
+        disposed = true;
+        if (activePromise === promise) activePromise = undefined;
+      });
+    });
     ctx.tools.register(createRenderTool(config));
-    ctx.tools.register(createPatchTool(config));
+    ctx.tools.register(createPatchTool(config, () => activePromise));
   }
   if (config.enableWidget) ctx.tools.register(createWidgetTool(config));
   // Composing needs something to compose; without a UI capability it is not offered.

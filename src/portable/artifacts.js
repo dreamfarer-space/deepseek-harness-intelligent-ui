@@ -17,6 +17,11 @@ function argumentsOf(input) {
     try { const parsed = JSON.parse(input); return object(parsed) ? parsed : undefined; }
     catch { return undefined; }
   }
+  if (object(input)) {
+    try {
+      return JSON.stringify(input).length <= MAX_ARGUMENT_CHARS ? clone(input) : undefined;
+    } catch { return undefined; }
+  }
   return undefined;
 }
 /**
@@ -45,15 +50,28 @@ function validTree(input, fields) {
 export function projectNativeUiEvents(events, { hostId, sessionId }) {
   if (!text(hostId) || !text(sessionId)) return [];
   const calls = new Map();
+  const rootTurns = new Map();
   const settled = [];
   const sorted = events.map(row => row?.event ?? row)
     .filter(event => object(event) && typeof event.seq === 'number')
     .sort((a, b) => a.seq - b.seq);
   for (const event of sorted) {
     const data = object(event.data) ? event.data : {};
-    if (event.type === 'tool/call' && TOOLS.has(data.name) && text(data.callId)) {
+    if (event.type === 'tool/call' && text(data.callId)) {
+      if (data.turn !== undefined) rootTurns.set(data.callId, data.turn);
+      if (TOOLS.has(data.name)) {
+        const args = argumentsOf(data.arguments);
+        if (args) calls.set(data.callId, { kind: data.name, args, turn: data.turn });
+      }
+      continue;
+    }
+    if (event.type === 'tool/ptc-dispatch' && TOOLS.has(data.name) && text(data.subCallId)) {
+      const meta = data.meta;
+      if (!object(meta) || meta.ok !== true || data.isError === true || object(data.error)) continue;
       const args = argumentsOf(data.arguments);
-      if (args) calls.set(data.callId, { kind: data.name, args, turn: data.turn });
+      if (!args) continue;
+      const turn = data.turn !== undefined ? data.turn : (text(data.rootCallId) ? rootTurns.get(data.rootCallId) : undefined);
+      settled.push({ id: data.subCallId, call: { kind: data.name, args, turn }, meta, seq: event.seq });
       continue;
     }
     if (event.type !== 'tool/result') continue;

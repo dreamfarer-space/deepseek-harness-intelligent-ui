@@ -6,7 +6,7 @@
 // Usage: node scripts/ci/smoke.mjs [--spec <tgz|path|name@version>] [--dsh-home <dir>] [--keep]
 //   --spec defaults to this checkout. CI passes the `npm pack` tarball, and the
 //   release workflow passes `<name>@<version>` to test the published package.
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -18,6 +18,7 @@ const arg = (name, fallback) => { const i = process.argv.indexOf(name); return i
 const spec = arg('--spec', root)
 const expectedVersion = arg('--expected-version', pkg.version)
 const dshHome = path.resolve(arg('--dsh-home', mkdtempSync(path.join(tmpdir(), 'dsh-smoke-'))))
+mkdirSync(dshHome, { recursive: true })
 const PORT = Number(process.env.SMOKE_WEB_PORT || 3191)
 const profile = path.join(dshHome, 'profiles', 'web')
 

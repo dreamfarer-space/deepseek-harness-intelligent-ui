@@ -1,21 +1,26 @@
 import { readFileSync } from 'node:fs'
 import { evaluatePluginCompatibility } from '@deepseek-ai/dsh-app-boot'
 import { describe, expect, it } from 'vitest'
-import { SUPPORTED_DSH_RANGE, TESTED_DSH_VERSIONS } from '../src/compat.js'
+import { SUPPORTED_CORDIS_RANGE, SUPPORTED_DSH_RANGE, TESTED_DSH_VERSIONS } from '../src/compat.js'
 import semver from 'semver'
 
 const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 
 describe('DSH compatibility range', () => {
-  it('package.json dsh peers match SUPPORTED_DSH_RANGE', () => {
+  it('package.json dsh and cordis peers match SUPPORTED_DSH_RANGE / SUPPORTED_CORDIS_RANGE', () => {
     const dshPeers = Object.entries(manifest.peerDependencies)
       .filter(([name]) => name === '@deepseek-ai/dsh' || name.startsWith('@deepseek-ai/dsh-'))
     expect(dshPeers.length).toBeGreaterThan(0)
     for (const [, range] of dshPeers) expect(range).toBe(SUPPORTED_DSH_RANGE)
+    expect(manifest.peerDependencies['@deepseek-ai/cordis']).toBe(SUPPORTED_CORDIS_RANGE)
+  })
+
+  it.each(['4.0.4', '4.0.5-alpha.1', '4.0.6-alpha.1', '4.0.6', '4.1.0-alpha.1', '4.1.0', '4.1.2', '4.2.0-rc.1', '4.2.0'])('ordinary npm peer semver accepts @deepseek-ai/cordis %s', (ver) => {
+    expect(semver.satisfies(ver, manifest.peerDependencies['@deepseek-ai/cordis'])).toBe(true)
   })
 
   // The real install-time gate DSH runs before it adds a plugin to a profile.
-  it.each(TESTED_DSH_VERSIONS)('ordinary npm peer semver accepts tested DSH %s', (runtime) => {
+  it.each([...TESTED_DSH_VERSIONS, '0.2.3-alpha.1', '0.2.3-rc.1', '0.2.4-alpha.1'])('ordinary npm peer semver accepts DSH %s', (runtime) => {
     expect(semver.satisfies(runtime, SUPPORTED_DSH_RANGE)).toBe(true)
   })
 

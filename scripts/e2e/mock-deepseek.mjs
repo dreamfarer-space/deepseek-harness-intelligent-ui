@@ -6,7 +6,7 @@
 import { createServer } from 'node:http'
 import { appendFileSync, existsSync } from 'node:fs'
 import { definition as EXTENSION } from '../../examples/component-extension/manifest.js'
-import { chartPatch, COMPOSE, composePatch, DASHBOARD, explainSphere, forecast, MATH, SLOW, SPHERE, SESSION_LAUNCH, DATA_TOOLS } from './scenarios.mjs'
+import { chartPatch, COMPOSE, composePatch, COMPUTED_PLANNER, DASHBOARD, explainSphere, forecast, MATH, PTC_CARD, ptcPatch, SLOW, SPHERE, SESSION_LAUNCH, SYSTEM_INSPECTOR, DATA_TOOLS } from './scenarios.mjs'
 
 const PORT = Number(process.argv[2] || 3199)
 const LOG = process.argv[3]
@@ -64,7 +64,13 @@ const textOf = content => typeof content === 'string' ? content : (content || []
 
 /** Pick the scripted answer for the latest user text. */
 function decide(lastText, tools) {
-  if (!tools.includes('ui_render')) return 'no-ui-tools'
+  if (tools.includes('run_code')) {
+    if (/E2E ptc patch/i.test(lastText)) return 'ptc-patch'
+    if (/E2E ptc render/i.test(lastText)) return 'ptc-render'
+  }
+  if (!tools.includes('ui_render') && !tools.includes('run_code')) return 'no-ui-tools'
+  if (lastText.startsWith('E2E computed planner')) return 'computed-planner'
+  if (/E2E slash command inspect/i.test(lastText)) return 'slash-inspector'
   if (lastText.startsWith('E2E data tools')) return 'data-tools'
   if (lastText.startsWith('E2E compose answer')) return 'compose'
   if (lastText.startsWith('E2E show session launcher')) return 'session-launch'
@@ -93,6 +99,19 @@ const AFTER = {
 const dashboardId = messages => messages.flatMap(m => Array.isArray(m.content) ? m.content : [])
   .find(c => c.type === 'tool_use' && c.name === 'ui_render' && c.input?.title === DASHBOARD.title)?.id
 
+/** Find the subCallId of the PTC ui_render call from an earlier run_code tool_result. */
+const ptcRenderId = messages => {
+  for (const m of messages) {
+    if (!Array.isArray(m.content)) continue
+    for (const c of m.content) {
+      if (c.type !== 'tool_result') continue
+      const t = textOf(c.content)
+      const match = /uiId ([^\s,]+), version 1/.exec(t)
+      if (match) return match[1]
+    }
+  }
+  return undefined
+}
 /** The composition call id and its chart block's uiId. */
 const composeIds = messages => {
   const call = messages.flatMap(m => Array.isArray(m.content) ? m.content : [])
@@ -121,6 +140,19 @@ createServer((req, res) => {
     })
     const model = b.model
     switch (decision) {
+      case 'computed-planner': return sse(res, toolEvents(model, 'ui_render', COMPUTED_PLANNER, 36), 20)
+      case 'slash-inspector': return sse(res, toolEvents(model, 'ui_render', SYSTEM_INSPECTOR, 36), 20)
+      case 'ptc-render': return sse(res, toolEvents(model, 'run_code', {
+        description: 'Render PTC pipeline monitor card',
+        code: `const res = await tools.ui_render(${JSON.stringify(PTC_CARD)}); return res.summary;`,
+      }, 48), 15)
+      case 'ptc-patch': {
+        const id = ptcRenderId(b.messages) || 'missing'
+        return sse(res, toolEvents(model, 'run_code', {
+          description: 'Patch PTC pipeline monitor chart to line',
+          code: `const res = await tools.ui_patch(${JSON.stringify(ptcPatch(id))}); return res.summary;`,
+        }, 48), 15)
+      }
       case 'data-tools': return sse(res, toolEvents(model, 'ui_render', DATA_TOOLS, 36), 20)
       case 'compose': return sse(res, toolEvents(model, 'ui_compose', COMPOSE, 30), 25)
       case 'compose-patch': {

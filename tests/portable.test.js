@@ -68,4 +68,42 @@ describe('native portable artifact contract', () => {
     expect(projectNativeUiEvents(list, { hostId: 'h1', sessionId: 's1' }).map(x => x.version)).toEqual([1]);
     expect(projectNativeUiEvents(list, { hostId: '', sessionId: 's1' })).toEqual([]);
   });
+
+  it('projects PTC tool/ptc-dispatch renders and patches correlated to their root run_code turn', () => {
+    const v2 = { ...tree, uiId: 'rc1:ptc:1', version: 2, components: [{ id: 'root', type: 'Text', props: { text: 'PTC v2' } }] };
+    const list = [
+      call(1, 'rc1', 'run_code', { code: 'await tools.ui_render(...)' }, 1),
+      {
+        type: 'tool/ptc-dispatch',
+        seq: 2,
+        data: {
+          rootCallId: 'rc1',
+          parentCallId: 'rc1',
+          subCallId: 'rc1:ptc:1',
+          name: 'ui_render',
+          arguments: tree,
+          isError: false,
+          meta: { ok: true },
+        },
+      },
+      call(3, 'rc2', 'run_code', { code: 'await tools.ui_patch(...)' }, 2),
+      {
+        type: 'tool/ptc-dispatch',
+        seq: 4,
+        data: {
+          rootCallId: 'rc2',
+          parentCallId: 'rc2',
+          subCallId: 'rc2:ptc:1',
+          name: 'ui_patch',
+          arguments: { uiId: 'rc1:ptc:1', baseVersion: 1, ops: [{ op: 'setProps', id: 'root', props: { text: 'PTC v2' } }] },
+          isError: false,
+          meta: { ok: true, ui: v2 },
+        },
+      },
+    ];
+    const snapshot = projectNativeUiEvents(list, { hostId: 'h1', sessionId: 's1' });
+    expect(snapshot).toHaveLength(1);
+    expect(snapshot[0]).toMatchObject({ uiId: 'rc1:ptc:1', version: 2, turn: '1', updatedTurn: '2' });
+    expect(snapshot[0].definition.components[0].props.text).toBe('PTC v2');
+  });
 });

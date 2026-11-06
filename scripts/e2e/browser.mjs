@@ -390,6 +390,79 @@ async function checkCompose() {
   await shellShot('17-compose.png', 'Route decision')
 }
 
+async function checkComputedAndSlash() {
+  await caption('15 · Declarative computed engine & live cross-component linkage')
+  await send('E2E computed planner')
+  await waitIdle()
+  const plannerReady = await waitFor(() => page.evaluate(() =>
+    [...document.querySelectorAll('.diui-tail .diui-shell[data-state=ready]')].some(s =>
+      s.querySelector('.diui-shell-title')?.textContent === 'Cloud capacity planner')), 20000)
+  const callsBeforeEdit = mock().length
+  const readPlanner = () => page.evaluate(() => {
+    const s = [...document.querySelectorAll('.diui-tail .diui-shell[data-state=ready]')].find(x =>
+      x.querySelector('.diui-shell-title')?.textContent === 'Cloud capacity planner')
+    if (!s) return null
+    const stats = [...s.querySelectorAll('.diui-stat-value')].map(el => el.textContent?.trim())
+    const progress = s.querySelector('.diui-progress')?.textContent ?? ''
+    const rows = [...s.querySelectorAll('.diui-datagrid tbody tr')].map(r => r.children[0]?.textContent?.trim())
+    return { stats, progress, rows }
+  })
+  const beforeEdit = plannerReady ? await readPlanner() : null
+  if (plannerReady) {
+    const numInput = await page.evaluateHandle(() => {
+      const s = [...document.querySelectorAll('.diui-tail .diui-shell[data-state=ready]')].find(x =>
+        x.querySelector('.diui-shell-title')?.textContent === 'Cloud capacity planner')
+      return s?.querySelector('input[type=number]')
+    })
+    if (numInput.asElement()) {
+      await scrollIntoView(numInput.asElement())
+      await numInput.asElement().focus()
+      await page.keyboard.down('Control')
+      await page.keyboard.press('KeyA')
+      await page.keyboard.up('Control')
+      await page.keyboard.press('Backspace')
+      await page.keyboard.type('10')
+      await sleep(350)
+    }
+  }
+  const afterEdit = plannerReady ? await readPlanner() : null
+  check('15a. computed formulas format initial KPIs, progress and table filter',
+    !!beforeEdit && beforeEdit.stats[0] === '$480' && beforeEdit.stats[1] === '$5,760'
+      && /40%/.test(beforeEdit.progress) && beforeEdit.rows.join() === 'Growth,Enterprise',
+    JSON.stringify(beforeEdit))
+  check('15b. editing a bound Form input recomputes KPIs, Progress, Chart and Table filter live with zero model calls',
+    !!afterEdit && afterEdit.stats[0] === '$1,200' && afterEdit.stats[1] === '$14,400'
+      && /100%/.test(afterEdit.progress) && afterEdit.rows.join() === 'Enterprise' && mock().length === callsBeforeEdit,
+    JSON.stringify({ afterEdit, modelCallsDelta: mock().length - callsBeforeEdit }))
+  if (plannerReady) await shellShot('18-computed-linkage.png', 'Cloud capacity planner')
+
+  await caption('16 · /ui slash command & developer inspection components (FileTree, JsonView)')
+  await send('/ui E2E slash command inspect')
+  await waitIdle()
+  const inspector = await waitFor(() => page.evaluate(() => {
+    const s = [...document.querySelectorAll('.diui-tail .diui-shell[data-state=ready]')].find(x =>
+      x.querySelector('.diui-shell-title')?.textContent === 'Runtime inspector')
+    if (!s) return null
+    return {
+      badges: [...s.querySelectorAll('.diui-badge')].map(b => b.textContent?.trim()),
+      treeRows: s.querySelectorAll('.diui-tree-row, [role=tree] *').length,
+      hasJson: s.textContent.includes('0.2.2-rc.1') && s.textContent.includes('4.1.0'),
+    }
+  }), 20000)
+  check('16. /ui command dispatches follow-up prompt and renders FileTree, JsonView and Badges',
+    !!inspector && inspector.badges.length >= 3 && inspector.badges.includes('cordis 4.1.0') && inspector.treeRows > 0 && inspector.hasJson,
+    JSON.stringify(inspector))
+  if (inspector) {
+    await page.evaluate(() => {
+      const s = [...document.querySelectorAll('.diui-tail .diui-shell[data-state=ready]')].find(x =>
+        x.querySelector('.diui-shell-title')?.textContent === 'Runtime inspector')
+      s?.scrollIntoView({ block: 'center' })
+    })
+    await sleep(300)
+    await shellShot('19-slash-ui-command.png', 'Runtime inspector')
+  }
+}
+
 async function checkNewSession() {
   await send('E2E show session launcher')
   await waitIdle()
@@ -408,6 +481,110 @@ async function checkNewSession() {
     check('12. native Button starts one independent Agent and navigates without copied history', false, 'launcher unavailable')
   }
   await shot('15-new-session.png')
+}
+
+async function checkPtcAndPluginManager() {
+  // DSH 0.2.2+ features: PTC agent preset (`run_code` -> `tool/ptc-dispatch`) and Plugin Manager panel.
+  // Click "New conversation" / "新对话" in the sidebar to return to the Hero screen where the preset chip lives.
+  const newChatClicked = await page.evaluate(() => {
+    const btn = [...document.querySelectorAll('button, a')].find(el =>
+      /^(New chat|New conversation|新对话|新建对话|开启新对话)$/i.test((el.textContent || '').trim())
+      || /New chat|New conversation|新对话|新建会话/i.test(el.getAttribute('aria-label') || el.getAttribute('title') || ''))
+    if (!btn) return false
+    btn.click()
+    return true
+  })
+  if (newChatClicked) await sleep(800)
+
+  // Open the Agent Preset menu on the Hero screen if present (DSH 0.2.1+/0.2.2+).
+  const presetChip = await page.evaluate(() => {
+    const btn = [...document.querySelectorAll('button[aria-haspopup="menu"]')].find(b =>
+      /Standard|标准|PTC|Preset|预设/i.test((b.textContent || '') + ' ' + (b.getAttribute('title') || '')))
+    if (!btn) return false
+    btn.click()
+    return true
+  })
+  if (presetChip) {
+    await sleep(400)
+    const ptcPicked = await page.evaluate(() => {
+      const item = [...document.querySelectorAll('[role="menuitem"], [role="option"], button, li')].find(el =>
+        /\bPTC\b|程序化工具调用|Programmatic/i.test(el.textContent || ''))
+      if (!item) return false
+      item.click()
+      return true
+    })
+    if (ptcPicked) {
+      await caption('17 · DSH 0.2.2 PTC mode: run_code → tool/ptc-dispatch ui_render & ui_patch')
+      await sleep(500)
+      await send('E2E ptc render')
+      await waitIdle()
+      const ptcRendered = await waitFor(() => page.evaluate(() => {
+        const s = [...document.querySelectorAll('.diui-tail .diui-shell[data-state=ready]')].find(x =>
+          x.querySelector('.diui-shell-title')?.textContent === 'PTC pipeline monitor')
+        return s && {
+          stats: [...s.querySelectorAll('.diui-stat-value')].map(el => el.textContent?.trim()),
+          bars: s.querySelectorAll('.diui-chart-svg rect[rx="2"]').length,
+        }
+      }), 25000)
+      check('17a. PTC mode (run_code → tool/ptc-dispatch) renders UI in TurnTail',
+        !!ptcRendered && ptcRendered.stats.includes('tool/ptc-dispatch') && ptcRendered.bars >= 3,
+        JSON.stringify(ptcRendered))
+
+      await send('E2E ptc patch')
+      await waitIdle()
+      const ptcPatched = await waitFor(() => page.evaluate(() => {
+        const live = [...document.querySelectorAll('.diui-tail .diui-shell[data-state=ready]')].filter(x =>
+          x.querySelector('.diui-shell-body') && x.querySelector('.diui-shell-title')?.textContent === 'PTC pipeline monitor')
+        const s = live.at(-1)
+        return s && {
+          live: live.length,
+          status: s.querySelector('.diui-shell-status')?.textContent ?? '',
+          lines: s.querySelectorAll('.diui-chart-svg path[fill=none]').length,
+          bars: s.querySelectorAll('.diui-chart-svg rect[rx="2"]').length,
+        }
+      }), 25000)
+      check('17b. PTC mode ui_patch updates the PTC-created UI in place via SessionProjection',
+        !!ptcPatched && ptcPatched.live === 1 && /Version 2|第 2 版/.test(ptcPatched.status) && ptcPatched.lines >= 1 && ptcPatched.bars === 0,
+        JSON.stringify(ptcPatched))
+      if (ptcPatched) await shellShot('20-ptc-mode.png', 'PTC pipeline monitor')
+    }
+  }
+
+  // Open the Settings / Plugin Inventory view if present in this DSH version (DSH 0.2.2+).
+  const openedPlugins = await page.evaluate(() => {
+    const btn = [...document.querySelectorAll('button, [role="tab"], a, [role="menuitem"]')].find(el => {
+      const label = ((el.textContent || '') + ' ' + (el.getAttribute('aria-label') || '') + ' ' + (el.getAttribute('title') || '')).trim()
+      return /^(Plugins|插件|Settings|设置)$/i.test(label) || /插件|Plugins|设置|Settings/i.test(el.getAttribute('aria-label') || el.getAttribute('title') || '')
+    })
+    if (!btn) return false
+    btn.click()
+    return true
+  })
+  if (openedPlugins) {
+    await sleep(600)
+    await page.evaluate(() => {
+      const tab = [...document.querySelectorAll('button, [role="tab"], a, li')].find(el =>
+        /插件|Plugins|Intelligent UI|智能 UI/i.test((el.textContent || '').trim()))
+      tab?.click()
+    })
+    await caption('18 · DSH 0.2.2 Plugin / Settings UI showing deepseek-harness-intelligent-ui active')
+    const pluginListed = await waitFor(() => page.evaluate(() => {
+      const text = document.body.innerText || ''
+      return /deepseek-harness-intelligent-ui|智能 UI|Intelligent UI/i.test(text) ? text.slice(0, 400) : null
+    }), 15000)
+    if (pluginListed) {
+      await page.evaluate(() => {
+        const target = [...document.querySelectorAll('h2, h3, div, span, section')].find(el =>
+          /deepseek-harness-intelligent-ui|DeepSeek Harness 智能 UI|DeepSeek Harness Intelligent UI|已安装插件|Installed plugins/i.test((el.textContent || '').trim())
+          && (el.textContent || '').length < 120)
+        target?.scrollIntoView({ block: 'center' })
+      })
+      check('18. DSH Settings / Plugin UI lists deepseek-harness-intelligent-ui as installed and active',
+        true, pluginListed.replace(/\s+/g, ' ').slice(0, 160))
+      await sleep(500)
+      await shot('21-plugin-manager.png')
+    }
+  }
 }
 
 // ================================================================================
@@ -772,8 +949,10 @@ await shot('14-reload.png')
 }
 if (!SESSION_ONLY && !COMPOSE_ONLY) await checkDataTools()
 if (!DATA_ONLY) await checkCompose()
+if (!SESSION_ONLY && !DATA_ONLY && !COMPOSE_ONLY) await checkComputedAndSlash()
 // A native Button creates a fresh conversation and starts it without using the composer again.
 if (!DATA_ONLY) await checkNewSession()
+if (!SESSION_ONLY && !DATA_ONLY && !COMPOSE_ONLY) await checkPtcAndPluginManager()
 await caption('All checks done')
 await sleep(1200)
 
