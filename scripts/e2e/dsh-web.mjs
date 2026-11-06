@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 export const WIN = process.platform === 'win32'
 export const DSH = process.env.DSH_BIN || 'dsh'
@@ -73,7 +74,9 @@ export function installSpec(spec) {
 export function installPlugin(spec, dshHome, profile = 'web') {
   mkdirSync(dshHome, { recursive: true })
   let targetSpec = spec
-  const localPath = typeof spec === 'string' && spec.startsWith('file:') ? spec.slice(5) : spec
+  const localPath = typeof spec === 'string' && spec.startsWith('file:')
+    ? (spec.startsWith('file://') ? fileURLToPath(spec) : spec.slice(5))
+    : spec
   if (WIN && typeof localPath === 'string' && localPath.endsWith('.tgz') && existsSync(localPath)) {
     const resolved = path.resolve(localPath)
     const candidate = path.join(dshHome, '_diui-pkg.tgz')

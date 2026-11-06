@@ -327,7 +327,13 @@ function parseCallArguments(raw) {
       return isPlainObject(parsed) ? parsed : undefined;
     } catch { return undefined; }
   }
-  return isPlainObject(raw) ? raw : undefined;
+  if (isPlainObject(raw)) {
+    try {
+      const serialized = JSON.stringify(raw);
+      return serialized.length <= MAX_CALL_ARGUMENT_CHARS ? JSON.parse(serialized) : undefined;
+    } catch { return undefined; }
+  }
+  return undefined;
 }
 
 /**

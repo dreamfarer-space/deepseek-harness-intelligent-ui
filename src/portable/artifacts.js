@@ -78,6 +78,7 @@ export function projectNativeUiEvents(events, { hostId, sessionId }) {
       if (!args) continue;
       const rootId = text(data.rootCallId) ? data.rootCallId : (text(data.parentCallId) ? data.parentCallId : undefined);
       const turn = data.turn !== undefined ? data.turn : (rootId ? rootTurns.get(rootId) : undefined);
+      if (turn !== undefined) rootTurns.set(data.subCallId, turn);
       settled.push({ id: data.subCallId, call: { kind: data.name, args, turn }, meta, seq: event.seq });
       continue;
     }

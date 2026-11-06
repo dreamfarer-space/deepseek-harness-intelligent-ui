@@ -43,7 +43,7 @@ async function conversationUis(exec, config, getProjection) {
   try {
     const handle = typeof getProjection === 'function' ? await getProjection() : undefined;
     if (handle && typeof handle.stateOf === 'function') {
-      const state = handle.stateOf(session);
+      const state = await handle.stateOf(session);
       if (state && typeof state.uis === 'object' && state.uis !== null) {
         projected = new Map(Object.entries(state.uis));
       }

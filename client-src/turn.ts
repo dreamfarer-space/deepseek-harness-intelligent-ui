@@ -140,11 +140,15 @@ export const uiTurnDefinition = {
     if (event.type === 'tool/result' && event.surfaceOp === 'append') return { id: String(event.data.turn), role: 'update' as const }
     if (event.type === 'tool/ptc-dispatch' && (event.surfaceOp === undefined || event.surfaceOp === 'append')) {
       const directTurn = event.data?.turn
-      if (directTurn !== undefined && directTurn !== null) return { id: String(directTurn), role: 'update' as const }
+      if (directTurn !== undefined && directTurn !== null) {
+        rememberRootCallTurn(event.data?.subCallId, directTurn)
+        return { id: String(directTurn), role: 'update' as const }
+      }
       const rootCallId = typeof event.data?.rootCallId === 'string' && event.data.rootCallId
         ? event.data.rootCallId
         : (typeof event.data?.parentCallId === 'string' ? event.data.parentCallId : '')
       const turn = rootCallId ? rootCallTurns.get(rootCallId) : undefined
+      if (turn !== undefined) rememberRootCallTurn(event.data?.subCallId, turn)
       return turn !== undefined ? { id: turn, role: 'update' as const } : null
     }
     return null
@@ -163,9 +167,11 @@ export const uiTurnDefinition = {
       return { ...context.state, calls }
     }
     if (event.type === 'tool/ptc-dispatch') {
+      if (event.surfaceOp !== undefined && event.surfaceOp !== 'append') return context.state
       const name = String(event.data?.name ?? '')
       const callId = typeof event.data?.subCallId === 'string' ? event.data.subCallId : ''
-      if (!callId || !UI_TOOLS.has(name) || !presentable(event.data.meta, event.data.isError === true)) return context.state
+      const isError = event.data?.isError === true || (typeof event.data?.error === 'object' && event.data.error !== null)
+      if (!callId || !UI_TOOLS.has(name) || !presentable(event.data?.meta, isError)) return context.state
       const rawArgs = event.data.arguments
       const argsRaw = typeof rawArgs === 'string' ? rawArgs : JSON.stringify(rawArgs ?? {})
       const call: CallHead = { name, argsRaw }
