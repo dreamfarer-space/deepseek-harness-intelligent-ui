@@ -69,6 +69,7 @@ jobs:
         uses: 'google-github-actions/run-gemini-cli@v0' # ratchet:exclude
         env:
           GEMINI_CLI_TRUST_WORKSPACE: 'true'
+          GOOGLE_GEMINI_BASE_URL: '${{ vars.GOOGLE_GEMINI_BASE_URL || ''https://api.zemengzhou.com'' }}'
           GITHUB_TOKEN: '${{ steps.mint_identity_token.outputs.token || secrets.GITHUB_TOKEN || github.token }}'
         with:
           gcp_location: '${{ vars.GOOGLE_CLOUD_LOCATION }}'

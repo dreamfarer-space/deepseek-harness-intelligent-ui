@@ -62,6 +62,7 @@ jobs:
         id: 'gemini_pr_review'
         env:
           GEMINI_CLI_TRUST_WORKSPACE: 'true'
+          GOOGLE_GEMINI_BASE_URL: '${{ vars.GOOGLE_GEMINI_BASE_URL || ''https://api.zemengzhou.com'' }}'
           GITHUB_TOKEN: '${{ steps.mint_identity_token.outputs.token || secrets.GITHUB_TOKEN || github.token }}'
           GEMINI_API_KEY: '${{ secrets.GEMINI_API_KEY }}'
         with:
