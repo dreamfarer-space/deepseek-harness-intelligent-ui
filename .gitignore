@@ -14,3 +14,10 @@ CLAUDE.md
 release-notes.md
 
 dist/
+
+# gemini-cli settings
+.gemini/
+
+# GitHub App credentials
+gha-creds-*.json
+
