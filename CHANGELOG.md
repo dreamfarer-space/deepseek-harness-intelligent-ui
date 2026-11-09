@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.15]
+
+### Added
+
+- Validation resilience and `lenientValidation` setting (`src/config.js`, `src/catalog/catalog.js`, `src/compose/compose.js`, `src/tools/render.js`, `src/tools/compose.js`, `src/catalog/patch.js`, #92):
+  - `Grid` now natively accepts `props.gap` (`0–64` pixels) and renders it as grid gap in `client-src/catalog/components.tsx`.
+  - Harmless decorative props (`Divider.props.orientation`, `Card.props.bordered`, `Table.props.striped`, etc.) and model note fields (`blocks_note`, `_comment`, `Timeline.props.items[].id`/`key`) are downgraded to warnings instead of rejecting the entire call.
+  - Validation errors on `unknown prop`, `unknown field`, missing `required` props and leaf-node `children` (`Timeline cannot have children`) now include the component's allowed schema, suppress cascading `unknown id` errors for leaf `children`, and emit concrete `Suggested fixes:` with copy-pasteable JSON examples.
+  - New `lenientValidation` plugin configuration (default `true`): automatically normalizes deterministic, lossless model schema mistakes in two passes — missing `id` from `key`/`name` aliases, top-level declared props, `Choice.props.options[].sessionTarget`, `Alert.props.items` to `props.text`, and leaf `Timeline.children` to `props.items` — while still rejecting unrecoverable structure errors, unknown arbitrary props, duplicate IDs, and prototype-pollution keys. Normalized trees are deep-cloned (compatible with frozen `Object.freeze` arguments in DSH 0.2.2) and propagated as lossless JSON via `presentationMeta.normalized` to `RenderView`, `ComposeView` and `ui_patch`.
+- Streaming incremental block preview and failure prose salvage for `ui_compose` (`client-src/stream/partial-json.ts`, `client-src/compose/blocks.ts`, `client-src/compose/ComposeView.tsx`, #92):
+  - `scanArray` now exposes the trailing in-progress object (`partialObject`), allowing `readComposeBlocks(raw, true, true)` to incrementally render the in-flight `markdown` or `catalog` block while streaming instead of showing an empty `0 blocks` skeleton until the first block closes.
+  - When a `ui_compose` call is refused in strict validation mode (`lenientValidation: false`), `ComposeView` preserves and renders all closed Markdown prose blocks (`.diui-compose-salvaged`) above the validation diagnostics instead of discarding the entire answer.
+- Real-model evaluation schema metrics (`scripts/eval/api-stage.mjs`, `scripts/eval/report.mjs`, #92): records per-case `firstAttemptValid`, `invalidCalls`, `retries` (`countSchemaRetries`) and `recovered`, and aggregates `summary.schema` (`uiCases`, `firstAttemptPassed`, `firstAttemptRate`, `recovered`, `totalRetries`) in JSON and Markdown reports.
+
 ## [0.2.14]
 
 ### Added

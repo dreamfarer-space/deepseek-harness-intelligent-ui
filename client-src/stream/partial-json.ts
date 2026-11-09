@@ -16,6 +16,8 @@ export interface PartialField {
   completeItems?: number
   /** For arrays whose in-progress item is a string: its decoded prefix. */
   partialItem?: string
+  /** For arrays whose in-progress item is an object: its scanned partial fields. */
+  partialObject?: PartialObject
 }
 
 export type PartialObject = Record<string, PartialField>
@@ -109,6 +111,7 @@ function scanArray(src: string, start: number): PartialField {
     if (end < 0) {
       const field: PartialField = { value: items, complete: false, completeItems: items.length }
       if (src[i] === '"') field.partialItem = decodeStringPrefix(src.slice(i + 1))
+      else if (src[i] === '{') field.partialObject = scanPartialObject(src.slice(i))
       return field
     }
     const parsed = tryParse(src.slice(i, end))

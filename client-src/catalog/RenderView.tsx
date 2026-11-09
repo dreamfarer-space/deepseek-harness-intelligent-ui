@@ -58,15 +58,29 @@ export function RenderView(props: ToolViewProps) {
   useStashOnDrop(props, partial)
   const streamed = useThrottled(props.phase === 'preparing' ? partial : '', 100)
   const settledRaw = argsRawOf(props)
-  const tree = useMemo(() => props.phase === 'preparing' ? readTree(streamed, true) : readTree(settledRaw, false),
-    [props.phase, streamed, settledRaw])
+  const meta = props.phase === 'result' ? props.block.meta : undefined
+  const normalizedMeta = meta && typeof meta === 'object'
+    ? (meta as { normalized?: { title?: string; root?: string; components?: unknown; computed?: unknown } }).normalized
+    : undefined
+  const tree = useMemo(() => {
+    if (props.phase === 'preparing') return readTree(streamed, true)
+    if (normalizedMeta && typeof normalizedMeta.root === 'string' && Array.isArray(normalizedMeta.components)) {
+      return {
+        title: typeof normalizedMeta.title === 'string' ? normalizedMeta.title : undefined,
+        root: normalizedMeta.root,
+        nodes: indexNodes(normalizedMeta.components),
+        computed: Array.isArray(normalizedMeta.computed) ? normalizedMeta.computed : [],
+        complete: true,
+      }
+    }
+    return readTree(settledRaw, false)
+  }, [props.phase, streamed, settledRaw, normalizedMeta])
   // Linkage (Issue #84, Phase 2): form values are published to shared state and
   // the tree's `computed` array is re-evaluated on every broadcast, so a slider
   // moves a Progress bar, a chart series and a table filter without a round trip.
   const bindings = useMemo(() => collectBindings(tree?.nodes.values() ?? [], tree?.root), [tree])
   const computedSpecs = useMemo(() => [tree?.computed ?? []], [tree])
   const computed = useComputedContext(props.callId, bindings, computedSpecs)
-  const meta = props.phase === 'result' ? props.block.meta : undefined
   const policy = useMemo(() => meta === undefined ? DEFAULT_POLICY : policyFromMeta(meta), [meta])
   const guard = useMemo(() => new BridgeGuard({ policy, armDelayMs: 0, minIntervalMs: 1000 }), [policy])
   const [sending, setSending] = useState(false)

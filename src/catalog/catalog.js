@@ -147,7 +147,10 @@ export const CATALOG = Object.freeze({
   Grid: {
     description: 'Responsive grid; `columns` is the column count on wide screens (1-6).',
     children: true,
-    props: { columns: { type: 'number', required: true, min: 1, max: 6 } },
+    props: {
+      columns: { type: 'number', required: true, min: 1, max: 6 },
+      gap: { type: 'number', min: 0, max: 64 },
+    },
   },
   Tabs: {
     description: 'Tabbed panels: labels[i] titles children[i].',
@@ -574,14 +577,106 @@ function describe(v) {
   return typeof v;
 }
 
+const PROTOTYPE_KEYS = new Set([
+  '__proto__', 'constructor', 'toString', 'hasOwnProperty',
+  'valueOf', 'isPrototypeOf', 'propertyIsEnumerable', 'toLocaleString',
+]);
+
+/**
+ * Harmless decorative layout/style props frequently emitted by models migrating
+ * from other UI libraries (e.g. Divider.orientation, Grid.gap, Card.variant,
+ * Table.striped/compact/bordered). When not a declared prop of a built-in
+ * component, they are ignored and reported as warnings rather than rejecting
+ * the entire UI response.
+ */
+export const DECORATIVE_PROPS = new Set([
+  'orientation', 'gap', 'rowGap', 'columnGap', 'variant', 'align', 'justify',
+  'size', 'compact', 'bordered', 'striped', 'hoverable', 'padding', 'margin',
+  'dashed', 'icon',
+]);
+
+/** Harmless comment/note fields emitted by models on blocks or component nodes. */
+export const HARMLESS_NOTES = new Set([
+  'blocks_note', 'block_note', 'note', '_note', 'comment', '_comment',
+]);
+
+/** Guidance shown when a leaf component is mistakenly given `children`. */
+const CHILDREN_HINTS = Object.freeze({
+  Timeline: 'use props.items: [{title: string, time?: string, text?: string, tone?: default|muted|info|success|warning|error}]',
+  List: 'use props.items: string[]',
+  Table: 'use props.columns: string[] and props.rows: scalar[][] (or props.dataRef)',
+  Choice: 'use props.options: [{id?: string, label: string, description?: string, prompt: string}]',
+  Form: 'use props.fields: [{name: string, label: string, type: string, ...}]',
+  Gallery: 'use props.images: [{src: string, alt: string, caption?: string}]',
+  Chart: 'use props.labels: scalar[] and props.series: [{name: string, values: number[]}] (or props.dataRef)',
+  default: 'container types that accept children are Card, Stack, Grid, Tabs',
+});
+
+function specTypeSummary(s) {
+  if (!s) return 'any';
+  if (s.label !== undefined) return s.label;
+  if (s.type === 'enum') return s.values.join(' | ');
+  if (s.type === 'union') return (s.anyOf ?? []).map(specTypeSummary).join(' | ');
+  if (s.type === 'object') return `{${formatSpecFields(s.props || {})}}`;
+  if (s.type === 'array') {
+    if (!s.items) return 'array';
+    return s.items.type === 'object' ? `[{${formatSpecFields(s.items.props || {})}}]` : `${specTypeSummary(s.items)}[]`;
+  }
+  return s.type;
+}
+
+function formatSpecFields(specs) {
+  return Object.entries(specs)
+    .map(([k, s]) => `${k}${s.required ? '' : '?'}: ${specTypeSummary(s)}`)
+    .join(', ');
+}
+
+export function formatAllowedProps(specs) {
+  const keys = Object.keys(specs || {});
+  if (keys.length === 0) return 'accepts no props';
+  return `{${formatSpecFields(specs)}}`;
+}
+
+function propHint(type, path, key, specs) {
+  if (type === 'Choice' && path.includes('.options[') && key === 'sessionTarget') {
+    return `sessionTarget belongs on Choice.props (all options share one target); option props are ${formatAllowedProps(specs)}`;
+  }
+  if (type === 'Form' && path.includes('.fields[') && key === 'sessionTarget') {
+    return `sessionTarget belongs on Form.props (all fields share one target); field props are ${formatAllowedProps(specs)}`;
+  }
+  if (type === 'Alert' && key === 'items') {
+    return `Alert uses props.text (string), or change type to "List" for props.items; Alert props are ${formatAllowedProps(specs)}`;
+  }
+  if (type === 'Table' && (key === 'items' || key === 'data')) {
+    return `Table uses props.columns (string[]) and props.rows (scalar[][]) or props.dataRef; Table props are ${formatAllowedProps(specs)}`;
+  }
+  if (type === 'Timeline' && (key === 'events' || key === 'steps' || key === 'data' || key === 'children')) {
+    return `Timeline uses props.items: [{title, time?, text?, tone?}]; Timeline props are ${formatAllowedProps(specs)}`;
+  }
+  if (type === 'Text' && (key === 'content' || key === 'value' || key === 'label')) {
+    return `did you mean props.text? Text props are ${formatAllowedProps(specs)}`;
+  }
+  if ((type === 'Code' || type === 'Mermaid') && (key === 'text' || key === 'content' || key === 'source')) {
+    return `did you mean props.code? ${type} props are ${formatAllowedProps(specs)}`;
+  }
+  if (type === 'Math' && (key === 'text' || key === 'code' || key === 'latex' || key === 'formula' || key === 'expr')) {
+    return `did you mean props.tex? Math props are ${formatAllowedProps(specs)}`;
+  }
+  if (Object.keys(specs || {}).length === 0) {
+    return `${type || 'Component'} accepts no props`;
+  }
+  return `allowed: ${formatAllowedProps(specs)}`;
+}
+
 /**
  * Check one value against a prop spec.
  * @param {unknown} value
  * @param {object} spec
  * @param {string} path - error path prefix.
  * @param {string[]} errors - collected messages (mutated).
+ * @param {{ type?: string, warnings?: string[], lenient?: boolean }} [ctx]
  */
-function checkValue(value, spec, path, errors) {
+function checkValue(value, spec, path, errors, ctx) {
   switch (spec.type) {
     case 'any':
       return;
@@ -611,16 +706,16 @@ function checkValue(value, spec, path, errors) {
     case 'array':
       if (!Array.isArray(value)) { errors.push(`${path}: expected array, got ${describe(value)}`); return; }
       if (spec.max !== undefined && value.length > spec.max) { errors.push(`${path}: more than ${spec.max} items`); return; }
-      if (spec.items) value.forEach((item, i) => checkValue(item, spec.items, `${path}[${i}]`, errors));
+      if (spec.items) value.forEach((item, i) => checkValue(item, spec.items, `${path}[${i}]`, errors, ctx));
       return;
     case 'object':
       if (!isPlainObject(value)) { errors.push(`${path}: expected object, got ${describe(value)}`); return; }
-      checkProps(value, spec.props || {}, path, errors);
+      checkProps(value, spec.props || {}, path, errors, ctx, false);
       return;
     case 'union': {
       for (const sub of spec.anyOf ?? []) {
         const subErrors = [];
-        checkValue(value, sub, path, subErrors);
+        checkValue(value, sub, path, subErrors, ctx);
         if (subErrors.length === 0) return;
       }
       if (isPlainObject(value) && Object.hasOwn(value, '$computed') && typeof value.$computed !== 'string') {
@@ -630,7 +725,7 @@ function checkValue(value, spec, path, errors) {
       if (isPlainObject(value) && typeof value.$computed === 'string') {
         // They wrote a computed reference; report its own problems (extra keys, bad id).
         const refSpec = (spec.anyOf ?? []).find(sub => sub.type === 'object');
-        if (refSpec) { checkValue(value, refSpec, path, errors); return; }
+        if (refSpec) { checkValue(value, refSpec, path, errors, ctx); return; }
       }
       const expected = spec.expect ?? (spec.anyOf ?? []).map(sub => sub.label ?? sub.type).join(' or ');
       errors.push(`${path}: expected ${expected}, got ${describe(value)}`);
@@ -641,21 +736,45 @@ function checkValue(value, spec, path, errors) {
   }
 }
 
-function checkProps(props, specs, path, errors) {
+function checkProps(props, specs, path, errors, ctx, isTopLevelProps = false) {
   for (const [key, spec] of Object.entries(specs)) {
     const v = props[key];
     if (v === undefined) {
-      if (spec.required) errors.push(`${path}.${key}: required`);
+      if (spec.required) {
+        if (isTopLevelProps && ctx?.type === 'Alert' && key === 'text' && Array.isArray(props.items)) {
+          errors.push(`${path}.text: required — Alert requires props.text (string); join items into props.text or use List for props.items`);
+        } else {
+          const schemaSuffix = isTopLevelProps && ctx?.type ? `; ${ctx.type} props: ${formatAllowedProps(specs)}` : '';
+          errors.push(`${path}.${key}: required (expected ${specTypeSummary(spec)}${schemaSuffix})`);
+        }
+      }
       continue;
     }
-    checkValue(v, spec, `${path}.${key}`, errors);
+    checkValue(v, spec, `${path}.${key}`, errors, ctx);
   }
   for (const key of Object.keys(props)) {
     // Own properties only: `key in specs` would accept `__proto__`,
     // `constructor` and `toString` from the prototype chain, so a JSON
     // `__proto__` prop (which JSON.parse creates as an own key) passed
     // validation and then became the prototype of the resolved props.
-    if (!Object.hasOwn(specs, key)) errors.push(`${path}.${key}: unknown prop`);
+    if (Object.hasOwn(specs, key)) continue;
+    if (PROTOTYPE_KEYS.has(key)) {
+      errors.push(`${path}.${key}: unknown prop — ${propHint(ctx?.type, path, key, specs)}`);
+      continue;
+    }
+    if (isTopLevelProps && Object.hasOwn(CATALOG, ctx?.type) && DECORATIVE_PROPS.has(key)) {
+      ctx?.warnings?.push(`${path}.${key}: decorative prop ${JSON.stringify(key)} is not used by ${ctx.type} and was ignored`);
+      continue;
+    }
+    if (ctx?.type === 'Timeline' && /\.items\[\d+\]$/.test(path) && (key === 'id' || key === 'key')) {
+      ctx?.warnings?.push(`${path}.${key}: decorative prop ${JSON.stringify(key)} on Timeline item was ignored`);
+      continue;
+    }
+    if (HARMLESS_NOTES.has(key)) {
+      ctx?.warnings?.push(`${path}.${key}: ignored note field ${JSON.stringify(key)}`);
+      continue;
+    }
+    errors.push(`${path}.${key}: unknown prop — ${propHint(ctx?.type, path, key, specs)}`);
   }
 }
 
@@ -1012,9 +1131,10 @@ function checkPlot(props, path, errors) {
  * @param {string} type - component type.
  * @param {unknown} props - raw props (undefined counts as `{}`).
  * @param {string} [path] - error path prefix.
+ * @param {{ warnings?: string[], lenient?: boolean, onNormalized?: () => void }} [options]
  * @returns {string[]} error messages; empty when valid.
  */
-export function validateProps(type, props, path = 'props') {
+export function validateProps(type, props, path = 'props', options) {
   const entry = componentEntry(type);
   if (!entry) return [`${path}: unknown component type ${JSON.stringify(type)}; use one of ${componentTypes().join(', ')}`];
   const p = props === undefined ? {} : props;
@@ -1024,7 +1144,14 @@ export function validateProps(type, props, path = 'props') {
     try { validateSchema(entry.propsSchema, p); } catch (error) { errors.push(`${path}: ${error.message}`); }
     return errors;
   }
-  checkProps(p, entry.props, path, errors);
+  const ctx = {
+    type,
+    warnings: Array.isArray(options) ? options : options?.warnings,
+    lenient: Boolean(options?.lenient),
+    normalized: false,
+  };
+  checkProps(p, entry.props, path, errors, ctx, true);
+  if (ctx.normalized && typeof options?.onNormalized === 'function') options.onNormalized();
   checkSemantics(type, p, path, errors);
   return errors;
 }
@@ -1053,56 +1180,282 @@ function checkFormBindings(byId, paths, errors) {
 }
 
 /**
+ * Normalize recoverable model schema mistakes on a component list when
+ * `lenientValidation` is enabled. Mutates nodes in place and records warnings.
+ * @param {unknown[]} components
+ * @param {string[]} warnings
+ * @returns {{ normalized: boolean, absorbedIds: Set<string> }}
+ */
+function normalizeLenientComponents(components, warnings) {
+  let normalized = false;
+  const absorbedIds = new Set();
+  const nodeMap = new Map();
+  const idCounts = new Map();
+
+  // Pass 1: normalize missing `id` from `key`/`name` and lift top-level declared
+  // props into `node.props` on every component first, so Pass 2 (`Timeline`
+  // absorbing child nodes) sees normalized child `props` regardless of whether
+  // `Timeline` appears before or after its children in `components`.
+  components.forEach((node, i) => {
+    if (!isPlainObject(node)) return;
+    const at = `components[${i}]`;
+    if (typeof node.id !== 'string' || node.id === '') {
+      const aliasKey = typeof node.key === 'string' && node.key.trim() ? 'key'
+        : typeof node.name === 'string' && node.name.trim() ? 'name'
+          : undefined;
+      if (aliasKey) {
+        const aliasVal = node[aliasKey].trim();
+        node.id = aliasVal;
+        const entry = componentEntry(node.type);
+        if (!entry?.props || !Object.hasOwn(entry.props, aliasKey)) delete node[aliasKey];
+        normalized = true;
+        warnings.push(`${at}.id: normalized missing id from ${JSON.stringify(aliasKey)} (${JSON.stringify(aliasVal)})`);
+      }
+    }
+    if (typeof node.id === 'string' && node.id && Object.hasOwn(CATALOG, node.type)) {
+      const nodeAt = `${at}(${node.id})`;
+      const entry = CATALOG[node.type];
+      for (const key of Object.keys(node)) {
+        if (['id', 'type', 'componentVersion', 'props', 'children'].includes(key)) continue;
+        if (PROTOTYPE_KEYS.has(key)) continue;
+        if (Object.hasOwn(entry.props, key)) {
+          if (!isPlainObject(node.props)) node.props = {};
+          if (node.props[key] === undefined) {
+            node.props[key] = node[key];
+            delete node[key];
+            normalized = true;
+            warnings.push(`${nodeAt}.${key}: lifted top-level prop ${JSON.stringify(key)} into props.${key}`);
+          }
+        } else if (DECORATIVE_PROPS.has(key) || HARMLESS_NOTES.has(key)) {
+          delete node[key];
+          normalized = true;
+          warnings.push(`${nodeAt}.${key}: ignored decorative/note field ${JSON.stringify(key)}`);
+        }
+      }
+
+      if (node.type === 'Choice' && isPlainObject(node.props) && Array.isArray(node.props.options)) {
+        const targets = new Set();
+        node.props.options.forEach(opt => {
+          if (isPlainObject(opt) && opt.sessionTarget !== undefined) targets.add(opt.sessionTarget);
+        });
+        if (targets.size === 1) {
+          const [target] = targets;
+          if ((target === 'current' || target === 'new') && (node.props.sessionTarget === undefined || node.props.sessionTarget === target)) {
+            node.props.sessionTarget = target;
+            node.props.options.forEach((opt, oi) => {
+              if (isPlainObject(opt) && opt.sessionTarget !== undefined) {
+                delete opt.sessionTarget;
+                normalized = true;
+                warnings.push(`${nodeAt}.props.options[${oi}].sessionTarget: lifted option-level sessionTarget ${JSON.stringify(target)} to Choice.props.sessionTarget`);
+              }
+            });
+          }
+        }
+      }
+
+      if (node.type === 'Alert' && isPlainObject(node.props) && node.props.text === undefined
+        && Array.isArray(node.props.items) && node.props.items.length > 0
+        && node.props.items.every(x => typeof x === 'string')) {
+        node.props.text = node.props.items.map(s => `• ${s}`).join('\n');
+        delete node.props.items;
+        normalized = true;
+        warnings.push(`${nodeAt}.props.items: converted Alert props.items into props.text`);
+      }
+    }
+    if (typeof node.id === 'string' && node.id) {
+      idCounts.set(node.id, (idCounts.get(node.id) ?? 0) + 1);
+      if (!nodeMap.has(node.id)) nodeMap.set(node.id, node);
+    }
+  });
+
+  // Pass 2: cross-node normalizations (Timeline absorbing leaf child nodes after every node's own props are normalized).
+  components.forEach((node, i) => {
+    if (!isPlainObject(node) || typeof node.id !== 'string' || !node.id) return;
+    if (!Object.hasOwn(CATALOG, node.type)) return;
+    const at = `components[${i}](${node.id})`;
+
+    if (node.type === 'Timeline' && Array.isArray(node.children) && node.children.length > 0) {
+      if (!isPlainObject(node.props)) node.props = {};
+      if (Array.isArray(node.props.items) && node.props.items.length > 0) {
+        delete node.children;
+        normalized = true;
+        warnings.push(`${at}.children: ignored redundant children on Timeline (using props.items)`);
+      } else {
+        node.props.items = node.children.map(cid => {
+          const child = nodeMap.get(String(cid));
+          if (child && isPlainObject(child.props)) {
+            const hasOwnDescendants = Array.isArray(child.children) && child.children.length > 0;
+            const hasUnknownTopKeys = Object.keys(child).some(k => !['id', 'type', 'componentVersion', 'props', 'children'].includes(k));
+            const childPropErrors = validateProps(child.type, child.props);
+            const isUniqueId = idCounts.get(String(cid)) === 1 && String(cid) !== node.id;
+            if (!hasOwnDescendants && !hasUnknownTopKeys && childPropErrors.length === 0 && isUniqueId) {
+              absorbedIds.add(String(cid));
+            }
+            const title = typeof child.props.title === 'string' && child.props.title.trim() ? child.props.title
+              : typeof child.props.label === 'string' && child.props.label.trim() ? child.props.label
+                : typeof child.props.text === 'string' && child.props.text.trim() ? child.props.text
+                  : String(cid);
+            return {
+              title,
+              ...(typeof child.props.time === 'string' ? { time: child.props.time } : typeof child.props.subtitle === 'string' ? { time: child.props.subtitle } : {}),
+              ...(typeof child.props.text === 'string' && child.props.text !== title ? { text: child.props.text } : {}),
+              ...(TONES.includes(child.props.tone) ? { tone: child.props.tone } : {}),
+            };
+          }
+          return { title: String(cid) };
+        });
+        delete node.children;
+        normalized = true;
+        warnings.push(`${at}.children: converted Timeline children into props.items`);
+      }
+    }
+  });
+
+  return { normalized, absorbedIds };
+}
+
+/**
  * Validate a whole `ui_render` payload: node shape, ids, references, cycles,
  * single parent, depth, and per-type props.
  * @param {unknown} args - tool arguments.
- * @param {{ fields?: Iterable<string> }} [options] - extra readable field names
- *   (a composition's shared scope).
- * @returns {{ ok: boolean, errors: string[], warnings: string[], types: Record<string, number>, count: number }}
+ * @param {{ fields?: Iterable<string>, lenient?: boolean }} [options] - extra readable field names
+ *   (a composition's shared scope) and optional lenient normalization.
+ * @returns {{ ok: boolean, errors: string[], warnings: string[], fixes: string[], normalized?: boolean, types: Record<string, number>, count: number }}
  */
 export function validateTree(args, options) {
   const errors = [];
   const warnings = [];
+  const fixes = [];
   const types = {};
-  if (!isPlainObject(args)) return { ok: false, errors: ['arguments: expected object'], warnings, types, count: 0 };
-  const { root, components } = args;
+  const lenient = Boolean(options?.lenient);
+  let normalized = false;
+  if (!isPlainObject(args)) return { ok: false, errors: ['arguments: expected object'], warnings, fixes, types, count: 0 };
+  const { root } = args;
+  let components = args.components;
   if (args.title !== undefined && typeof args.title !== 'string') errors.push('title: expected string');
   if (root === undefined) errors.push('root: missing. Add the top-level field "root" next to "components", set to the id of the top component (a component named "root" does not replace it)');
   else if (typeof root !== 'string' || root === '') errors.push('root: expected the id of the top-level component');
   if (!Array.isArray(components) || components.length === 0) {
-    errors.push('components: expected a non-empty array');
-    return { ok: false, errors, warnings, types, count: 0 };
+    errors.push('components: expected a non-empty array of {id, type, props?, children?} (e.g. {"root":"page","components":[{"id":"page","type":"Card","props":{"title":"..."},"children":[...]}]})');
+    return { ok: false, errors, warnings, fixes, types, count: 0 };
   }
   if (components.length > LIMITS.components) errors.push(`components: more than ${LIMITS.components} nodes`);
 
+  let absorbedIds = new Set();
+  if (lenient) {
+    // Clone unconditionally in lenient mode so deeply or partially frozen
+    // nested objects (e.g. a frozen Choice option) never throw during normalization.
+    components = structuredClone(components);
+    if (!Object.isFrozen(args)) args.components = components;
+    const norm = normalizeLenientComponents(components, warnings);
+    if (norm.normalized) normalized = true;
+    absorbedIds = norm.absorbedIds;
+    if (absorbedIds.size > 0) {
+      components = components.filter(n => !isPlainObject(n) || !absorbedIds.has(n.id));
+      if (!Object.isFrozen(args)) args.components = components;
+    }
+  }
+
   const byId = new Map();
   const paths = new Map();
-  components.forEach((node, i) => {
+  components.forEach((rawNode, i) => {
+    let node = rawNode;
     const at = `components[${i}]`;
     if (!isPlainObject(node)) { errors.push(`${at}: expected object`); return; }
-    if (typeof node.id !== 'string' || node.id === '') { errors.push(`${at}.id: expected non-empty string`); return; }
+    if (typeof node.id !== 'string' || node.id === '') {
+      const aliasKey = typeof node.key === 'string' && node.key ? 'key'
+        : typeof node.name === 'string' && node.name ? 'name'
+          : undefined;
+      const alias = aliasKey
+        ? ` — found "${aliasKey}" (${JSON.stringify(node[aliasKey])}); rename it to "id"`
+        : ' (every component requires a unique string "id")';
+      errors.push(`${at}.id: expected non-empty string${alias}`);
+      if (aliasKey) {
+        const { [aliasKey]: aliasVal, id: _emptyId, ...restNode } = node;
+        fixes.push(`${at}: rename "${aliasKey}" to "id": ${JSON.stringify({ id: aliasVal, ...restNode })}`);
+      }
+      return;
+    }
+    if (absorbedIds.has(node.id)) return;
     if (byId.has(node.id)) { errors.push(`${at}.id: duplicate id ${JSON.stringify(node.id)}`); return; }
-    byId.set(node.id, node);
-    paths.set(node.id, at);
     if (Object.hasOwn(CATALOG, node.type) && isPlainObject(node.props) && Object.hasOwn(node.props, 'children')) {
+      if (Object.isFrozen(node) || Object.isFrozen(node.props)) {
+        node = structuredClone(node);
+      }
       if (node.children === undefined && Array.isArray(node.props.children)) {
         node.children = node.props.children;
       }
       delete node.props.children;
     }
+    byId.set(node.id, node);
+    paths.set(node.id, at);
     const entry = componentEntry(node.type);
     types[node.type] = (types[node.type] || 0) + 1;
-    errors.push(...validateProps(node.type, node.props, `${at}(${node.id}).props`));
+
+    // Collect actionable fix suggestions before prop validation when common model mistakes are present.
+    if (entry && !entry.propsSchema) {
+      const misplacedProps = Object.keys(node).filter(
+        k => !['id', 'type', 'componentVersion', 'props', 'children'].includes(k) && !PROTOTYPE_KEYS.has(k) && Object.hasOwn(entry.props, k),
+      );
+      if (misplacedProps.length > 0) {
+        const merged = { ...(isPlainObject(node.props) ? node.props : {}), ...Object.fromEntries(misplacedProps.map(k => [k, node[k]])) };
+        fixes.push(`${at}(${node.id}): move top-level props (${misplacedProps.join(', ')}) into "props": ${JSON.stringify({ id: node.id, type: node.type, props: merged, ...(Array.isArray(node.children) ? { children: node.children } : {}) })}`);
+      }
+      if (node.type === 'Choice' && isPlainObject(node.props) && Array.isArray(node.props.options)) {
+        const withTarget = node.props.options.find(o => isPlainObject(o) && o.sessionTarget !== undefined);
+        if (withTarget) {
+          const tVal = withTarget.sessionTarget === 'new' ? 'new' : 'current';
+          const cleanedOpts = node.props.options.map(o => {
+            if (!isPlainObject(o)) return o;
+            const { sessionTarget: _st, ...rest } = o;
+            return rest;
+          });
+          fixes.push(`${at}(${node.id}): move "sessionTarget" from options[*] to Choice.props: ${JSON.stringify({ id: node.id, type: 'Choice', props: { ...node.props, sessionTarget: tVal, options: cleanedOpts } })}`);
+        }
+      }
+      if (node.type === 'Alert' && isPlainObject(node.props) && node.props.items !== undefined && node.props.text === undefined) {
+        const joined = Array.isArray(node.props.items) ? node.props.items.filter(x => typeof x === 'string').join('\n') : '...';
+        const { items: _it, ...restProps } = node.props;
+        fixes.push(`${at}(${node.id}): replace Alert props.items with props.text: ${JSON.stringify({ id: node.id, type: 'Alert', props: { ...restProps, text: joined || '...' } })} (or change type to "List")`);
+      }
+      const pObj = isPlainObject(node.props) ? node.props : {};
+      const missingReq = Object.entries(entry.props)
+        .filter(([k, s]) => s.required && pObj[k] === undefined && !misplacedProps.includes(k) && !(node.type === 'Alert' && k === 'text' && pObj.items !== undefined))
+        .map(([k, s]) => [k, s.type === 'number' ? 1 : s.type === 'array' ? [] : s.type === 'object' ? {} : '...']);
+      if (missingReq.length > 0 && !(node.type === 'Timeline' && Array.isArray(node.children) && node.children.length > 0)) {
+        fixes.push(`${at}(${node.id}): supply required ${node.type} props (${missingReq.map(([k]) => k).join(', ')}): ${JSON.stringify({ id: node.id, type: node.type, props: { ...pObj, ...Object.fromEntries(missingReq) } })}`);
+      }
+    }
+
+    errors.push(...validateProps(node.type, node.props, `${at}(${node.id}).props`, {
+      warnings,
+      lenient,
+      onNormalized: () => { normalized = true; },
+    }));
     errors.push(...validateComponentVersion(node.type, node.componentVersion).map(e => `${at}(${node.id}).${e}`));
     if (node.children !== undefined) {
       if (!Array.isArray(node.children) || node.children.some(c => typeof c !== 'string')) {
         errors.push(`${at}(${node.id}).children: expected array of component ids`);
       } else if (entry && !entry.children && node.children.length > 0) {
-        errors.push(`${at}(${node.id}).children: ${node.type} cannot have children`);
+        const hint = CHILDREN_HINTS[node.type] ?? CHILDREN_HINTS.default;
+        errors.push(`${at}(${node.id}).children: ${node.type} cannot have children — ${hint}`);
+        fixes.push(`${at}(${node.id}): remove "children" from ${node.type} (${hint}); use: ${JSON.stringify({ id: node.id, type: node.type, props: node.type === 'Timeline' ? { items: [{ title: 'Step 1', time: '...', text: '...' }] } : (isPlainObject(node.props) ? node.props : {}) })}`);
       }
     }
     for (const key of Object.keys(node)) {
-      if (!['id', 'type', 'componentVersion', 'props', 'children'].includes(key)) errors.push(`${at}(${node.id}).${key}: unknown field`);
+      if (['id', 'type', 'componentVersion', 'props', 'children'].includes(key)) continue;
+      if (!PROTOTYPE_KEYS.has(key) && HARMLESS_NOTES.has(key)) {
+        warnings.push(`${at}(${node.id}).${key}: ignored note field ${JSON.stringify(key)}`);
+        continue;
+      }
+      if (entry && !entry.propsSchema && Object.hasOwn(entry.props, key)) {
+        errors.push(`${at}(${node.id}).${key}: unknown field — ${JSON.stringify(key)} is a ${node.type} prop; nest it inside props: {${JSON.stringify(key)}: ...}`);
+      } else if (node.type === 'Grid' && key === 'gap') {
+        errors.push(`${at}(${node.id}).gap: unknown field — did you mean props.columns? (put component props inside "props"; Grid props are ${formatAllowedProps(entry?.props)})`);
+      } else {
+        const allowed = entry && !entry.propsSchema ? `; ${node.type} props go inside "props": ${formatAllowedProps(entry.props)}` : '';
+        errors.push(`${at}(${node.id}).${key}: unknown field — component fields are id, type, props, children?${allowed}`);
+      }
     }
   });
 
@@ -1112,8 +1465,16 @@ export function validateTree(args, options) {
   const parentOf = new Map();
   for (const node of byId.values()) {
     if (!Array.isArray(node.children)) continue;
+    const entry = componentEntry(node.type);
+    const leafCannotOwnChildren = Boolean(entry && !entry.children);
     for (const child of node.children) {
-      if (!byId.has(child)) { errors.push(`${node.id}.children: unknown id ${JSON.stringify(child)}`); continue; }
+      if (!byId.has(child)) {
+        // When a leaf component (e.g. Timeline) was mistakenly given children,
+        // `cannot have children` already reported the root cause; suppress
+        // cascading `unknown id` noise for its non-component child ids.
+        if (!leafCannotOwnChildren) errors.push(`${node.id}.children: unknown id ${JSON.stringify(child)}`);
+        continue;
+      }
       if (child === root) { errors.push(`${node.id}.children: the root ${JSON.stringify(root)} cannot be a child`); continue; }
       if (parentOf.has(child)) { errors.push(`${child}: has two parents (${parentOf.get(child)} and ${node.id})`); continue; }
       parentOf.set(child, node.id);
@@ -1147,7 +1508,15 @@ export function validateTree(args, options) {
     if (n !== t.props.labels.length) errors.push(`${t.id}: Tabs has ${t.props.labels.length} labels but ${n} children`);
   }
 
-  return { ok: errors.length === 0, errors, warnings, types, count: byId.size };
+  return {
+    ok: errors.length === 0,
+    errors,
+    warnings,
+    fixes,
+    ...(normalized ? { normalized: true, components } : {}),
+    types,
+    count: byId.size,
+  };
 }
 
 /**

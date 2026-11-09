@@ -109,20 +109,33 @@ export function createComposeTool(config) {
           ok: { type: 'boolean' },
           summary: { type: 'string' },
           errors: { type: 'array', items: { type: 'string' } },
+          fixes: { type: 'array', items: { type: 'string' } },
+          normalized: { type: 'object' },
         },
         required: ['ok', 'summary'],
       },
-      render: (_args, value) => [{ type: 'text', text: value.ok ? value.summary : `${value.summary}\n${(value.errors || []).map(e => `- ${e}`).join('\n')}` }],
-      presentationMeta: (_args, value) => ({ ok: value.ok, policy: clientPolicy(config) }),
+      render: (_args, value) => [{
+        type: 'text',
+        text: value.ok
+          ? value.summary
+          : `${value.summary}\n${(value.errors || []).map(e => `- ${e}`).join('\n')}${value.fixes?.length ? `\nSuggested fixes:\n${value.fixes.map(f => `  * ${f}`).join('\n')}` : ''}`,
+      }],
+      presentationMeta: (_args, value) => ({
+        ok: value.ok,
+        policy: clientPolicy(config),
+        ...(value.normalized ? { normalized: value.normalized } : {}),
+      }),
     },
     isConcurrencySafe: () => true,
-    async execute(args, exec) {
+    async execute(rawArgs, exec) {
+      const args = rawArgs && typeof rawArgs === 'object' && !Array.isArray(rawArgs) ? structuredClone(rawArgs) : rawArgs;
       const result = validateComposition(args, config, { requireCatalog: caps.catalog, requireWidget: caps.widget });
       if (!result.ok) {
         return {
           ok: false,
           summary: `Composition not shown: ${result.errors.length} problem(s). Fix them and call ${COMPOSE_TOOL} again.`,
           errors: result.errors.slice(0, 40),
+          ...(result.fixes?.length ? { fixes: result.fixes.slice(0, 20) } : {}),
         };
       }
       const title = typeof args.title === 'string' && args.title ? ` "${args.title}"` : '';
@@ -138,6 +151,12 @@ export function createComposeTool(config) {
       return {
         ok: true,
         summary: `Composed answer${title} is now displayed in order (${result.blocks.length} blocks: ${parts.join('; ')}).${warn}${handle} User interactions will arrive as new user messages.`,
+        ...(result.normalized ? {
+          normalized: JSON.parse(JSON.stringify({
+            ...(typeof args.title === 'string' ? { title: args.title } : {}),
+            blocks: result.blocks,
+          })),
+        } : {}),
       };
     },
   };
