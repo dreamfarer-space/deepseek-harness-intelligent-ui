@@ -17,7 +17,7 @@ export const DEFAULTS = Object.freeze({
   enableWidget: true,
   enableCompose: true,
   injectGuidance: true,
-  lenientValidation: false,
+  lenientValidation: true,
   cdnAllowlist: ['https://esm.sh', 'https://cdn.jsdelivr.net', 'https://unpkg.com'],
   allowNetwork: false,
   maxWidgetHeight: 2400,

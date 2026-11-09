@@ -140,8 +140,10 @@ describe('published computed capability', () => {
     expect(value.ok).toBe(true)
   })
 
-  it('includes suggested fixes in failed ui_render tool output and presentationMeta normalized tree in lenient mode', async () => {
-    const strictTool = createRenderTool(config)
+  it('includes suggested fixes in failed ui_render tool output and presentationMeta normalized tree in default lenient mode', async () => {
+    expect(DEFAULTS.lenientValidation).toBe(true)
+    expect(config.lenientValidation).toBe(true)
+    const strictTool = createRenderTool({ ...config, lenientValidation: false })
     const bad = {
       root: 'a',
       components: [{ id: 'a', type: 'Alert', props: { items: ['One', 'Two'] } }],
@@ -153,7 +155,7 @@ describe('published computed capability', () => {
     expect(renderedText).toContain('Suggested fixes:')
     expect(renderedText).toContain('replace Alert props.items with props.text')
 
-    const lenientTool = createRenderTool({ ...config, lenientValidation: true })
+    const lenientTool = createRenderTool(config)
     expect(lenientTool.output.schema.properties.normalized).toEqual({ type: 'object' })
     expect(createComposeTool(config).output.schema.properties.normalized).toEqual({ type: 'object' })
     const deepFreeze = obj => {
@@ -169,7 +171,7 @@ describe('published computed capability', () => {
     const meta = lenientTool.output.presentationMeta(bad, recovered)
     expect(meta.normalized?.components[0].props.text).toContain('Two')
 
-    const lenientCompose = createComposeTool({ ...config, lenientValidation: true })
+    const lenientCompose = createComposeTool(config)
     const frozenComp = deepFreeze({
       title: 'Frozen test',
       blocks: [{

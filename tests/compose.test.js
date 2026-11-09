@@ -292,8 +292,9 @@ describe('Issue #92 composition tolerance and lenient mode', () => {
     expect(badField.fixes.join('\n')).toMatch(/remove unknown field "extra_field"/)
   })
 
-  it('normalizes catalog blocks in lenientValidation mode and returns normalized blocks in tool meta', async () => {
-    const lenientConfig = { ...config, lenientValidation: true }
+  it('normalizes catalog blocks in default lenientValidation mode and returns normalized blocks in tool meta', async () => {
+    expect(config.lenientValidation).toBe(true)
+    const lenientConfig = config
     const tool = createComposeTool(lenientConfig)
     const args = {
       title: 'Lenient report',
