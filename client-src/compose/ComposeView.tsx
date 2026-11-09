@@ -92,8 +92,19 @@ export function ComposeView(props: ToolViewProps) {
   // A stopped generation keeps the finished blocks: salvage them from the argument prefix.
   const salvage = streaming || stopped
   const raw = streaming ? streamed : settledRaw
-  const blocks = useMemo(() => readComposeBlocks(raw, salvage), [raw, salvage])
-  const title = useMemo(() => readComposeTitle(raw, salvage), [raw, salvage])
+  const normalizedMeta = block?.meta && typeof block.meta === 'object'
+    ? (block.meta as { normalized?: { title?: string; blocks?: ComposeBlock[] } }).normalized
+    : undefined
+  const blocks = useMemo(() => {
+    if (!streaming && !stopped && normalizedMeta && Array.isArray(normalizedMeta.blocks)) {
+      return normalizedMeta.blocks.filter(b => b && typeof b.id === 'string' && typeof b.type === 'string')
+    }
+    return readComposeBlocks(raw, salvage, streaming)
+  }, [raw, salvage, streaming, stopped, normalizedMeta])
+  const title = useMemo(() => {
+    if (!streaming && !stopped && normalizedMeta?.title) return normalizedMeta.title
+    return readComposeTitle(raw, salvage)
+  }, [raw, salvage, streaming, stopped, normalizedMeta])
   // Blocks whose ui_patch produced a newer version are pointers here, so this
   // answer's live producers change without the arguments changing.
   const versions = useUiVersionsRevision()
@@ -147,8 +158,23 @@ export function ComposeView(props: ToolViewProps) {
   const heading = title || t('compose.title')
 
   if (block && refused(block)) {
+    const salvagedMarkdown = readComposeBlocks(settledRaw, true).filter(
+      b => b.type === 'markdown' && typeof b.text === 'string' && b.text.trim().length > 0 && b.text.length <= 60_000,
+    )
     return (
-      <Shell kind="render" title={heading} state="error">
+      <Shell
+        kind="render"
+        title={heading}
+        state="error"
+        status={salvagedMarkdown.length ? t('compose.blocks', { count: salvagedMarkdown.length }) : undefined}
+      >
+        {salvagedMarkdown.length > 0 && (
+          <div className="diui-compose-salvaged">
+            {salvagedMarkdown.map((entry, index) => (
+              <Markdown key={`${entry.id}:${index}`} text={entry.text ?? ''} />
+            ))}
+          </div>
+        )}
         <Problem t={t} message={t('compose.invalid')} detail={resultText(block)} />
       </Shell>
     )

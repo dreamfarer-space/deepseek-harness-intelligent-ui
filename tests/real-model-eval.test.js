@@ -10,7 +10,7 @@ import { deflateSync } from 'node:zlib'
 import { callChat, getApiKey, config, pluginTools, PROMPT_VERSION } from '../scripts/test-real-model.mjs'
 import { checkedCalls, checkChartEdits, checkNativeCase, checkUpdatedTable, composeChecks, composedProse, compositionInterleaves, fillForecastForm, incorporatesSubmission, nativeChecks, widgetChecks } from '../scripts/eval/assertions.mjs'
 import { Conversation } from '../scripts/eval/conversation.mjs'
-import { API_SCENARIOS, runApiStage } from '../scripts/eval/api-stage.mjs'
+import { API_SCENARIOS, countSchemaRetries, runApiStage } from '../scripts/eval/api-stage.mjs'
 import { ASSERTION_VERSION } from '../scripts/eval/assertions.mjs'
 import { assertNoSecrets, percentile, redact, summarize, timing, toMarkdown } from '../scripts/eval/report.mjs'
 import { imageDiff, imageStats } from '../scripts/eval/png.mjs'
@@ -536,5 +536,27 @@ describe('real-model API client and command', () => {
       failWith = Object.assign(new Error('connect ECONNREFUSED 1.2.3.4:443 test-secret'), { code: 'ECONNREFUSED' })
       await expect(callChat([])).rejects.toThrow(/^DeepSeek API unreachable: ECONNREFUSED$/)
     } finally { request.mockRestore(); vi.unstubAllEnvs() }
+  })
+
+  it('aggregates schema first-attempt validity and retry counts in summarize and toMarkdown', () => {
+    expect(countSchemaRetries([])).toBe(0)
+    expect(countSchemaRetries([{ ok: false }])).toBe(0)
+    expect(countSchemaRetries([{ ok: false }, { ok: false }])).toBe(1)
+    expect(countSchemaRetries([{ ok: false }, { ok: true }])).toBe(1)
+    expect(countSchemaRetries([{ ok: false }, { ok: false }, { ok: true }])).toBe(2)
+    expect(countSchemaRetries([{ ok: true }, { ok: false }, { ok: true }])).toBe(1)
+
+    const sum = summarize([
+      { category: 'needs-ui', passed: true, schema: { firstAttemptValid: true, invalidCalls: 0, retries: 0, recovered: false } },
+      { category: 'needs-ui', passed: true, schema: { firstAttemptValid: false, invalidCalls: 2, retries: 2, recovered: true } },
+      { category: 'no-ui', passed: true, schema: { firstAttemptValid: null, invalidCalls: 0, retries: 0, recovered: false } },
+    ])
+    expect(sum.schema).toEqual({
+      uiCases: 2,
+      firstAttemptPassed: 1,
+      firstAttemptRate: 0.5,
+      recovered: 1,
+      totalRetries: 2,
+    })
   })
 })

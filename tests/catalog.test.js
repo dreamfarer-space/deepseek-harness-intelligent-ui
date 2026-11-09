@@ -334,3 +334,189 @@ describe('prototype-safe prop validation', () => {
     expect(result.ok).toBe(true)
   })
 })
+
+/**
+ * Regression suite for Issue #92: schema friction, actionable error messages,
+ * harmless decorative props, and optional lenientValidation normalization.
+ */
+describe('Issue #92 validation diagnostics and lenient mode', () => {
+  it('accepts Grid.props.gap and ignores harmless decorative props such as Divider.props.orientation with a warning', () => {
+    const result = validateTree({
+      root: 'g',
+      components: [
+        { id: 'g', type: 'Grid', props: { columns: 2, gap: 16 }, children: ['d1', 'd2'] },
+        { id: 'd1', type: 'Divider', props: { orientation: 'horizontal' } },
+        { id: 'd2', type: 'Card', props: { title: 'Card', bordered: true }, children: [] },
+      ],
+    })
+    expect(result.ok).toBe(true)
+    expect(result.errors).toEqual([])
+    expect(result.warnings.join('\n')).toMatch(/orientation: decorative prop "orientation" is not used by Divider and was ignored/)
+    expect(result.warnings.join('\n')).toMatch(/bordered: decorative prop "bordered" is not used by Card and was ignored/)
+  })
+
+  it('gives actionable schema guidance and suggested fixes on strict validation failures (Issue #92 cases ①–⑤)', () => {
+    // ① Top-level props + missing id with key alias + Table missing rows
+    const case1 = validateTree({
+      root: 'g',
+      components: [
+        { key: 'missing_id', type: 'Text', props: { text: 'hi' } },
+        { id: 'g', type: 'Grid', columns: 2, gap: 12 },
+        { id: 'tb', type: 'Table', columns: ['A', 'B'] },
+      ],
+    })
+    expect(case1.ok).toBe(false)
+    const err1 = case1.errors.join('\n')
+    expect(err1).toMatch(/found "key" \("missing_id"\); rename it to "id"/)
+    expect(err1).toMatch(/columns: unknown field — "columns" is a Grid prop; nest it inside props/)
+    expect(case1.fixes.join('\n')).toMatch(/move top-level props \(columns, gap\)/)
+
+    // ② Choice options[].sessionTarget
+    const case2 = validateTree({
+      root: 'c',
+      components: [{
+        id: 'c',
+        type: 'Choice',
+        props: {
+          question: 'Pick one',
+          options: [
+            { id: 'a', label: 'A', prompt: 'go A', sessionTarget: 'current' },
+            { id: 'b', label: 'B', prompt: 'go B', sessionTarget: 'current' },
+          ],
+        },
+      }],
+    })
+    expect(case2.ok).toBe(false)
+    expect(case2.errors.join('\n')).toMatch(/sessionTarget belongs on Choice\.props/)
+    expect(case2.fixes.join('\n')).toMatch(/move "sessionTarget" from options\[\*\] to Choice\.props/)
+
+    // ④ Alert with props.items instead of props.text
+    const case4 = validateTree({
+      root: 'a',
+      components: [{ id: 'a', type: 'Alert', props: { title: 'Note', items: ['line 1', 'line 2'] } }],
+    })
+    expect(case4.ok).toBe(false)
+    expect(case4.errors.join('\n')).toMatch(/Alert uses props\.text \(string\)/)
+    expect(case4.fixes.join('\n')).toMatch(/replace Alert props\.items with props\.text/)
+
+    // ⑤ Timeline with children instead of props.items: reports root cause once without cascading unknown-id errors
+    const case5 = validateTree({
+      root: 'tl',
+      components: [{ id: 'tl', type: 'Timeline', children: ['t1', 't2', 't3', 't4'] }],
+    })
+    expect(case5.ok).toBe(false)
+    expect(case5.errors.join('\n')).toMatch(/Timeline cannot have children — use props\.items/)
+    expect(case5.errors.join('\n')).not.toMatch(/unknown id "t1"/)
+  })
+
+  it('normalizes recoverable schema mistakes when lenient mode is enabled while still rejecting unrecoverable errors', () => {
+    const args = {
+      root: 'page',
+      components: [
+        { key: 'page', type: 'Stack', gap: 14, children: ['grid', 'choice', 'alert', 'tl'] },
+        { id: 'grid', type: 'Grid', columns: 2, gap: 12, children: ['div'] },
+        { id: 'div', type: 'Divider', props: { orientation: 'horizontal' } },
+        {
+          id: 'choice',
+          type: 'Choice',
+          props: {
+            question: 'Next step?',
+            options: [
+              { id: 'o1', label: 'Run', prompt: 'Run now', sessionTarget: 'new' },
+              { id: 'o2', label: 'Skip', prompt: 'Skip', sessionTarget: 'new' },
+            ],
+          },
+        },
+        { id: 'alert', type: 'Alert', props: { title: 'Checklist', items: ['Backup config', 'Verify port'] } },
+        { id: 'tl', type: 'Timeline', children: ['t1', 't2'] },
+        { id: 't1', type: 'Card', props: { title: 'Step 1', subtitle: '09:00' } },
+        { id: 't2', type: 'Card', props: { title: 'Step 2', subtitle: '10:00' } },
+      ],
+    }
+    const lenient = validateTree(args, { lenient: true })
+    expect(lenient.ok).toBe(true)
+    expect(lenient.normalized).toBe(true)
+    expect(lenient.warnings.length).toBeGreaterThan(0)
+    // Absorbed timeline child nodes are converted into Timeline.props.items and removed from components.
+    const tl = args.components.find(c => c.id === 'tl')
+    expect(tl.children).toBeUndefined()
+    expect(tl.props.items).toEqual([
+      { title: 'Step 1', time: '09:00' },
+      { title: 'Step 2', time: '10:00' },
+    ])
+    const choice = args.components.find(c => c.id === 'choice')
+    expect(choice.props.sessionTarget).toBe('new')
+    expect(choice.props.options[0].sessionTarget).toBeUndefined()
+    // Re-validating the normalized payload in strict mode succeeds cleanly.
+    expect(validateTree(args).ok).toBe(true)
+
+    // Unrecoverable errors (e.g. Table with columns at top level but still no rows/dataRef) still fail in lenient mode.
+    const unrecoverable = validateTree({
+      root: 'tb',
+      components: [{ id: 'tb', type: 'Table', columns: ['Col1', 'Col2'] }],
+    }, { lenient: true })
+    expect(unrecoverable.ok).toBe(false)
+    expect(unrecoverable.errors.join('\n')).toMatch(/needs columns and rows or dataRef/)
+
+    // Timeline appearing before child nodes whose text prop is flattened at top-level or uses Alert.items still preserves child text.
+    const orderedArgs = {
+      root: 'tl',
+      components: [
+        { id: 'tl', type: 'Timeline', children: ['event', 'alertChild'] },
+        { id: 'event', type: 'Text', props: {}, text: '发布上线' },
+        { id: 'alertChild', type: 'Alert', props: { items: ['重要内容'] } },
+      ],
+    }
+    expect(validateTree(orderedArgs, { lenient: true }).ok).toBe(true)
+    expect(orderedArgs.components[0].props.items).toEqual([
+      { title: '发布上线' },
+      { title: '• 重要内容' },
+    ])
+
+    // Absorbed Timeline child node with an unknown prop still fails validation instead of silently dropping the error.
+    const badTimelineChild = validateTree({
+      root: 'tl',
+      components: [
+        { id: 'tl', type: 'Timeline', children: ['step'] },
+        { id: 'step', type: 'Text', props: { text: '第一步', unexpected: 123 } },
+      ],
+    }, { lenient: true })
+    expect(badTimelineChild.ok).toBe(false)
+    expect(badTimelineChild.errors.join('\n')).toMatch(/unexpected: unknown prop/)
+
+    // Absorbed Timeline child node with a duplicate id still fails with duplicate id instead of hiding it.
+    const dupTimelineChild = validateTree({
+      root: 'tl',
+      components: [
+        { id: 'tl', type: 'Timeline', children: ['step'] },
+        { id: 'step', type: 'Text', props: { text: '第一条' } },
+        { id: 'step', type: 'Text', props: { text: '第二条' } },
+      ],
+    }, { lenient: true })
+    expect(dupTimelineChild.ok).toBe(false)
+    expect(dupTimelineChild.errors.join('\n')).toMatch(/duplicate id "step"/)
+
+    // Partially frozen nested option inside Choice does not throw in lenient mode.
+    const frozenOption = Object.freeze({ id: 'o1', label: '继续', prompt: '继续执行', sessionTarget: 'new' })
+    const partialFrozen = {
+      root: 'c',
+      components: [{
+        id: 'c',
+        type: 'Choice',
+        props: {
+          question: '下一步？',
+          options: [frozenOption, { id: 'o2', label: '取消', prompt: '取消', sessionTarget: 'new' }],
+        },
+      }],
+    }
+    expect(validateTree(partialFrozen, { lenient: true }).ok).toBe(true)
+    expect(partialFrozen.components[0].props.sessionTarget).toBe('new')
+
+    // Missing id with empty string `id: ""` and `key: "x"` produces a valid suggested fix with `"id":"x"`.
+    const emptyIdWithKey = validateTree({
+      root: 'x',
+      components: [{ id: '', key: 'x', type: 'Text', props: { text: 'hello' } }],
+    })
+    expect(emptyIdWithKey.fixes.join('\n')).toContain('"id":"x"')
+  })
+})

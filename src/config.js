@@ -17,6 +17,7 @@ export const DEFAULTS = Object.freeze({
   enableWidget: true,
   enableCompose: true,
   injectGuidance: true,
+  lenientValidation: false,
   cdnAllowlist: ['https://esm.sh', 'https://cdn.jsdelivr.net', 'https://unpkg.com'],
   allowNetwork: false,
   maxWidgetHeight: 2400,
@@ -38,6 +39,8 @@ export const Config = Schema.object({
     .description('Register `ui_compose` (one answer that interleaves markdown, native components and widgets). Needs at least one UI capability.'),
   injectGuidance: Schema.boolean().default(DEFAULTS.injectGuidance)
     .description('Add a system-prompt section telling the model when and how to answer with UI.'),
+  lenientValidation: Schema.boolean().default(DEFAULTS.lenientValidation)
+    .description('Lenient validation mode: automatically normalize recoverable model schema mistakes (such as top-level component props, option-level sessionTarget on Choice, Alert items array, or Timeline children) with warnings instead of rejecting the whole UI.'),
   cdnAllowlist: Schema.array(Schema.string()).default([...DEFAULTS.cdnAllowlist]).volatile()
     .description('Origins widgets may load scripts, styles, fonts and images from (CSP).'),
   allowNetwork: Schema.boolean().default(DEFAULTS.allowNetwork).volatile()
@@ -64,6 +67,7 @@ export const Config = Schema.object({
     enableWidget: '注册 `ui_render_widget`（沙箱中流式渲染的 HTML/CSS/JS 组件）。',
     enableCompose: '注册 `ui_compose`（在一个回答中穿插 Markdown、原生组件和 Widget）。至少需要开启一种 UI 能力。',
     injectGuidance: '在系统提示词中加入何时、如何用 UI 作答的说明。',
+    lenientValidation: '宽容校验模式：对可恢复的模型参数结构偏差（如组件属性平铺在顶层、Choice 选项级 sessionTarget、Alert 使用 items 数组、Timeline 误用 children 等）自动归一化并降级为警告，避免整篇回答被拒重发。',
     cdnAllowlist: 'Widget 可加载脚本、样式、字体和图片的来源（CSP）。',
     allowNetwork: '允许 Widget 对 CDN 白名单发起 fetch()/WebSocket（CSP connect-src）。关闭时禁止脚本网络调用；图片、脚本、样式、字体和媒体仍可请求白名单来源。将 cdnAllowlist 设为空数组可阻止外部资源请求，但不能阻止组件自身导航及其 URL 携带的数据。',
     maxWidgetHeight: 'Widget 框架的最大高度（像素）。',

@@ -101,7 +101,8 @@ function noteVersion(callId: string, call: CallHead, meta: unknown): void {
     return
   }
   // Catalog blocks are independently patchable UIs; a failed composition registers none.
-  const composed = validateComposition(args, {})
+  const lenient = Boolean(meta && typeof meta === 'object' && (meta as { normalized?: unknown }).normalized)
+  const composed = validateComposition(args, { lenientValidation: lenient } as never)
   if (!composed.ok) return
   for (const block of composed.blocks) {
     if (block.type === 'catalog') noteUiVersion(composeUiId(callId, block.id), 1, block.title)

@@ -104,8 +104,10 @@ function Component({ node, env, children }: { node: UiNode; env: RenderEnv; chil
           {children}
         </div>
       )
-    case 'Grid':
-      return <div className="diui-grid" style={{ ['--diui-cols' as string]: Math.round(p.columns) }}>{children}</div>
+    case 'Grid': {
+      const gap = typeof p.gap === 'number' && Number.isFinite(p.gap) && p.gap >= 0 && p.gap <= 64 ? p.gap : undefined
+      return <div className="diui-grid" style={{ ['--diui-cols' as string]: Math.round(p.columns), ...(gap !== undefined ? { gap } : {}) }}>{children}</div>
+    }
     case 'Tabs':
       return <Tabs labels={p.labels} env={env} nodeId={node.id}>{children}</Tabs>
     case 'Text': {

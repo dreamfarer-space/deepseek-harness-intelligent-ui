@@ -398,8 +398,9 @@ function applySettledUiCall(uis, callId, name, rawArgs, outcome, tools) {
     return changed;
   }
   if (name === tools.render) {
-    if (!validateTree(clone(args ?? null)).ok) return false;
-    uis.set(callId, snapshotOf(callId, args));
+    const cloned = clone(args ?? null);
+    if (!validateTree(cloned, { lenient: Boolean(tools.config?.lenientValidation) }).ok) return false;
+    uis.set(callId, snapshotOf(callId, cloned));
     return true;
   }
   if (name === tools.patch) {

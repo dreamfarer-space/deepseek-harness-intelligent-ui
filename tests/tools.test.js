@@ -139,4 +139,57 @@ describe('published computed capability', () => {
     })
     expect(value.ok).toBe(true)
   })
+
+  it('includes suggested fixes in failed ui_render tool output and presentationMeta normalized tree in lenient mode', async () => {
+    const strictTool = createRenderTool(config)
+    const bad = {
+      root: 'a',
+      components: [{ id: 'a', type: 'Alert', props: { items: ['One', 'Two'] } }],
+    }
+    const failed = await strictTool.execute(bad, { callId: 'r-bad' })
+    expect(failed.ok).toBe(false)
+    expect(failed.fixes?.length).toBeGreaterThan(0)
+    const renderedText = strictTool.output.render(bad, failed)[0].text
+    expect(renderedText).toContain('Suggested fixes:')
+    expect(renderedText).toContain('replace Alert props.items with props.text')
+
+    const lenientTool = createRenderTool({ ...config, lenientValidation: true })
+    expect(lenientTool.output.schema.properties.normalized).toEqual({ type: 'object' })
+    expect(createComposeTool(config).output.schema.properties.normalized).toEqual({ type: 'object' })
+    const deepFreeze = obj => {
+      if (obj && typeof obj === 'object') {
+        Object.freeze(obj)
+        for (const v of Object.values(obj)) deepFreeze(v)
+      }
+      return obj
+    }
+    const recovered = await lenientTool.execute(deepFreeze(structuredClone(bad)), { callId: 'r-ok' })
+    expect(recovered.ok).toBe(true)
+    expect(recovered.normalized?.components[0].props.text).toContain('One')
+    const meta = lenientTool.output.presentationMeta(bad, recovered)
+    expect(meta.normalized?.components[0].props.text).toContain('Two')
+
+    const lenientCompose = createComposeTool({ ...config, lenientValidation: true })
+    const frozenComp = deepFreeze({
+      title: 'Frozen test',
+      blocks: [{
+        id: 'b1',
+        type: 'catalog',
+        blocks_note: 'note',
+        root: 'g',
+        components: [{ id: 'g', type: 'Grid', columns: 2, gap: 12, children: [] }],
+      }],
+    })
+    const compRecovered = await lenientCompose.execute(frozenComp, { callId: 'c-ok' })
+    expect(compRecovered.ok).toBe(true)
+    expect(compRecovered.normalized?.blocks[0].components[0].props).toEqual({ columns: 2, gap: 12 })
+    // Every property in execute() output must be lossless JSON (no `undefined` values, which DSH 0.2.2 rejects).
+    const hasUndefinedValue = v => {
+      if (v === undefined) return true
+      if (!v || typeof v !== 'object') return false
+      return Object.values(v).some(hasUndefinedValue)
+    }
+    expect(hasUndefinedValue(compRecovered)).toBe(false)
+    expect(hasUndefinedValue(recovered)).toBe(false)
+  })
 })

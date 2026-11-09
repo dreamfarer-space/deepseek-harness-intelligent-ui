@@ -244,4 +244,48 @@ describe('ComposeView', () => {
     remount(view())
     expect(host.querySelector('.diui-chart-svg')).not.toBeNull()
   })
+
+  it('streams in-progress markdown and catalog blocks incrementally and salvages valid markdown when a later block fails validation', async () => {
+    const partialMd = '{"title":"Live report","blocks":[{"id":"intro","type":"markdown","text":"Streaming first paragraph'
+    render(<ComposeView {...base()} phase="preparing" block={{ phase: 'preparing', callId: 'comp-stream' }} useToolCallArgumentsPartial={() => partialMd} />)
+    await act(async () => { await new Promise(r => setTimeout(r, 150)) })
+    expect(host.querySelector('.diui-md')!.textContent).toContain('Streaming first paragraph')
+
+    const partialCatalog = '{"title":"Live report","blocks":[{"id":"intro","type":"markdown","text":"Done."},{"id":"dash","type":"catalog","root":"g","components":[{"id":"g","type":"Grid","props":{"columns":2,"gap":12},"children":["s1","s2"]},{"id":"s1","type":"Stat","props":{"label":"Latency","value":"12ms"}}'
+    render(<ComposeView {...base()} phase="preparing" block={{ phase: 'preparing', callId: 'comp-stream' }} useToolCallArgumentsPartial={() => partialCatalog} />)
+    await act(async () => { await new Promise(r => setTimeout(r, 150)) })
+    expect(host.querySelector('.diui-stat')!.textContent).toContain('Latency')
+
+    // Refused composition with valid markdown block still shows the salvaged prose above the error banner.
+    const refusedArgs = JSON.stringify({
+      title: 'Refused composition',
+      blocks: [
+        { id: 'intro', type: 'markdown', text: 'Preserved explanation before the broken block.' },
+        { id: 'bad', type: 'catalog', root: 'tl', components: [{ id: 'tl', type: 'Timeline', children: ['t1'] }] },
+      ],
+    })
+    render(<ComposeView {...base()} phase="result" block={{
+      kind: 'tool-result',
+      callId: 'comp-refused',
+      call: { name: 'ui_compose', argsRaw: refusedArgs },
+      content: [{ type: 'text', text: 'Composition not shown\n- blocks[1](bad): Timeline cannot have children' }],
+      isError: false,
+      meta: { ok: false },
+    }} />)
+    expect(host.querySelector('.diui-compose-salvaged')!.textContent).toContain('Preserved explanation before the broken block.')
+    expect(host.textContent).toContain(en['compose.invalid'])
+
+    // Unclosed trailing markdown in a refused composition is NOT salvaged (only closed markdown blocks are).
+    const truncatedRefused = '{"title":"Truncated","blocks":[{"id":"done","type":"markdown","text":"Finished block."},{"id":"half","type":"markdown","text":"Unfinished trailing'
+    render(<ComposeView {...base()} phase="result" block={{
+      kind: 'tool-result',
+      callId: 'comp-refused-2',
+      call: { name: 'ui_compose', argsRaw: truncatedRefused },
+      content: [{ type: 'text', text: 'Composition not shown' }],
+      isError: false,
+      meta: { ok: false },
+    }} />)
+    expect(host.querySelector('.diui-compose-salvaged')!.textContent).toContain('Finished block.')
+    expect(host.querySelector('.diui-compose-salvaged')!.textContent).not.toContain('Unfinished trailing')
+  })
 })

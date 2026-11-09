@@ -9,7 +9,7 @@
  * (derived id `<callId>#<blockId>`), so nothing about patching changes.
  * @module deepseek-harness-intelligent-ui/compose
  */
-import { validateTree } from '../catalog/catalog.js';
+import { HARMLESS_NOTES, validateTree } from '../catalog/catalog.js';
 import { validateWidget } from '../tools/widget.js';
 import { COMPOSE_TOOL } from './constants.js';
 
@@ -125,18 +125,24 @@ export function composeEnabled(config) {
 export function validateComposition(args, config, capabilities = {}) {
   const errors = [];
   const warnings = [];
+  const fixes = [];
+  let normalized = false;
+  const lenient = Boolean(config?.lenientValidation);
   const stats = { markdown: 0, catalog: 0, widget: 0, components: 0, markdownChars: 0 };
-  if (!isPlainObject(args)) return { ok: false, errors: ['arguments: expected object'], warnings, blocks: [], stats };
+  if (!isPlainObject(args)) return { ok: false, errors: ['arguments: expected object'], warnings, fixes, blocks: [], stats };
   for (const key of Object.keys(args)) {
-    if (key !== 'title' && key !== 'blocks') errors.push(`${key}: unknown field`);
+    if (key !== 'title' && key !== 'blocks') {
+      if (HARMLESS_NOTES.has(key)) warnings.push(`${key}: ignored note field ${JSON.stringify(key)}`);
+      else errors.push(`${key}: unknown field (allowed top-level fields: title, blocks)`);
+    }
   }
   if (args.title !== undefined) {
     if (typeof args.title !== 'string') errors.push('title: expected string');
     else if (args.title.length > COMPOSE_LIMITS.titleChars) errors.push(`title: longer than ${COMPOSE_LIMITS.titleChars} characters`);
   }
   if (!Array.isArray(args.blocks) || args.blocks.length === 0) {
-    errors.push('blocks: expected a non-empty ordered array');
-    return { ok: false, errors, warnings, blocks: [], stats };
+    errors.push('blocks: expected a non-empty ordered array of {id, type: "markdown"|"catalog"|"widget", ...}');
+    return { ok: false, errors, warnings, fixes, blocks: [], stats };
   }
   if (args.blocks.length > COMPOSE_LIMITS.blocks) errors.push(`blocks: more than ${COMPOSE_LIMITS.blocks} blocks`);
 
@@ -166,7 +172,14 @@ export function validateComposition(args, config, capabilities = {}) {
     }
     const allowed = BLOCK_FIELDS[block.type];
     for (const key of Object.keys(block)) {
-      if (!allowed.includes(key)) errors.push(`${at}(${block.id}).${key}: unknown field for a ${block.type} block`);
+      if (!allowed.includes(key)) {
+        if (HARMLESS_NOTES.has(key)) {
+          warnings.push(`${block.id}: ${at}(${block.id}).${key}: ignored note field ${JSON.stringify(key)}`);
+        } else {
+          errors.push(`${at}(${block.id}).${key}: unknown field for a ${block.type} block (allowed: ${allowed.join(', ')})`);
+          fixes.push(`${at}(${block.id}): remove unknown field ${JSON.stringify(key)} from ${block.type} block (allowed: ${allowed.join(', ')})`);
+        }
+      }
     }
     if (block.type === 'catalog' && capabilities.requireCatalog === false) {
       errors.push(`${at}(${block.id}): catalog blocks are disabled on this host`);
@@ -201,15 +214,21 @@ export function validateComposition(args, config, capabilities = {}) {
         }
       }
       const tree = { root: block.root, components: block.components, ...(block.title !== undefined ? { title: block.title } : {}), ...(block.computed !== undefined ? { computed: block.computed } : {}) };
-      const result = validateTree(tree, { fields: fieldKeys });
+      const result = validateTree(tree, { fields: fieldKeys, lenient });
       for (const error of result.errors) errors.push(`${at}(${block.id}).${error}`);
       for (const warning of result.warnings) warnings.push(`${block.id}: ${warning}`);
+      for (const fix of result.fixes ?? []) fixes.push(`${at}(${block.id}).${fix}`);
+      const nextComponents = result.components ?? tree.components;
+      if (result.normalized) {
+        normalized = true;
+        if (!Object.isFrozen(block)) block.components = nextComponents;
+      }
       stats.catalog++;
       stats.components += result.count;
-      total += JSON.stringify(tree).length;
-      entry.title = typeof block.title === 'string' ? block.title : undefined;
+      total += JSON.stringify({ ...tree, components: nextComponents }).length;
+      if (typeof block.title === 'string') entry.title = block.title;
       entry.root = block.root;
-      entry.components = block.components;
+      entry.components = nextComponents;
       if (block.computed !== undefined) entry.computed = block.computed;
     } else {
       const widgetArgs = {};
@@ -227,7 +246,15 @@ export function validateComposition(args, config, capabilities = {}) {
 
   if (!stats.markdown && !stats.catalog && !stats.widget && errors.length === 0) errors.push('blocks: a composition needs at least one block');
   if (total > COMPOSE_LIMITS.totalChars) errors.push(`blocks: the composition is ${total} characters; the limit is ${COMPOSE_LIMITS.totalChars}`);
-  return { ok: errors.length === 0, errors, warnings, blocks: errors.length ? [] : blocks, stats };
+  return {
+    ok: errors.length === 0,
+    errors,
+    warnings,
+    fixes,
+    ...(normalized ? { normalized: true } : {}),
+    blocks: errors.length ? [] : blocks,
+    stats,
+  };
 }
 
 /**

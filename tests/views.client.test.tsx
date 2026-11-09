@@ -160,4 +160,31 @@ describe('promptSession', () => {
     await expect(promptSession({ binding: () => ({ session }) }, 's1', 'hi')).rejects.toThrow('busy')
     await expect(promptSession({ binding: () => undefined }, 's1', 'hi')).rejects.toThrow(/not open/)
   })
+
+  it('renders normalized tree from presentationMeta when lenientValidation repaired model arguments', () => {
+    const rawArgs = JSON.stringify({
+      root: 'tl',
+      components: [{ id: 'tl', type: 'Timeline', children: ['Step A', 'Step B'] }],
+    })
+    const normalized = {
+      root: 'tl',
+      components: [{ id: 'tl', type: 'Timeline', props: { items: [{ title: 'Step A' }, { title: 'Step B' }] } }],
+    }
+    render(<RenderView
+      {...base()}
+      toolName="ui_render"
+      callId="r-norm"
+      phase="result"
+      block={{
+        kind: 'tool-result',
+        callId: 'r-norm',
+        call: { name: 'ui_render', argsRaw: rawArgs },
+        content: [{ type: 'text', text: 'ok' }],
+        isError: false,
+        meta: { ok: true, normalized },
+      }}
+    />)
+    expect(host.querySelector('.diui-timeline')?.textContent).toContain('Step A')
+    expect(host.querySelector('.diui-node-error')).toBeNull()
+  })
 })

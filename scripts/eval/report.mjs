@@ -31,7 +31,24 @@ export function summarize(all) {
   }
   for (const s of Object.values(byCategory)) s.successRate = s.total ? +(s.passed / s.total).toFixed(3) : 0
   const passed = cases.filter(c => c.passed).length
-  return { total: cases.length, passed, failed: cases.length - passed, successRate: cases.length ? +(passed / cases.length).toFixed(3) : 0, ...(infrastructureErrors ? { infrastructureErrors } : {}), byCategory }
+  const uiCases = cases.filter(c => c.schema && c.schema.firstAttemptValid !== null && c.schema.firstAttemptValid !== undefined)
+  const firstAttemptPassed = uiCases.filter(c => c.schema.firstAttemptValid === true).length
+  const schema = uiCases.length > 0 ? {
+    uiCases: uiCases.length,
+    firstAttemptPassed,
+    firstAttemptRate: +(firstAttemptPassed / uiCases.length).toFixed(3),
+    recovered: uiCases.filter(c => c.schema.recovered === true).length,
+    totalRetries: uiCases.reduce((n, c) => n + (c.schema.retries ?? c.schema.invalidCalls ?? 0), 0),
+  } : undefined
+  return {
+    total: cases.length,
+    passed,
+    failed: cases.length - passed,
+    successRate: cases.length ? +(passed / cases.length).toFixed(3) : 0,
+    ...(infrastructureErrors ? { infrastructureErrors } : {}),
+    ...(schema ? { schema } : {}),
+    byCategory,
+  }
 }
 
 const SECRET_PATTERNS = [
@@ -102,7 +119,13 @@ export function toMarkdown(report) {
     if (!l || l.skipped) continue
     lines.push(`## ${title}`, '')
     const t = l.timing ?? {}
-    if (key === 'api') lines.push(`API time per model call: p50 ${ms(t.apiCallMs?.p50)} · p95 ${ms(t.apiCallMs?.p95)} · per case p50 ${ms(t.caseMs?.p50)} · p95 ${ms(t.caseMs?.p95)} (n=${t.caseMs?.n})${t.caseTokens?.n ? ` · tokens per case p50 ${t.caseTokens.p50} · p95 ${t.caseTokens.p95}` : ''}`, '')
+    if (key === 'api') {
+      lines.push(`API time per model call: p50 ${ms(t.apiCallMs?.p50)} · p95 ${ms(t.apiCallMs?.p95)} · per case p50 ${ms(t.caseMs?.p50)} · p95 ${ms(t.caseMs?.p95)} (n=${t.caseMs?.n})${t.caseTokens?.n ? ` · tokens per case p50 ${t.caseTokens.p50} · p95 ${t.caseTokens.p95}` : ''}`, '')
+      if (l.summary?.schema) {
+        const sc = l.summary.schema
+        lines.push(`Schema first-attempt validity: **${sc.firstAttemptPassed}/${sc.uiCases}** (${pct(sc.firstAttemptRate)}) · recovered after retry: ${sc.recovered} · total schema retries: ${sc.totalRetries}`, '')
+      }
+    }
     else lines.push(`First visible preview: p50 ${ms(t.firstPreviewMs?.p50)} · p95 ${ms(t.firstPreviewMs?.p95)} · complete generation: p50 ${ms(t.generationMs?.p50)} · p95 ${ms(t.generationMs?.p95)} · browser execution after the stream: p50 ${ms(t.browserExecMs?.p50)} · p95 ${ms(t.browserExecMs?.p95)}`, '')
     lines.push('| Category | Passed | Rate |', '| --- | --- | --- |')
     for (const [cat, s] of Object.entries(l.summary.byCategory)) lines.push(`| ${cat} | ${s.passed}/${s.total} | ${pct(s.successRate)} |`)
@@ -112,7 +135,13 @@ export function toMarkdown(report) {
     lines.push(key === 'api' ? '| --- | --- | --- | --- | --- | --- | --- |' : '| --- | --- | --- | --- | --- | --- | --- | --- |')
     for (const c of l.cases) {
       const id = `${c.id}${c.run > 1 ? ` #${c.run}` : ''} ${cell(c.title)}`
-      if (key === 'api') lines.push(`| ${id} | ${c.category} | ${c.passed ? '✅' : '❌'} | ${cell(c.tool?.actual?.join(' → ') || 'none')} | ${c.schema?.firstAttemptValid === false ? `❌${c.schema.recovered ? ' (recovered)' : ''}` : '✅'} | ${ms(c.timing?.apiMs)} | ${cell(c.reason)} |`)
+      if (key === 'api') {
+        const retries = c.schema?.retries ?? c.schema?.invalidCalls ?? 0
+        const schemaCell = c.schema?.firstAttemptValid === false
+          ? `❌${retries ? ` (${retries} retry${c.schema.recovered ? ', recovered' : ''})` : c.schema.recovered ? ' (recovered)' : ''}`
+          : '✅'
+        lines.push(`| ${id} | ${c.category} | ${c.passed ? '✅' : '❌'} | ${cell(c.tool?.actual?.join(' → ') || 'none')} | ${schemaCell} | ${ms(c.timing?.apiMs)} | ${cell(c.reason)} |`)
+      }
       else lines.push(`| ${id} | ${c.category} | ${c.passed ? '✅' : '❌'} | ${ms(c.timing?.firstPreviewMs)} | ${ms(c.timing?.generationMs)} | ${ms(c.timing?.browserExecMs)} | ${c.consoleErrors?.length ?? 0} | ${cell([c.reason, c.clarifications?.length ? `model asked first: “${c.clarifications[0]}” (answered: use sample data)` : '', c.subagents ? `agent used ${c.subagents} sub-agent(s) to research first` : '', ...(c.notes || [])].filter(Boolean).join(' · '))} |`)
     }
     lines.push('')

@@ -272,3 +272,70 @@ describe('computed scope uniqueness across blocks', () => {
     expect(keys.has('quantity')).toBe(true)
   })
 })
+
+describe('Issue #92 composition tolerance and lenient mode', () => {
+  it('ignores harmless note fields on blocks with a warning (Issue #92 case ⑥) and lists allowed fields on unknown block keys', () => {
+    const withNote = validateComposition({
+      blocks: [
+        { id: 'intro', type: 'markdown', text: 'Analysis.', blocks_note: 'harmless model annotation' },
+        { id: 'card', type: 'catalog', root: 'r', blocks_note: 'catalog note', components: [{ id: 'r', type: 'Text', props: { text: 'ok' } }] },
+      ],
+    }, config)
+    expect(withNote.ok).toBe(true)
+    expect(withNote.warnings.join('\n')).toMatch(/blocks_note: ignored note field/)
+
+    const badField = validateComposition({
+      blocks: [{ id: 'intro', type: 'markdown', text: 'Analysis.', extra_field: 123 }],
+    }, config)
+    expect(badField.ok).toBe(false)
+    expect(badField.errors.join('\n')).toMatch(/extra_field: unknown field for a markdown block \(allowed: id, type, text\)/)
+    expect(badField.fixes.join('\n')).toMatch(/remove unknown field "extra_field"/)
+  })
+
+  it('normalizes catalog blocks in lenientValidation mode and returns normalized blocks in tool meta', async () => {
+    const lenientConfig = { ...config, lenientValidation: true }
+    const tool = createComposeTool(lenientConfig)
+    const args = {
+      title: 'Lenient report',
+      blocks: [
+        { id: 'prose', type: 'markdown', text: 'First section.' },
+        {
+          id: 'steps',
+          type: 'catalog',
+          root: 's',
+          components: [
+            { id: 's', type: 'Stack', children: ['div', 'tl'] },
+            { id: 'div', type: 'Divider', props: { orientation: 'horizontal' } },
+            { id: 'tl', type: 'Timeline', children: ['t1', 't2'] },
+          ],
+        },
+      ],
+    }
+    const res = await tool.execute(args, { callId: 'c-lenient' })
+    expect(res.ok).toBe(true)
+    expect(res.summary).toMatch(/Warning:/)
+    expect(res.normalized).toBeDefined()
+    const meta = tool.output.presentationMeta(args, res)
+    expect(meta.normalized.blocks[1].components.find(c => c.id === 'tl').props.items).toEqual([
+      { title: 't1' },
+      { title: 't2' },
+    ])
+
+    // Turn 2: ui_patch on the lenient-normalized composition block updates it cleanly to version 2.
+    const messages = [
+      { role: 'user', content: [{ type: 'text', text: 'show report' }] },
+      { role: 'assistant', content: [{ type: 'tool-call', id: 'c-lenient', name: COMPOSE_TOOL, arguments: JSON.stringify(args) }] },
+      { role: 'tool', toolCallId: 'c-lenient', content: tool.output.render(args, res) },
+    ]
+    const uis = collectUis(messages, { render: RENDER_TOOL, patch: PATCH_TOOL, compose: COMPOSE_TOOL, config: lenientConfig })
+    expect(uis.get('c-lenient#steps')?.version).toBe(1)
+    const patchRes = await createPatchTool(lenientConfig).execute({
+      uiId: 'c-lenient#steps',
+      baseVersion: 1,
+      ops: [{ op: 'setProps', id: 'tl', props: { items: [{ title: 't1' }, { title: 't2' }, { title: 't3' }] } }],
+    }, { callId: 'p-lenient', agent: { session: { deriveMessages: () => messages } } })
+    expect(patchRes.ok).toBe(true)
+    expect(patchRes.ui.version).toBe(2)
+    expect(patchRes.ui.components.find(c => c.id === 'tl').props.items).toHaveLength(3)
+  })
+})

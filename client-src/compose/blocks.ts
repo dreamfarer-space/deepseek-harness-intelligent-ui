@@ -5,7 +5,7 @@
  * drawn. Pure functions (no React) so tests and the portable renderer share
  * exactly the same rules.
  */
-import { parseArgs, scanPartialObject } from '../stream/partial-json.ts'
+import { parseArgs, scanPartialObject, type PartialObject } from '../stream/partial-json.ts'
 
 /** Composition block types the renderer understands (the Host validates the same set). */
 export type ComposeBlockType = 'markdown' | 'catalog' | 'widget'
@@ -40,14 +40,48 @@ export function isComposeBlock(value: unknown): value is ComposeBlock {
     && ((value as ComposeBlock).type !== 'markdown' || typeof (value as ComposeBlock).text === 'string')
 }
 
+function partialBlockOf(obj: PartialObject | undefined): ComposeBlock | undefined {
+  if (!obj) return undefined
+  const id = obj.id?.complete && typeof obj.id.value === 'string' && obj.id.value ? obj.id.value : undefined
+  const type = obj.type?.complete && typeof obj.type.value === 'string' && BLOCK_TYPES.includes(obj.type.value)
+    ? (obj.type.value as ComposeBlockType)
+    : undefined
+  if (!id || !type) return undefined
+  if (type === 'markdown') {
+    const text = typeof obj.text?.value === 'string' ? obj.text.value : undefined
+    return text && text.trim().length > 0 ? { id, type, text } : undefined
+  }
+  if (type === 'catalog') {
+    const comps = Array.isArray(obj.components?.value) ? obj.components.value : undefined
+    const root = obj.root?.complete && typeof obj.root.value === 'string' && obj.root.value
+      ? obj.root.value
+      : (comps && comps.length > 0 && typeof (comps[0] as { id?: unknown })?.id === 'string' ? (comps[0] as { id: string }).id : undefined)
+    if (!root || !comps || comps.length === 0) return undefined
+    return {
+      id,
+      type,
+      ...(typeof obj.title?.value === 'string' && obj.title.value ? { title: obj.title.value } : {}),
+      root,
+      components: comps,
+      ...(obj.computed?.complete && Array.isArray(obj.computed.value) ? { computed: obj.computed.value } : {}),
+    }
+  }
+  return undefined
+}
+
 /** Ordered blocks of a composition, from complete arguments or from the finished prefix. */
-export function readComposeBlocks(raw: string, partial: boolean): ComposeBlock[] {
+export function readComposeBlocks(raw: string, partial: boolean, includeInProgress = false): ComposeBlock[] {
   if (!partial) {
     const args = parseArgs(raw)
     return Array.isArray(args?.blocks) ? args.blocks.filter(isComposeBlock) : []
   }
   const field = scanPartialObject(raw).blocks
-  return Array.isArray(field?.value) ? field.value.filter(isComposeBlock) : []
+  const closed = Array.isArray(field?.value) ? field.value.filter(isComposeBlock) : []
+  if (includeInProgress) {
+    const tail = partialBlockOf(field?.partialObject)
+    if (tail && !closed.some(b => b.id === tail.id)) closed.push(tail)
+  }
+  return closed
 }
 
 /** The composition's title, from complete or streaming arguments. */

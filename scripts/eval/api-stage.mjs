@@ -188,6 +188,19 @@ export function replayChat(file, prior = {}) {
  *   replay: rescore instead of calling the model: `${id}-${run}` → the previously reported case;
  *     each conversation is read back from `transcripts`.
  */
+/**
+ * Count actual schema retry calls in a sequence of UI tool calls: a UI call at
+ * index `i + 1` counts as a schema retry when the immediately preceding UI call
+ * at index `i` failed validation (`!ui[i].ok`).
+ */
+export function countSchemaRetries(ui) {
+  let retries = 0
+  for (let i = 0; i < ui.length - 1; i++) {
+    if (!ui[i].ok) retries++
+  }
+  return retries
+}
+
 export async function runApiStage({ chat, tools, groups = API_GROUPS, ids, repeat = 1, transcripts, replay, log = console.log }) {
   const cases = []
   const selected = API_SCENARIOS.filter(s => groups.includes(s.group) && (!ids || ids.includes(s.id)))
@@ -208,12 +221,20 @@ export async function runApiStage({ chat, tools, groups = API_GROUPS, ids, repea
         const ui = calls.filter(c => c.name.startsWith('ui_'))
         const apiMs = turns.flatMap(t => t.api.map(a => a.ms))
         const usage = turns.flatMap(t => t.api.map(a => a.usage)).filter(Boolean)
+        const invalidCalls = ui.filter(c => !c.ok).length
+        const retries = countSchemaRetries(ui)
         Object.assign(record, {
           passed: failed.length === 0,
           reason: failed.length ? failed.map(c => c.name + (c.detail ? ` (${c.detail})` : '')).join('; ') : null,
           checks: scored,
           tool: { actual: ui.map(c => c.name + (c.ok ? '' : '✗')) },
-          schema: { firstAttemptValid: ui.length ? ui[0].ok : null, invalidCalls: ui.filter(c => !c.ok).length, recovered: ui.some(c => !c.ok) && ui.at(-1)?.ok === true, errors: ui.filter(c => !c.ok).flatMap(c => c.errors).slice(0, 5) },
+          schema: {
+            firstAttemptValid: ui.length ? ui[0].ok : null,
+            invalidCalls,
+            retries,
+            recovered: ui.some(c => !c.ok) && ui.at(-1)?.ok === true,
+            errors: ui.filter(c => !c.ok).flatMap(c => c.errors).slice(0, 5),
+          },
           model: [...new Set(turns.flatMap(t => t.api.map(a => a.model)))],
           fingerprint: [...new Set(turns.flatMap(t => t.api.map(a => a.fingerprint)).filter(Boolean))],
           turns: turns.length,

@@ -91,20 +91,33 @@ export function createRenderTool(config) {
           ok: { type: 'boolean' },
           summary: { type: 'string' },
           errors: { type: 'array', items: { type: 'string' } },
+          fixes: { type: 'array', items: { type: 'string' } },
+          normalized: { type: 'object' },
         },
         required: ['ok', 'summary'],
       },
-      render: (_args, value) => [{ type: 'text', text: value.ok ? value.summary : `${value.summary}\n${(value.errors || []).map(e => `- ${e}`).join('\n')}` }],
-      presentationMeta: (_args, value) => ({ ok: value.ok, policy: clientPolicy(config) }),
+      render: (_args, value) => [{
+        type: 'text',
+        text: value.ok
+          ? value.summary
+          : `${value.summary}\n${(value.errors || []).map(e => `- ${e}`).join('\n')}${value.fixes?.length ? `\nSuggested fixes:\n${value.fixes.map(f => `  * ${f}`).join('\n')}` : ''}`,
+      }],
+      presentationMeta: (_args, value) => ({
+        ok: value.ok,
+        policy: clientPolicy(config),
+        ...(value.normalized ? { normalized: value.normalized } : {}),
+      }),
     },
     isConcurrencySafe: () => true,
-    async execute(args, exec) {
-      const result = validateTree(args);
+    async execute(rawArgs, exec) {
+      const args = rawArgs && typeof rawArgs === 'object' && !Array.isArray(rawArgs) ? structuredClone(rawArgs) : rawArgs;
+      const result = validateTree(args, { lenient: Boolean(config?.lenientValidation) });
       if (!result.ok) {
         return {
           ok: false,
           summary: `UI not rendered: ${result.errors.length} problem(s). Fix them and call ui_render again.`,
           errors: result.errors.slice(0, 40),
+          ...(result.fixes?.length ? { fixes: result.fixes.slice(0, 20) } : {}),
         };
       }
       const kinds = Object.entries(result.types).map(([t, n]) => (n > 1 ? `${n}x ${t}` : t)).join(', ');
@@ -115,6 +128,14 @@ export function createRenderTool(config) {
       return {
         ok: true,
         summary: `UI${title} is now displayed to the user (${result.count} components: ${kinds}).${warn}${handle} User interactions will arrive as new user messages.`,
+        ...(result.normalized ? {
+          normalized: JSON.parse(JSON.stringify({
+            ...(typeof args.title === 'string' ? { title: args.title } : {}),
+            root: args.root,
+            components: result.components ?? args.components,
+            ...(Array.isArray(args.computed) ? { computed: args.computed } : {}),
+          })),
+        } : {}),
       };
     },
   };
