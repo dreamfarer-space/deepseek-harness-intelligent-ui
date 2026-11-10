@@ -22,14 +22,14 @@ const ACTION = { type: 'object', props: { actionId: { type: 'string', required: 
 const TONES = ['default', 'muted', 'info', 'success', 'warning', 'error'];
 
 /** Field kinds a Form may contain. */
-export const FORM_FIELD_TYPES = ['text', 'number', 'range', 'select', 'checkbox', 'date', 'textarea'];
+export const FORM_FIELD_TYPES = ['text', 'number', 'range', 'select', 'checkbox', 'switch', 'tags', 'daterange', 'date', 'textarea'];
 
 /** Value kinds a Table column can be sorted and filtered as. */
 /** `string` is accepted as an alias of `text`: models often write it. */
 export const COLUMN_TYPES = ['text', 'number', 'date', 'boolean', 'string'];
 
 /** Chart kinds the SVG renderer draws. */
-export const CHART_KINDS = ['bar', 'line', 'area', 'pie'];
+export const CHART_KINDS = ['bar', 'hbar', 'line', 'area', 'pie', 'radar'];
 
 /** Upper bounds that keep one card renderable and the tool result small. */
 export const LIMITS = Object.freeze({
@@ -45,6 +45,14 @@ export const LIMITS = Object.freeze({
   plotParams: 8,
   timelineItems: 100,
   choiceOptions: 8,
+  accordionItems: 24,
+  stepsItems: 24,
+  keyValueItems: 100,
+  followUpItems: 6,
+  sourceItems: 20,
+  segmentedOptions: 12,
+  calendarEvents: 300,
+  calendarDays: 31,
   scatterPoints: 2000,
   heatmapAxis: 60,
   diffFiles: 20,
@@ -87,6 +95,24 @@ const numberOrComputed = (expect) => ({
   expect,
   anyOf: [{ type: 'number' }, COMPUTED_REF],
 });
+
+const scalarOrComputed = (expect) => ({
+  type: 'union',
+  label: 'scalar',
+  expect,
+  anyOf: [{ type: 'scalar' }, COMPUTED_REF],
+});
+
+const FORM_DEFAULT_SPEC = {
+  type: 'union',
+  label: 'scalar',
+  expect: 'string, number, boolean, null, string[] (for tags) or {start?: string, end?: string} (for daterange)',
+  anyOf: [
+    { type: 'scalar' },
+    { type: 'array', max: 50, items: { type: 'string', max: 100 } },
+    { type: 'object', props: { start: { type: 'string', max: 40 }, end: { type: 'string', max: 40 } } },
+  ],
+};
 
 /** Field key a form value is bound to in the computed scope. */
 const BIND_KEY = {
@@ -438,13 +464,17 @@ export const CATALOG = Object.freeze({
     },
   },
   Choice: {
-    description: 'Single-choice decision card with 2-8 options. Selection is local; the primary action continues in the current session and an optional secondary action starts a new session. Set sessionTarget only for an explicitly chosen fixed destination. Give options stable ids; recommended marks an id without selecting it. Every prompt must preserve user constraints and be self-contained for a new session. New-session retries retain the first confirmed task. No registered actions.',
+    description: 'Single or multi-choice decision card with 2-8 options. Selection is local; the primary action continues in the current session and an optional secondary action starts a new session. Set sessionTarget only for an explicitly chosen fixed destination. Give options stable ids; recommended marks an id without selecting it. Set multiple:true for multi-select (with optional minSelect/maxSelect) and variant:"chips" for compact pills. Every prompt must preserve user constraints and be self-contained for a new session. New-session retries retain the first confirmed task. No registered actions.',
     children: false,
     props: {
       question: { type: 'string', required: true, max: 300 },
       submitLabel: { type: 'string', max: 200 },
       sessionTarget: { type: 'enum', values: ['current', 'new'] },
       recommended: { type: 'string', max: 100 },
+      multiple: { type: 'boolean' },
+      minSelect: { type: 'number', min: 1, max: LIMITS.choiceOptions },
+      maxSelect: { type: 'number', min: 1, max: LIMITS.choiceOptions },
+      variant: { type: 'enum', values: ['cards', 'chips'] },
       options: {
         type: 'array', required: true, max: LIMITS.choiceOptions,
         items: { type: 'object', props: {
@@ -476,10 +506,12 @@ export const CATALOG = Object.freeze({
             options: { type: 'array', items: { type: 'string' }, max: 100 },
             required: { type: 'boolean' },
             placeholder: { type: 'string' },
-            default: { type: 'scalar' },
+            default: FORM_DEFAULT_SPEC,
             min: { type: 'number' },
             max: { type: 'number' },
             step: { type: 'number', min: 0 },
+            maxTags: { type: 'number', min: 1, max: 50 },
+            searchable: { type: 'boolean' },
             bindKey: BIND_KEY,
           },
         },
@@ -551,6 +583,178 @@ export const CATALOG = Object.freeze({
       code: { type: 'string', required: true, max: LIMITS.text },
     },
   },
+  Accordion: {
+    description: 'Collapsible sections; items[i] titles children[i] (when children are given) or renders inline items[i].text. Local expand/collapse survives patches and reloads.',
+    children: true,
+    props: {
+      title: { type: 'string' },
+      multiple: { type: 'boolean' },
+      items: {
+        type: 'array', required: true, max: LIMITS.accordionItems,
+        items: {
+          type: 'object',
+          props: {
+            id: { type: 'string', max: 100 },
+            title: { type: 'string', required: true, max: 300 },
+            subtitle: { type: 'string', max: 500 },
+            text: { type: 'string', max: LIMITS.text },
+            badge: { type: 'string', max: 100 },
+            tone: { type: 'enum', values: TONES },
+            defaultOpen: { type: 'boolean' },
+          },
+        },
+      },
+    },
+  },
+  Steps: {
+    description: 'Step-by-step progress or workflow tracker with per-step status (done/active/pending/error) or zero-based `current` index.',
+    children: false,
+    props: {
+      title: { type: 'string' },
+      current: { type: 'number', min: 0, max: 23 },
+      items: {
+        type: 'array', required: true, max: LIMITS.stepsItems,
+        items: {
+          type: 'object',
+          props: {
+            id: { type: 'string', max: 100 },
+            title: { type: 'string', required: true, max: 300 },
+            description: { type: 'string', max: 2000 },
+            status: { type: 'enum', values: ['done', 'active', 'pending', 'error'] },
+          },
+        },
+      },
+    },
+  },
+  KeyValue: {
+    description: 'Compact key-value specification grid (1-3 columns) with optional per-item hint, tone and one-click copy.',
+    children: false,
+    props: {
+      title: { type: 'string' },
+      columns: { type: 'number', min: 1, max: 3 },
+      items: {
+        type: 'array', required: true, max: LIMITS.keyValueItems,
+        items: {
+          type: 'object',
+          props: {
+            key: { type: 'string', required: true, max: 200 },
+            value: { ...scalarOrComputed('string, number, boolean or null'), required: true },
+            hint: { type: 'string', max: 500 },
+            tone: { type: 'enum', values: TONES },
+            copyable: { type: 'boolean' },
+          },
+        },
+      },
+    },
+  },
+  EmptyState: {
+    description: 'Standardized empty or uninitialized state callout with optional next-step action button.',
+    children: false,
+    props: {
+      title: { type: 'string', required: true, max: 300 },
+      description: { type: 'string', max: 2000 },
+      tone: { type: 'enum', values: TONES },
+      actionLabel: { type: 'string', max: 200 },
+      prompt: { type: 'string', max: LIMITS.text },
+      sessionTarget: { type: 'enum', values: ['current', 'new'] },
+      action: ACTION,
+    },
+  },
+  FollowUp: {
+    description: 'Lightweight closing follow-up suggestion chips (1-6 items); clicking a chip sends its prompt immediately.',
+    children: false,
+    props: {
+      title: { type: 'string', max: 200 },
+      items: {
+        type: 'array', required: true, max: LIMITS.followUpItems,
+        items: {
+          type: 'object',
+          props: {
+            id: { type: 'string', max: 100 },
+            label: { type: 'string', required: true, max: 200 },
+            prompt: { type: 'string', required: true, max: LIMITS.text },
+            sessionTarget: { type: 'enum', values: ['current', 'new'] },
+          },
+        },
+      },
+    },
+  },
+  Sources: {
+    description: 'Structured citation list of https web links or plain-text literature/document references (never accesses local files).',
+    children: false,
+    props: {
+      title: { type: 'string', max: 200 },
+      items: {
+        type: 'array', required: true, max: LIMITS.sourceItems,
+        items: {
+          type: 'object',
+          props: {
+            id: { type: 'string', max: 100 },
+            title: { type: 'string', required: true, max: 300 },
+            url: URL_SPEC,
+            source: { type: 'string', max: 200 },
+            note: { type: 'string', max: 500 },
+          },
+        },
+      },
+    },
+  },
+  Segmented: {
+    description: 'Local segmented control (2-12 options) that updates shared state via `bindKey` to drive computed values, Charts or Table filters without calling the model.',
+    children: false,
+    props: {
+      label: { type: 'string', max: 200 },
+      title: { type: 'string', max: 200 },
+      bindKey: BIND_KEY,
+      defaultValue: { type: 'scalar' },
+      options: {
+        type: 'array', required: true, max: LIMITS.segmentedOptions,
+        items: {
+          type: 'object',
+          props: {
+            value: { type: 'scalar', required: true },
+            label: { type: 'string', required: true, max: 200 },
+          },
+        },
+      },
+    },
+  },
+  Calendar: {
+    description: 'Read-only schedule view (day, week or agenda) with explicit IANA timeZone; events are positioned by real duration with overlap splitting and local detail inspection.',
+    children: false,
+    props: {
+      title: { type: 'string', max: 300 },
+      view: { type: 'enum', values: ['day', 'week', 'agenda'] },
+      timeZone: { type: 'string', required: true, max: 100 },
+      start: { type: 'string', max: 40 },
+      events: {
+        type: 'array', required: true, max: LIMITS.calendarEvents,
+        items: {
+          type: 'object',
+          props: {
+            id: { type: 'string', required: true, max: 100 },
+            title: { type: 'string', required: true, max: 300 },
+            start: { type: 'string', required: true, max: 40 },
+            end: { type: 'string', required: true, max: 40 },
+            group: { type: 'string', max: 100 },
+            note: { type: 'string', max: 1000 },
+            location: { type: 'string', max: 200 },
+          },
+        },
+      },
+    },
+  },
+  Audio: {
+    description: 'One audio clip from an absolute https URL you have actually seen (governed by mediaAllowedOrigins); never invent audio URLs.',
+    children: false,
+    props: {
+      src: { ...URL_SPEC, required: true },
+      title: { type: 'string', max: 300 },
+      caption: { type: 'string', max: 1000 },
+      credit: { type: 'string', max: 300 },
+      creditUrl: URL_SPEC,
+    },
+  },
 });
 
 /** Component type names in catalog order. */
@@ -603,13 +807,20 @@ export const HARMLESS_NOTES = new Set([
 /** Guidance shown when a leaf component is mistakenly given `children`. */
 const CHILDREN_HINTS = Object.freeze({
   Timeline: 'use props.items: [{title: string, time?: string, text?: string, tone?: default|muted|info|success|warning|error}]',
+  Steps: 'use props.items: [{title: string, description?: string, status?: done|active|pending|error}]',
+  KeyValue: 'use props.items: [{key: string, value: scalar, hint?: string, tone?: string, copyable?: boolean}]',
+  EmptyState: 'use props.title, props.description and optional props.actionLabel + props.prompt',
+  FollowUp: 'use props.items: [{label: string, prompt: string, sessionTarget?: current|new}]',
+  Sources: 'use props.items: [{title: string, url?: string, source?: string, note?: string}]',
+  Segmented: 'use props.options: [{value: scalar, label: string}]',
+  Calendar: 'use props.events: [{id: string, title: string, start: string, end: string}]',
   List: 'use props.items: string[]',
   Table: 'use props.columns: string[] and props.rows: scalar[][] (or props.dataRef)',
   Choice: 'use props.options: [{id?: string, label: string, description?: string, prompt: string}]',
   Form: 'use props.fields: [{name: string, label: string, type: string, ...}]',
   Gallery: 'use props.images: [{src: string, alt: string, caption?: string}]',
   Chart: 'use props.labels: scalar[] and props.series: [{name: string, values: number[]}] (or props.dataRef)',
-  default: 'container types that accept children are Card, Stack, Grid, Tabs',
+  default: 'container types that accept children are Card, Stack, Grid, Tabs, Accordion',
 });
 
 function specTypeSummary(s) {
@@ -643,6 +854,24 @@ function propHint(type, path, key, specs) {
   }
   if (type === 'Form' && path.includes('.fields[') && key === 'sessionTarget') {
     return `sessionTarget belongs on Form.props (all fields share one target); field props are ${formatAllowedProps(specs)}`;
+  }
+  if (type === 'KeyValue' && path.includes('.items[') && key === 'label') {
+    return `did you mean items[i].key? KeyValue item props are ${formatAllowedProps(specs)}`;
+  }
+  if (type === 'Steps' && path.includes('.items[') && (key === 'text' || key === 'subtitle')) {
+    return `did you mean items[i].description? Steps item props are ${formatAllowedProps(specs)}`;
+  }
+  if (type === 'EmptyState' && key === 'text') {
+    return `did you mean props.description? EmptyState props are ${formatAllowedProps(specs)}`;
+  }
+  if (type === 'FollowUp' && key === 'options') {
+    return `FollowUp uses props.items: [{label, prompt, sessionTarget?}]; FollowUp props are ${formatAllowedProps(specs)}`;
+  }
+  if (type === 'Sources' && (key === 'sources' || key === 'links')) {
+    return `Sources uses props.items: [{id?, title, url?, source?, note?}]; Sources props are ${formatAllowedProps(specs)}`;
+  }
+  if (type === 'Segmented' && key === 'items') {
+    return `Segmented uses props.options: [{value, label}]; Segmented props are ${formatAllowedProps(specs)}`;
   }
   if (type === 'Alert' && key === 'items') {
     return `Alert uses props.text (string), or change type to "List" for props.items; Alert props are ${formatAllowedProps(specs)}`;
@@ -724,7 +953,7 @@ function checkValue(value, spec, path, errors, ctx) {
       }
       if (isPlainObject(value) && typeof value.$computed === 'string') {
         // They wrote a computed reference; report its own problems (extra keys, bad id).
-        const refSpec = (spec.anyOf ?? []).find(sub => sub.type === 'object');
+        const refSpec = (spec.anyOf ?? []).find(sub => sub.type === 'object' && Object.hasOwn(sub.props || {}, '$computed'));
         if (refSpec) { checkValue(value, refSpec, path, errors, ctx); return; }
       }
       const expected = spec.expect ?? (spec.anyOf ?? []).map(sub => sub.label ?? sub.type).join(' or ');
@@ -811,8 +1040,19 @@ function checkSemantics(type, props, path, errors) {
     for (const name of ['question', 'submitLabel']) {
       if (typeof props[name] === 'string' && !props[name].trim()) errors.push(`${path}.${name}: must not be blank`);
     }
+    if (props.minSelect !== undefined && !Number.isInteger(props.minSelect)) errors.push(`${path}.minSelect: expected integer`);
+    if (props.maxSelect !== undefined && !Number.isInteger(props.maxSelect)) errors.push(`${path}.maxSelect: expected integer`);
+    if ((props.minSelect !== undefined || props.maxSelect !== undefined) && !props.multiple) {
+      errors.push(`${path}: minSelect and maxSelect require multiple: true`);
+    }
+    if (typeof props.minSelect === 'number' && typeof props.maxSelect === 'number' && props.minSelect > props.maxSelect) {
+      errors.push(`${path}: minSelect must be <= maxSelect`);
+    }
     if (Array.isArray(props.options)) {
       if (props.options.length < 2) errors.push(`${path}.options: needs at least 2 options`);
+      if (typeof props.minSelect === 'number' && props.minSelect > props.options.length) {
+        errors.push(`${path}.minSelect: exceeds options length (${props.options.length})`);
+      }
       const ids = new Set();
       props.options.forEach((option, i) => {
         if (!isPlainObject(option)) return;
@@ -827,6 +1067,9 @@ function checkSemantics(type, props, path, errors) {
   }
 
   if (type === 'Chart' && Array.isArray(props.labels) && Array.isArray(props.series)) {
+    if (props.kind === 'radar' && props.labels.length < 3) {
+      errors.push(`${path}.labels: a radar chart needs at least 3 labels`);
+    }
     props.series.forEach((s, i) => {
       if (isPlainObject(s) && Array.isArray(s.values) && s.values.length !== props.labels.length) {
         errors.push(`${path}.series[${i}].values: has ${s.values.length} values but labels has ${props.labels.length}`);
@@ -851,7 +1094,147 @@ function checkSemantics(type, props, path, errors) {
       if (f.type === 'range' && !(typeof f.min === 'number' && typeof f.max === 'number' && f.min < f.max)) {
         errors.push(`${path}.fields[${i}]: a range field needs numeric min < max`);
       }
+      if (f.maxTags !== undefined) {
+        if (f.type !== 'tags') errors.push(`${path}.fields[${i}].maxTags: only supported on a tags field`);
+        else if (!Number.isInteger(f.maxTags)) errors.push(`${path}.fields[${i}].maxTags: expected integer`);
+      }
+      if (f.searchable !== undefined && f.type !== 'select') {
+        errors.push(`${path}.fields[${i}].searchable: only supported on a select field`);
+      }
+      if (f.type === 'tags' && f.default !== undefined && f.default !== null) {
+        const cap = typeof f.maxTags === 'number' ? f.maxTags : 20;
+        if (Array.isArray(f.default)) {
+          if (f.default.length > cap) {
+            errors.push(`${path}.fields[${i}].default: has ${f.default.length} tags, exceeding maxTags (${cap})`);
+          }
+        } else if (typeof f.default === 'string') {
+          const parts = f.default.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+          if (parts.length > cap) {
+            errors.push(`${path}.fields[${i}].default: has ${parts.length} tags, exceeding maxTags (${cap})`);
+          }
+        } else {
+          errors.push(`${path}.fields[${i}].default: expected string[] or string for tags field`);
+        }
+      } else if (Array.isArray(f.default) && f.type !== 'tags') {
+        errors.push(`${path}.fields[${i}].default: array default is only valid for tags fields`);
+      }
+      if (isPlainObject(f.default)) {
+        if (f.type !== 'daterange') errors.push(`${path}.fields[${i}].default: object default is only valid for daterange fields`);
+        else if (typeof f.default.start === 'string' && typeof f.default.end === 'string' && f.default.start && f.default.end && f.default.start > f.default.end) {
+          errors.push(`${path}.fields[${i}].default: start must be <= end`);
+        }
+      }
     });
+  }
+  if (type === 'Accordion' && Array.isArray(props.items)) {
+    if (!props.items.length) errors.push(`${path}.items: needs at least 1 item`);
+    const ids = new Set();
+    props.items.forEach((it, i) => {
+      if (!isPlainObject(it)) return;
+      if (typeof it.title === 'string' && !it.title.trim()) errors.push(`${path}.items[${i}].title: must not be blank`);
+      if (it.id !== undefined) {
+        if (typeof it.id === 'string' && !it.id.trim()) errors.push(`${path}.items[${i}].id: must not be blank`);
+        else if (ids.has(it.id)) errors.push(`${path}.items[${i}].id: duplicate item id ${JSON.stringify(it.id)}`);
+        ids.add(it.id);
+      }
+    });
+  }
+  if (type === 'Steps' && Array.isArray(props.items)) {
+    if (!props.items.length) errors.push(`${path}.items: needs at least 1 step`);
+    if (props.current !== undefined) {
+      if (!Number.isInteger(props.current)) errors.push(`${path}.current: expected integer`);
+      else if (props.items.length > 0 && props.current >= props.items.length) {
+        errors.push(`${path}.current: must be < items.length (${props.items.length})`);
+      }
+    }
+    const ids = new Set();
+    props.items.forEach((it, i) => {
+      if (!isPlainObject(it)) return;
+      if (typeof it.title === 'string' && !it.title.trim()) errors.push(`${path}.items[${i}].title: must not be blank`);
+      if (it.id !== undefined) {
+        if (typeof it.id === 'string' && !it.id.trim()) errors.push(`${path}.items[${i}].id: must not be blank`);
+        else if (ids.has(it.id)) errors.push(`${path}.items[${i}].id: duplicate step id ${JSON.stringify(it.id)}`);
+        ids.add(it.id);
+      }
+    });
+  }
+  if (type === 'KeyValue') {
+    if (props.columns !== undefined && !Number.isInteger(props.columns)) errors.push(`${path}.columns: expected integer`);
+    if (Array.isArray(props.items)) {
+      if (!props.items.length) errors.push(`${path}.items: needs at least 1 item`);
+      props.items.forEach((it, i) => {
+        if (isPlainObject(it) && typeof it.key === 'string' && !it.key.trim()) {
+          errors.push(`${path}.items[${i}].key: must not be blank`);
+        }
+      });
+    }
+  }
+  if (type === 'EmptyState') {
+    if (typeof props.title === 'string' && !props.title.trim()) errors.push(`${path}.title: must not be blank`);
+    if (props.prompt !== undefined && props.action !== undefined) errors.push(`${path}: cannot use both prompt and action`);
+    if ((props.prompt !== undefined || props.action !== undefined) && (typeof props.actionLabel !== 'string' || !props.actionLabel.trim())) {
+      errors.push(`${path}.actionLabel: required when prompt or action is set`);
+    }
+    if (props.actionLabel !== undefined && props.prompt === undefined && props.action === undefined) {
+      errors.push(`${path}.actionLabel: requires prompt or action`);
+    }
+    if (props.sessionTarget !== undefined && props.prompt === undefined) {
+      errors.push(`${path}.sessionTarget: only supported with prompt`);
+    }
+  }
+  if (type === 'FollowUp' && Array.isArray(props.items)) {
+    if (!props.items.length) errors.push(`${path}.items: needs at least 1 item`);
+    const ids = new Set();
+    props.items.forEach((it, i) => {
+      if (!isPlainObject(it)) return;
+      for (const k of ['id', 'label', 'prompt']) {
+        if (typeof it[k] === 'string' && !it[k].trim()) errors.push(`${path}.items[${i}].${k}: must not be blank`);
+      }
+      if (it.id !== undefined && ids.has(it.id)) errors.push(`${path}.items[${i}].id: duplicate item id ${JSON.stringify(it.id)}`);
+      if (it.id !== undefined) ids.add(it.id);
+    });
+  }
+  if (type === 'Sources' && Array.isArray(props.items)) {
+    if (!props.items.length) errors.push(`${path}.items: needs at least 1 source`);
+    const ids = new Set();
+    props.items.forEach((it, i) => {
+      if (!isPlainObject(it)) return;
+      for (const k of ['id', 'title']) {
+        if (typeof it[k] === 'string' && !it[k].trim()) errors.push(`${path}.items[${i}].${k}: must not be blank`);
+      }
+      if (it.id !== undefined && ids.has(it.id)) errors.push(`${path}.items[${i}].id: duplicate source id ${JSON.stringify(it.id)}`);
+      if (it.id !== undefined) ids.add(it.id);
+      if (it.url !== undefined) {
+        const problem = httpsUrlProblem(it.url);
+        if (problem) errors.push(`${path}.items[${i}].url: ${problem}`);
+      }
+    });
+  }
+  if (type === 'Segmented' && Array.isArray(props.options)) {
+    if (props.options.length < 2) errors.push(`${path}.options: needs at least 2 options`);
+    const vals = new Set();
+    const rawVals = [];
+    props.options.forEach((opt, i) => {
+      if (!isPlainObject(opt)) return;
+      if (typeof opt.label === 'string' && !opt.label.trim()) errors.push(`${path}.options[${i}].label: must not be blank`);
+      if (opt.value === null) errors.push(`${path}.options[${i}].value: must not be null`);
+      else if (opt.value !== undefined) {
+        const key = `${typeof opt.value}:${String(opt.value)}`;
+        if (vals.has(key)) errors.push(`${path}.options[${i}].value: duplicate option value ${JSON.stringify(opt.value)}`);
+        vals.add(key);
+        rawVals.push(opt.value);
+      }
+    });
+    if (props.defaultValue !== undefined && rawVals.length > 0 && !rawVals.includes(props.defaultValue)) {
+      errors.push(`${path}.defaultValue: must match one of options[].value`);
+    }
+  }
+  if (type === 'Calendar') checkCalendar(props, path, errors);
+  if (type === 'Audio') {
+    for (const key of ['src', 'creditUrl']) {
+      const problem = httpsUrlProblem(props[key]);
+      if (problem) errors.push(`${path}.${key}: ${problem}`);
+    }
   }
   if (type === 'Plot') checkPlot(props, path, errors);
   if (type === 'Scatter' && Array.isArray(props.series)) {
@@ -910,6 +1293,107 @@ function checkSemantics(type, props, path, errors) {
       row.forEach((v, c) => { if (v !== null && !(typeof v === 'number' && Number.isFinite(v))) errors.push(`${path}.values[${r}][${c}]: expected a finite number or null`); });
     });
     if (typeof props.min === 'number' && typeof props.max === 'number' && !(props.min < props.max)) errors.push(`${path}: min must be less than max`);
+  }
+}
+
+const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/;
+
+function validIsoDate(datePart) {
+  if (!ISO_DATE_ONLY.test(datePart)) return undefined;
+  const ms = Date.parse(`${datePart}T00:00:00Z`);
+  if (!Number.isFinite(ms) || new Date(ms).toISOString().slice(0, 10) !== datePart) return undefined;
+  return ms;
+}
+
+function parseCalendarInstant(raw, timeZone) {
+  if (typeof raw !== 'string') return undefined;
+  const s = raw.trim();
+  if (ISO_DATE_ONLY.test(s)) {
+    const ms = validIsoDate(s);
+    return ms !== undefined ? { ms, dateOnly: true } : undefined;
+  }
+  if (ISO_DATETIME.test(s)) {
+    if (validIsoDate(s.slice(0, 10)) === undefined) return undefined;
+    const hasOffset = /(?:Z|[+-]\d{2}:?\d{2})$/.test(s);
+    if (!hasOffset) {
+      const ms = Date.parse(`${s}Z`);
+      return Number.isFinite(ms) ? { ms, dateOnly: false } : undefined;
+    }
+    const utcMs = Date.parse(s);
+    if (!Number.isFinite(utcMs)) return undefined;
+    if (timeZone) {
+      try {
+        const parts = new Intl.DateTimeFormat('en-CA', {
+          timeZone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hourCycle: 'h23',
+        }).formatToParts(new Date(utcMs));
+        const get = (type) => parts.find(p => p.type === type)?.value ?? '00';
+        const wallMs = Date.parse(`${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}:${get('second')}Z`);
+        if (Number.isFinite(wallMs)) return { ms: wallMs, dateOnly: false };
+      } catch {
+        // Fall through to utcMs when timeZone is invalid (already reported above).
+      }
+    }
+    return { ms: utcMs, dateOnly: false };
+  }
+  return undefined;
+}
+
+function checkCalendar(props, path, errors) {
+  let validTz;
+  if (typeof props.timeZone === 'string') {
+    if (!props.timeZone.trim()) errors.push(`${path}.timeZone: must not be blank`);
+    else {
+      try {
+        new Intl.DateTimeFormat('en-US', { timeZone: props.timeZone });
+        validTz = props.timeZone;
+      } catch {
+        errors.push(`${path}.timeZone: invalid IANA time zone ${JSON.stringify(props.timeZone)} (e.g. "Asia/Shanghai", "UTC")`);
+      }
+    }
+  }
+  if (props.start !== undefined && validIsoDate(String(props.start)) === undefined) {
+    errors.push(`${path}.start: expected an ISO 8601 date "YYYY-MM-DD"`);
+  }
+  if (!Array.isArray(props.events)) return;
+  if (!props.events.length) {
+    errors.push(`${path}.events: needs at least 1 event`);
+    return;
+  }
+  const ids = new Set();
+  let minMs = Infinity;
+  let maxMs = -Infinity;
+  props.events.forEach((ev, i) => {
+    if (!isPlainObject(ev)) return;
+    const at = `${path}.events[${i}]`;
+    for (const k of ['id', 'title']) {
+      if (typeof ev[k] === 'string' && !ev[k].trim()) errors.push(`${at}.${k}: must not be blank`);
+    }
+    if (typeof ev.id === 'string' && ev.id.trim()) {
+      if (ids.has(ev.id)) errors.push(`${at}.id: duplicate event id ${JSON.stringify(ev.id)}`);
+      ids.add(ev.id);
+    }
+    const start = parseCalendarInstant(ev.start, validTz);
+    const end = parseCalendarInstant(ev.end, validTz);
+    if (ev.start !== undefined && !start) errors.push(`${at}.start: expected ISO 8601 "YYYY-MM-DD" or "YYYY-MM-DDTHH:mm"`);
+    if (ev.end !== undefined && !end) errors.push(`${at}.end: expected ISO 8601 "YYYY-MM-DD" or "YYYY-MM-DDTHH:mm"`);
+    if (start && end) {
+      if (start.dateOnly && end.dateOnly ? end.ms < start.ms : end.ms <= start.ms) {
+        errors.push(`${at}.end: must be after start`);
+      }
+      minMs = Math.min(minMs, start.ms);
+      maxMs = Math.max(maxMs, end.dateOnly ? end.ms + 86_400_000 : end.ms);
+    }
+  });
+  if (Number.isFinite(minMs) && Number.isFinite(maxMs) && maxMs - minMs > LIMITS.calendarDays * 86_400_000) {
+    errors.push(`${path}.events: spans more than ${LIMITS.calendarDays} days`);
   }
 }
 
@@ -1005,19 +1489,20 @@ function checkComputedFormat(format, at, errors) {
  * @param {Set<string>} ids - declared computed ids.
  * @param {string[]} errors
  * @param {number} [depth]
+ * @param {Set<string>} [fieldKeys]
  */
-function checkComputedRefs(props, path, ids, errors, depth = 0) {
+function checkComputedRefs(props, path, ids, errors, depth = 0, fieldKeys = undefined) {
   if (depth > 8 || props === null || props === undefined) return;
   if (typeof props === 'string') {
     TEMPLATE_REF.lastIndex = 0;
     let m;
     while ((m = TEMPLATE_REF.exec(props)) !== null) {
-      if (!ids.has(m[1])) errors.push(`${path}: unknown computed id "${m[1]}" in {{${m[1]}}}`);
+      if (!ids.has(m[1]) && !fieldKeys?.has(m[1])) errors.push(`${path}: unknown computed id "${m[1]}" in {{${m[1]}}}`);
     }
     return;
   }
   if (Array.isArray(props)) {
-    props.forEach((item, i) => checkComputedRefs(item, `${path}[${i}]`, ids, errors, depth + 1));
+    props.forEach((item, i) => checkComputedRefs(item, `${path}[${i}]`, ids, errors, depth + 1, fieldKeys));
     return;
   }
   if (!isPlainObject(props)) return;
@@ -1026,7 +1511,7 @@ function checkComputedRefs(props, path, ids, errors, depth = 0) {
     if (typeof id === 'string' && !ids.has(id)) errors.push(`${path}.$computed: unknown computed id ${JSON.stringify(id)}`);
     return;
   }
-  for (const [key, item] of Object.entries(props)) checkComputedRefs(item, `${path}.${key}`, ids, errors, depth + 1);
+  for (const [key, item] of Object.entries(props)) checkComputedRefs(item, `${path}.${key}`, ids, errors, depth + 1, fieldKeys);
 }
 
 /**
@@ -1059,10 +1544,15 @@ function checkComputed(entries, byId, paths, errors, extraFields) {
   });
 
   // Scope names a formula may read: declared computed ids plus the values a
-  // Form binds (field `bindKey`, else its `name`, plus the form-level key).
+  // Form or Segmented control binds.
   const fieldKeys = new Set(extraFields ?? []);
   for (const node of byId.values()) {
-    if (node.type !== 'Form' || !isPlainObject(node.props)) continue;
+    if (!isPlainObject(node.props)) continue;
+    if (node.type === 'Segmented') {
+      if (typeof node.props.bindKey === 'string' && node.props.bindKey) fieldKeys.add(node.props.bindKey);
+      continue;
+    }
+    if (node.type !== 'Form') continue;
     const fields = Array.isArray(node.props.fields) ? node.props.fields : [];
     // A form-level bindKey names the value of a single-field form only.
     if (fields.length === 1 && typeof node.props.bindKey === 'string') fieldKeys.add(node.props.bindKey);
@@ -1089,7 +1579,7 @@ function checkComputed(entries, byId, paths, errors, extraFields) {
     for (const node of byId.values()) {
       if (VERBATIM_TYPES.has(node.type) || !isPlainObject(node.props)) continue;
       const at = paths.get(node.id) ?? node.id;
-      checkComputedRefs(node.props, `${at}(${node.id}).props`, ids, errors);
+      checkComputedRefs(node.props, `${at}(${node.id}).props`, ids, errors, 0, fieldKeys);
     }
   }
   return ids;
@@ -1260,6 +1750,61 @@ function normalizeLenientComponents(components, warnings) {
         delete node.props.items;
         normalized = true;
         warnings.push(`${nodeAt}.props.items: converted Alert props.items into props.text`);
+      }
+
+      if (node.type === 'KeyValue' && isPlainObject(node.props) && Array.isArray(node.props.items)) {
+        node.props.items.forEach((it, ii) => {
+          if (isPlainObject(it) && it.key === undefined && typeof it.label === 'string' && it.label.trim()) {
+            it.key = it.label.trim();
+            delete it.label;
+            normalized = true;
+            warnings.push(`${nodeAt}.props.items[${ii}].label: normalized label to key`);
+          }
+        });
+      }
+
+      if (node.type === 'Steps' && isPlainObject(node.props) && Array.isArray(node.props.items)) {
+        node.props.items.forEach((it, ii) => {
+          if (!isPlainObject(it) || it.description !== undefined) return;
+          const alias = typeof it.text === 'string' ? 'text' : typeof it.subtitle === 'string' ? 'subtitle' : undefined;
+          if (alias) {
+            it.description = it[alias];
+            delete it[alias];
+            normalized = true;
+            warnings.push(`${nodeAt}.props.items[${ii}].${alias}: normalized ${alias} to description`);
+          }
+        });
+      }
+
+      if (node.type === 'EmptyState' && isPlainObject(node.props) && node.props.description === undefined && typeof node.props.text === 'string') {
+        node.props.description = node.props.text;
+        delete node.props.text;
+        normalized = true;
+        warnings.push(`${nodeAt}.props.text: normalized EmptyState props.text to props.description`);
+      }
+
+      if (node.type === 'FollowUp' && isPlainObject(node.props) && node.props.items === undefined && Array.isArray(node.props.options)) {
+        node.props.items = node.props.options;
+        delete node.props.options;
+        normalized = true;
+        warnings.push(`${nodeAt}.props.options: normalized FollowUp props.options to props.items`);
+      }
+
+      if (node.type === 'Sources' && isPlainObject(node.props) && node.props.items === undefined) {
+        const alias = Array.isArray(node.props.sources) ? 'sources' : Array.isArray(node.props.links) ? 'links' : undefined;
+        if (alias) {
+          node.props.items = node.props[alias];
+          delete node.props[alias];
+          normalized = true;
+          warnings.push(`${nodeAt}.props.${alias}: normalized Sources props.${alias} to props.items`);
+        }
+      }
+
+      if (node.type === 'Segmented' && isPlainObject(node.props) && node.props.options === undefined && Array.isArray(node.props.items)) {
+        node.props.options = node.props.items;
+        delete node.props.items;
+        normalized = true;
+        warnings.push(`${nodeAt}.props.items: normalized Segmented props.items to props.options`);
       }
     }
     if (typeof node.id === 'string' && node.id) {
@@ -1503,9 +2048,22 @@ export function validateTree(args, options) {
   }
 
   for (const t of byId.values()) {
-    if (t.type !== 'Tabs' || !isPlainObject(t.props) || !Array.isArray(t.props.labels)) continue;
-    const n = Array.isArray(t.children) ? t.children.length : 0;
-    if (n !== t.props.labels.length) errors.push(`${t.id}: Tabs has ${t.props.labels.length} labels but ${n} children`);
+    if (t.type === 'Tabs' && isPlainObject(t.props) && Array.isArray(t.props.labels)) {
+      const n = Array.isArray(t.children) ? t.children.length : 0;
+      if (n !== t.props.labels.length) errors.push(`${t.id}: Tabs has ${t.props.labels.length} labels but ${n} children`);
+    }
+    if (t.type === 'Accordion' && isPlainObject(t.props) && Array.isArray(t.props.items)) {
+      const n = Array.isArray(t.children) ? t.children.length : 0;
+      if (n > 0 && n !== t.props.items.length) {
+        errors.push(`${t.id}: Accordion has ${t.props.items.length} items but ${n} children`);
+      } else if (n === 0) {
+        t.props.items.forEach((it, idx) => {
+          if (isPlainObject(it) && (typeof it.text !== 'string' || !it.text.trim())) {
+            errors.push(`${t.id}.props.items[${idx}].text: required when Accordion has no children`);
+          }
+        });
+      }
+    }
   }
 
   return {

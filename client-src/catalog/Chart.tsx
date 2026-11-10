@@ -5,7 +5,7 @@ export const PALETTE = ['#4d6bfe', '#22a06b', '#f2a33a', '#e5484d', '#8e6cef', '
 
 export interface ChartSeries { name: string; values: readonly (number | null | undefined)[] }
 export interface ChartProps {
-  kind: 'bar' | 'line' | 'area' | 'pie'
+  kind: 'bar' | 'hbar' | 'line' | 'area' | 'pie' | 'radar'
   labels: readonly (string | number | boolean | null)[]
   series: readonly ChartSeries[]
   title?: string
@@ -36,6 +36,7 @@ export function useLayoutWidth(ref: RefObject<HTMLElement | null>, max = MAX_W, 
   return w
 }
 const PAD = { top: 12, right: 16, bottom: 36, left: 52 }
+const PAD_HBAR = { top: 12, right: 16, bottom: 36, left: 108 }
 
 /** "Nice" axis ticks covering [min, max]. */
 export function niceTicks(min: number, max: number, count = 5): number[] {
@@ -101,6 +102,32 @@ export function Chart(props: ChartProps) {
       ))}
     </div>
   )
+  let tipStyle: Record<string, string> | undefined
+  if (hover !== undefined && series.length > 0) {
+    if (props.kind === 'hbar') {
+      const ih = H - PAD_HBAR.top - PAD_HBAR.bottom
+      const band = ih / n
+      tipStyle = {
+        left: `${((PAD_HBAR.left + (W - PAD_HBAR.left - PAD_HBAR.right) * 0.5) / W) * 100}%`,
+        top: `${Math.max(6, Math.min(H - 50, PAD_HBAR.top + band * (hover + 0.5) - 16))}px`,
+      }
+    } else if (props.kind === 'radar') {
+      const cx = W / 2
+      const cy = H / 2
+      const R = Math.max(20, Math.min((W - 140) / 2, (H - 48) / 2))
+      const a = -Math.PI / 2 + (hover * 2 * Math.PI) / n
+      const tx = cx + R * Math.cos(a)
+      const ty = cy + R * Math.sin(a)
+      tipStyle = {
+        left: `${(Math.max(60, Math.min(W - 60, tx)) / W) * 100}%`,
+        top: `${Math.max(6, Math.min(H - 50, ty - 16))}px`,
+      }
+    } else {
+      tipStyle = {
+        left: `${((PAD.left + ((W - PAD.left - PAD.right) / n) * (hover + 0.5)) / W) * 100}%`,
+      }
+    }
+  }
   return (
     <figure className="diui-chart" ref={stage}>
       {props.title && <figcaption className="diui-chart-title">{props.title}</figcaption>}
@@ -108,13 +135,19 @@ export function Chart(props: ChartProps) {
         ? <Pie {...props} height={H} width={W} />
         : (
             <div className="diui-plot-stage">
-              <Cartesian {...props} series={series} height={H} width={W} colorOf={s => PALETTE[props.series.indexOf(s) % PALETTE.length]!} n={n} hover={hover} onHover={setHover} />
-              {hover !== undefined && series.length > 0 && (
-                <div className="diui-tooltip" style={{ left: `${((PAD.left + ((W - PAD.left - PAD.right) / n) * (hover + 0.5)) / W) * 100}%` }}>
-                  <div className="diui-tooltip-head">{String(props.labels[hover] ?? '')}</div>
+              {props.kind === 'hbar' ? (
+                <HBar {...props} series={series} height={H} width={W} colorOf={s => PALETTE[props.series.indexOf(s) % PALETTE.length]!} n={n} hover={hover} onHover={setHover} />
+              ) : props.kind === 'radar' ? (
+                <Radar {...props} series={series} height={H} width={W} colorOf={s => PALETTE[props.series.indexOf(s) % PALETTE.length]!} n={n} hover={hover} onHover={setHover} />
+              ) : (
+                <Cartesian {...props} series={series} height={H} width={W} colorOf={s => PALETTE[props.series.indexOf(s) % PALETTE.length]!} n={n} hover={hover} onHover={setHover} />
+              )}
+              {tipStyle && (
+                <div className="diui-tooltip" style={tipStyle}>
+                  <div className="diui-tooltip-head">{String(props.labels[hover!] ?? '')}</div>
                   {series.map(s => {
                     // A formula that failed has no value: show a gap, never 0.
-                    const v = s.values[hover]
+                    const v = s.values[hover!]
                     return (
                       <div key={s.name}><i style={{ background: PALETTE[props.series.indexOf(s) % PALETTE.length] }} />{s.name}: {plotted(v) ? formatNumber(v) : NO_VALUE}{props.unit ? ` ${props.unit}` : ''}</div>
                     )
@@ -250,6 +283,265 @@ function Cartesian(props: ChartProps & { height: number; width: number; n: numbe
         <text key={i} x={xc(i)} y={H - PAD.bottom + 16} textAnchor="middle" className="diui-tick">{truncate(String(l ?? ''), 14)}</text>
       ))}
       {marks}
+    </svg>
+  )
+}
+
+function HBar(props: ChartProps & { height: number; width: number; n: number; colorOf: (s: ChartSeries) => string; hover?: number; onHover: (i: number | undefined) => void }) {
+  const { series, n, height: H, width: W } = props
+  const stacked = !!props.stacked
+  let lo = 0
+  let hi = 0
+  for (let i = 0; i < n; i++) {
+    let pos = 0
+    let neg = 0
+    for (const s of series) {
+      const v = s.values[i]
+      if (!plotted(v)) continue
+      if (stacked) {
+        if (v >= 0) pos += v
+        else neg += v
+      } else {
+        hi = Math.max(hi, v)
+        lo = Math.min(lo, v)
+      }
+    }
+    if (stacked) {
+      hi = Math.max(hi, pos)
+      lo = Math.min(lo, neg)
+    }
+  }
+  const ticks = niceTicks(lo, hi, W < 360 ? 3 : 5)
+  const xMin = ticks[0]!
+  const xMax = ticks[ticks.length - 1]!
+  const iw = W - PAD_HBAR.left - PAD_HBAR.right
+  const ih = H - PAD_HBAR.top - PAD_HBAR.bottom
+  const xSpan = xMax - xMin || 1
+  const x = (v: number) => PAD_HBAR.left + ((v - xMin) / xSpan) * iw
+  const band = ih / n
+  const groupH = band * 0.72
+  const barH = stacked ? groupH : groupH / Math.max(1, series.length)
+  const unit = props.unit ? ` ${props.unit}` : ''
+  const marks: ReactElement[] = []
+
+  for (let i = 0; i < n; i++) {
+    let pos = 0
+    let neg = 0
+    series.forEach((s, si) => {
+      const v = s.values[i]
+      if (!plotted(v)) return
+      let from = 0
+      let to = v
+      if (stacked) {
+        if (v >= 0) { from = pos; to = pos + v; pos = to }
+        else { from = neg; to = neg + v; neg = to }
+      }
+      const y = PAD_HBAR.top + band * i + (band - groupH) / 2 + (stacked ? 0 : si * barH)
+      const left = x(Math.min(from, to))
+      const w = Math.max(1, Math.abs(x(to) - x(from)))
+      const h = Math.max(1, barH - 2)
+      marks.push(
+        <rect
+          key={`${si}-${i}`}
+          className="diui-hbar-rect"
+          x={left}
+          y={y}
+          width={w}
+          height={h}
+          rx={2}
+          fill={props.colorOf(s)}
+        >
+          <title>{`${String(props.labels[i])} · ${s.name}: ${v}${unit}`}</title>
+        </rect>,
+      )
+    })
+  }
+
+  const onMove = (e: PointerEvent<SVGSVGElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    if (r.height <= 0) return
+    const vy = ((e.clientY - r.top) / r.height) * H
+    const i = Math.floor((vy - PAD_HBAR.top) / band)
+    props.onHover(i >= 0 && i < n ? i : undefined)
+  }
+
+  const onKey = (e: KeyboardEvent<SVGSVGElement>) => {
+    const h = props.hover
+    let next: number | undefined
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = h === undefined ? 0 : Math.min(n - 1, h + 1)
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = h === undefined ? n - 1 : Math.max(0, h - 1)
+    else if (e.key === 'Home') next = 0
+    else if (e.key === 'End') next = n - 1
+    else if (e.key !== 'Escape') return
+    e.preventDefault()
+    props.onHover(next)
+  }
+
+  return (
+    <svg
+      className="diui-chart-svg"
+      viewBox={`0 0 ${W} ${H}`}
+      role="img"
+      tabIndex={0}
+      aria-label={props.title ?? 'chart'}
+      onPointerMove={onMove}
+      onPointerDown={onMove}
+      onPointerLeave={e => { if (e.pointerType === 'mouse') props.onHover(undefined) }}
+      onKeyDown={onKey}
+      onBlur={() => props.onHover(undefined)}
+    >
+      {props.hover !== undefined && <rect x={PAD_HBAR.left} y={PAD_HBAR.top + band * props.hover} width={iw} height={band} className="diui-hover-band" />}
+      {ticks.map(t => (
+        <g key={t}>
+          <line x1={x(t)} x2={x(t)} y1={PAD_HBAR.top} y2={H - PAD_HBAR.bottom} className={t === 0 ? 'diui-axis-zero' : 'diui-grid'} />
+          <text x={x(t)} y={H - PAD_HBAR.bottom + 16} textAnchor="middle" className="diui-tick">{formatNumber(t)}</text>
+        </g>
+      ))}
+      {props.labels.map((l, i) => (
+        <text key={i} x={PAD_HBAR.left - 8} y={PAD_HBAR.top + band * i + band / 2} dy="0.32em" textAnchor="end" className="diui-tick">{truncate(String(l ?? ''), 18)}</text>
+      ))}
+      {marks}
+    </svg>
+  )
+}
+
+function Radar(props: ChartProps & { height: number; width: number; n: number; colorOf: (s: ChartSeries) => string; hover?: number; onHover: (i: number | undefined) => void }) {
+  const { series, n, height: H, width: W } = props
+  let lo = 0
+  let hi = 0
+  for (const s of series) {
+    for (let i = 0; i < n; i++) {
+      const v = s.values[i]
+      if (plotted(v)) {
+        lo = Math.min(lo, v)
+        hi = Math.max(hi, v)
+      }
+    }
+  }
+  const ticks = niceTicks(lo, hi, 4)
+  const minVal = ticks[0] ?? 0
+  const maxVal = ticks[ticks.length - 1] || 1
+  const span = maxVal - minVal || 1
+  const cx = W / 2
+  const cy = H / 2
+  const R = Math.max(20, Math.min((W - 140) / 2, (H - 48) / 2))
+  const unit = props.unit ? ` ${props.unit}` : ''
+
+  const ringPoints = (r: number) =>
+    Array.from({ length: n }, (_, i) => {
+      const a = -Math.PI / 2 + (i * 2 * Math.PI) / n
+      return `${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`
+    }).join(' ')
+
+  const onMove = (e: PointerEvent<SVGSVGElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    if (r.width <= 0 || r.height <= 0) return
+    const vx = ((e.clientX - r.left) / r.width) * W
+    const vy = ((e.clientY - r.top) / r.height) * H
+    const dx = vx - cx
+    const dy = vy - cy
+    const dist = Math.hypot(dx, dy)
+    if (dist > R + 36) {
+      props.onHover(undefined)
+      return
+    }
+    const theta = Math.atan2(dy, dx)
+    let norm = (theta - (-Math.PI / 2)) % (2 * Math.PI)
+    if (norm < 0) norm += 2 * Math.PI
+    const i = Math.round((norm / (2 * Math.PI)) * n) % n
+    props.onHover(i >= 0 && i < n ? i : undefined)
+  }
+
+  const onKey = (e: KeyboardEvent<SVGSVGElement>) => {
+    const h = props.hover
+    let next: number | undefined
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = h === undefined ? 0 : Math.min(n - 1, h + 1)
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = h === undefined ? n - 1 : Math.max(0, h - 1)
+    else if (e.key === 'Home') next = 0
+    else if (e.key === 'End') next = n - 1
+    else if (e.key !== 'Escape') return
+    e.preventDefault()
+    props.onHover(next)
+  }
+
+  return (
+    <svg
+      className="diui-chart-svg"
+      viewBox={`0 0 ${W} ${H}`}
+      role="img"
+      tabIndex={0}
+      aria-label={props.title ?? 'chart'}
+      onPointerMove={onMove}
+      onPointerDown={onMove}
+      onPointerLeave={e => { if (e.pointerType === 'mouse') props.onHover(undefined) }}
+      onKeyDown={onKey}
+      onBlur={() => props.onHover(undefined)}
+    >
+      {[1, 2, 3, 4].map(k => {
+        const r = (k / 4) * R
+        return (
+          <g key={k}>
+            <polygon points={ringPoints(r)} fill="none" className="diui-grid" />
+            <text x={cx + 4} y={cy - r} dy="0.32em" className="diui-tick">{formatNumber(minVal + (k / 4) * span)}</text>
+          </g>
+        )
+      })}
+      {Array.from({ length: n }, (_, i) => {
+        const a = -Math.PI / 2 + (i * 2 * Math.PI) / n
+        const cos = Math.cos(a)
+        const sin = Math.sin(a)
+        const tx = cx + (R + 14) * cos
+        const ty = cy + (R + 14) * sin
+        const anchor = Math.abs(cos) < 0.2 ? 'middle' : cos > 0 ? 'start' : 'end'
+        const dy = Math.abs(sin) < 0.2 ? '0.35em' : sin > 0 ? '0.75em' : '0'
+        return (
+          <g key={i}>
+            <line x1={cx} y1={cy} x2={cx + R * cos} y2={cy + R * sin} className={props.hover === i ? 'diui-axis-zero' : 'diui-grid'} />
+            <text x={tx} y={ty} textAnchor={anchor} dy={dy} className="diui-tick">{truncate(String(props.labels[i] ?? ''), 14)}</text>
+          </g>
+        )
+      })}
+      {series.map((s, si) => {
+        const color = props.colorOf(s)
+        const pts: string[] = []
+        const runs: string[][] = []
+        let cur: string[] = []
+        const dots: ReactElement[] = []
+        let allPlotted = true
+        for (let i = 0; i < n; i++) {
+          const v = s.values[i]
+          if (!plotted(v)) {
+            allPlotted = false
+            if (cur.length) { runs.push(cur); cur = [] }
+            continue
+          }
+          const r = Math.max(0, Math.min(R, ((v - minVal) / span) * R))
+          const a = -Math.PI / 2 + (i * 2 * Math.PI) / n
+          const px = cx + r * Math.cos(a)
+          const py = cy + r * Math.sin(a)
+          const pt = `${px.toFixed(1)},${py.toFixed(1)}`
+          pts.push(pt)
+          cur.push(pt)
+          dots.push(
+            <circle key={`${si}-${i}`} cx={px} cy={py} r={3.5} fill={color}>
+              <title>{`${String(props.labels[i])} · ${s.name}: ${v}${unit}`}</title>
+            </circle>,
+          )
+        }
+        if (cur.length) runs.push(cur)
+        return (
+          <g key={si}>
+            {allPlotted && pts.length === n ? (
+              <polygon className="diui-radar-poly" points={pts.join(' ')} fill={color} fillOpacity={0.18} stroke={color} strokeWidth={2} />
+            ) : (
+              runs.map((seg, ri) => (
+                <polyline key={ri} className="diui-radar-poly" points={seg.join(' ')} fill="none" stroke={color} strokeWidth={2} />
+              ))
+            )}
+            {dots}
+          </g>
+        )
+      })}
     </svg>
   )
 }

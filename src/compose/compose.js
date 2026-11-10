@@ -73,7 +73,12 @@ const BLOCK_FIELDS = Object.freeze({
 function collectFieldKeys(components, into) {
   if (!Array.isArray(components)) return into;
   for (const node of components) {
-    if (!isPlainObject(node) || node.type !== 'Form' || !isPlainObject(node.props)) continue;
+    if (!isPlainObject(node) || !isPlainObject(node.props)) continue;
+    if (node.type === 'Segmented') {
+      if (typeof node.props.bindKey === 'string' && node.props.bindKey) into.add(node.props.bindKey);
+      continue;
+    }
+    if (node.type !== 'Form') continue;
     const fields = Array.isArray(node.props.fields) ? node.props.fields : [];
     // A form-level bindKey names the value of a single-field form only.
     if (fields.length === 1 && typeof node.props.bindKey === 'string' && node.props.bindKey) into.add(node.props.bindKey);

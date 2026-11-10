@@ -77,10 +77,7 @@ CSV contents and formula neutralisation, scatter hover, heatmap keyboard with
 - **Out of scope**: geocoding addresses (the model must supply coordinates),
   live location, routing services, GeoJSON overlays.
 
-## Proposed: `Calendar` (schedule snapshot)
-
-Not implemented yet. A read-only agenda for "plan my week" style answers;
-`Timeline` narrates events, it does not lay them out by duration.
+## Shipped: `Calendar` (schedule snapshot) & Issue #93 Catalog Expansion
 
 ```jsonc
 {
@@ -103,14 +100,18 @@ Not implemented yet. A read-only agenda for "plan my week" style answers;
   reuse `Button`/`Choice`.
 - Limits: 300 events, 31 days.
 
-## Considered and left for separate issues
+### Shipped in Issue #93 (Packages 1–4)
 
-- **Quiz / multi-select ChoiceGroup**: `Choice` covers single-choice
-  clarification with explicit submit; scoring, multi-select and retries need
-  their own state semantics (what a patch does to an answered quiz).
-- **Accordion, KeyValue, Steps, Audio, Scene3D**: lower frequency;
-  most are compositions of existing components or are better served by a
-  widget. (`Image`/`Gallery` and `Video` shipped with the `mediaAllowedOrigins` policy.)
-- **More chart types** (histogram, box plot, radar, Sankey): add on evidence of
-  real demand, preferably as a trusted catalog extension
-  (`docs/component-extensions.md`) rather than growing the core catalog.
+| Component / Upgrade | What it covers | Limits |
+|---|---|---|
+| `Accordion` | Collapsible sections with inline `text` or child panels, `multiple` toggle, badge/tone, keyboard header navigation, persisted expand state | 24 items |
+| `Steps` | Step-by-step progress tracker with explicit `status` (`done` \| `active` \| `pending` \| `error`) or zero-based `current` index | 24 steps |
+| `KeyValue` | 1–3 column key/value specification grid with `hint`, `tone`, `$computed` values and one-click `copyable` fields | 100 items |
+| `EmptyState` | Standardized empty/uninitialized callout with optional `actionLabel` + `prompt`/`action` | 1 action |
+| `FollowUp` | Lightweight closing follow-up suggestion chips that send `prompt` on click | 6 items |
+| `Sources` | Structured citation list of validated `https://` links or plain-text literature/document labels | 20 sources |
+| `Segmented` | Local segmented control bound via `bindKey` to drive `computed` formulas, `Chart` series and `Table.filterValue` | 12 options |
+| `Choice` (multi-select & chips) | `multiple`, `minSelect`/`maxSelect`, `variant: "cards" \| "chips"`, preserving valid selections across `ui_patch` | 8 options |
+| `Form.fields` upgrades | `switch`, `tags` (with `maxTags`, paste/comma splitting and duplicate guard), `daterange` (`{start, end}`), and `select` local search filter | 40 fields, 50 tags |
+| `Chart` (`hbar`, `radar`) | Horizontal bar chart (`hbar`, grouped/stacked) for long category labels and multi-axis `radar` chart | 500 points, 12 series |
+| `Audio` | HTTPS audio playback governed by `mediaAllowedOrigins` and offline policy with fallback card | 1 stream |

@@ -81,7 +81,29 @@ function defineField(target: Record<string, unknown>, key: string, value: unknow
  * @param f
  */
 export function fieldInitialValue(f: BoundField): unknown {
-  if (f.type === 'checkbox') return f.default === true
+  if (f.type === 'checkbox' || f.type === 'switch') return f.default === true
+  if (f.type === 'tags') {
+    const cap = typeof (f as { maxTags?: unknown }).maxTags === 'number' ? Number((f as { maxTags?: number }).maxTags) : 20
+    const raw = Array.isArray(f.default)
+      ? f.default.map(x => String(x).trim()).filter(Boolean)
+      : typeof f.default === 'string' && f.default.trim()
+        ? f.default.split(/[,，]/).map(s => s.trim()).filter(Boolean)
+        : []
+    return [...new Set(raw)].slice(0, cap)
+  }
+  if (f.type === 'daterange') {
+    if (isRecord(f.default)) {
+      return {
+        start: typeof f.default.start === 'string' ? f.default.start : '',
+        end: typeof f.default.end === 'string' ? f.default.end : '',
+      }
+    }
+    if (typeof f.default === 'string' && f.default.includes('..')) {
+      const [start = '', end = ''] = f.default.split('..')
+      return { start: start.trim(), end: end.trim() }
+    }
+    return { start: '', end: '' }
+  }
   if (f.type === 'range') {
     const min = typeof f.min === 'number' ? f.min : 0
     const max = typeof f.max === 'number' ? f.max : 100
@@ -89,6 +111,18 @@ export function fieldInitialValue(f: BoundField): unknown {
   }
   if (f.default === undefined || f.default === null) return ''
   return f.type === 'number' ? Number(f.default) : String(f.default)
+}
+
+function formatBoundValue(raw: unknown): string | undefined {
+  if (raw === undefined || raw === null) return undefined
+  if (typeof raw === 'string' || typeof raw === 'number' || typeof raw === 'boolean') return String(raw)
+  if (Array.isArray(raw)) return raw.map(x => String(x)).join(', ')
+  if (isRecord(raw) && (typeof raw.start === 'string' || typeof raw.end === 'string')) {
+    const s = typeof raw.start === 'string' ? raw.start : ''
+    const e = typeof raw.end === 'string' ? raw.end : ''
+    return s && e ? `${s} ~ ${e}` : s || e
+  }
+  return undefined
 }
 
 /**
@@ -146,7 +180,17 @@ export function reachableNodes(nodes: Iterable<ShapedNode>, root?: string): Shap
 export function collectBindings(nodes: Iterable<ShapedNode>, root?: string): Map<string, unknown> {
   const out = new Map<string, unknown>()
   for (const node of reachableNodes(nodes, root)) {
-    if (node.type !== 'Form' || !isRecord(node.props)) continue
+    if (!isRecord(node.props)) continue
+    if (node.type === 'Segmented') {
+      const segKey = typeof node.props.bindKey === 'string' && node.props.bindKey ? node.props.bindKey : undefined
+      if (segKey && !out.has(segKey)) {
+        const opts = Array.isArray(node.props.options) ? node.props.options.filter(isRecord) : []
+        const initial = node.props.defaultValue !== undefined ? node.props.defaultValue : opts[0]?.value ?? ''
+        out.set(segKey, initial)
+      }
+      continue
+    }
+    if (node.type !== 'Form') continue
     const form = node.props
     const fields = Array.isArray(form.fields) ? form.fields.filter(isRecord) : []
     for (const raw of fields) {
@@ -220,9 +264,9 @@ export function useComputedContext(
     // are cached by the Phase 1 LRU).
     void revision
     // No formulas means no values to resolve; a surface that still has to keep
-    // publishing into the shared pool (a composition block) gets a context with
-    // empty values so its forms stay live.
-    if (spec.length === 0 && publishedKeys.length === 0) return undefined
+    // publishing into the shared pool (a composition block) or exposes bound
+    // keys gets a context so its bound controls stay live.
+    if (spec.length === 0 && publishedKeys.length === 0 && bindings.size === 0) return undefined
     // Field names are model-authored: `constructor`, `toString` and `__proto__`
     // are ordinary keys. A prototype-less target plus `defineProperty` keeps
     // them own data values instead of hitting Object.prototype.
@@ -232,6 +276,14 @@ export function useComputedContext(
       defineField(fields, key, stored === undefined ? initial : stored)
     }
     const result = evaluateComputed(spec, fields)
+    // Expose bound scalar/tags/daterange values in `formatted` when not shadowed
+    // by a computed entry id, so `{{bindKey}}` in `Table.filterValue` or `Text`
+    // can interpolate string/segmented/tag/daterange bindings directly.
+    for (const [key, raw] of Object.entries(fields)) {
+      if (Object.hasOwn(result.values, key) || Object.hasOwn(result.errors, key)) continue
+      const text = formatBoundValue(raw)
+      if (text !== undefined) defineField(result.formatted, key, text)
+    }
     const liveKeys = new Set<string>()
     for (const key of publishedKeys) liveKeys.add(key)
     for (const entry of spec) {
