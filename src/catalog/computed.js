@@ -205,6 +205,12 @@ export function resolveComputedOrder(entries) {
 export function coerceFieldValue(raw) {
   if (typeof raw === 'boolean') return raw;
   if (typeof raw === 'number') return Number.isFinite(raw) ? raw : undefined;
+  if (Array.isArray(raw)) return raw.length;
+  if (isPlainObject(raw) && typeof raw.start === 'string' && typeof raw.end === 'string'
+    && /^\d{4}-\d{2}-\d{2}$/.test(raw.start) && /^\d{4}-\d{2}-\d{2}$/.test(raw.end)) {
+    const ms = Date.parse(`${raw.end}T00:00:00Z`) - Date.parse(`${raw.start}T00:00:00Z`);
+    return Number.isFinite(ms) && ms >= 0 ? Math.round(ms / 86400000) : undefined;
+  }
   if (typeof raw === 'string') {
     const text = raw.trim();
     if (!text) return undefined;
@@ -358,7 +364,11 @@ export function interpolateTemplate(text, result) {
   if (typeof text !== 'string') return text;
   const values = result?.values ?? {};
   const formatted = result?.formatted ?? {};
-  return text.replace(TEMPLATE, (match, id) => (Object.hasOwn(values, id) ? formatted[id] ?? String(values[id]) : match));
+  return text.replace(TEMPLATE, (match, id) => {
+    if (Object.hasOwn(values, id)) return formatted[id] ?? String(values[id]);
+    if (Object.hasOwn(formatted, id)) return String(formatted[id]);
+    return match;
+  });
 }
 
 /**

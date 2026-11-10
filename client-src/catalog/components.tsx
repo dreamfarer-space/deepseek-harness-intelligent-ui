@@ -19,6 +19,9 @@ import { Heatmap, Scatter, type HeatmapProps, type ScatterProps } from './Scatte
 import { GeoMap, type GeoMapProps } from './GeoMap.tsx'
 import { Gallery, PhotoImage, type Photo } from './Photo.tsx'
 import { Video, type VideoProps } from './Video.tsx'
+import { Audio, type AudioProps } from './Audio.tsx'
+import { Calendar, type CalendarProps } from './Calendar.tsx'
+import { Accordion, EmptyState, FollowUp, KeyValue, Segmented, Sources, Steps } from './Structure.tsx'
 import { ExportButtons, Table, matchesExpression, type Cell } from './Table.tsx'
 
 export { compareCells } from './Table.tsx'
@@ -223,6 +226,31 @@ function Component({ node, env, children }: { node: UiNode; env: RenderEnv; chil
       return env.streaming
         ? <pre className="diui-code diui-src-preview">{p.code}</pre>
         : <LibFrame kind="mermaid" source={p.code} surfaceId={`${env.callId ?? ''}:${node.id}`} policy={env.policy} title={env.t('lib.diagram')} />
+    case 'Accordion':
+      return <Accordion title={p.title} multiple={p.multiple} items={p.items} env={env} nodeId={node.id}>{children}</Accordion>
+    case 'Steps':
+      return <Steps title={p.title} current={p.current} items={p.items} env={env} />
+    case 'KeyValue':
+      return <KeyValue title={p.title} columns={p.columns} items={p.items} env={env} />
+    case 'EmptyState': {
+      let actionNode: ReactNode
+      if (p.action && typeof p.actionLabel === 'string') {
+        actionNode = <ControlledButton label={p.actionLabel} action={p.action} env={env} />
+      } else if (typeof p.prompt === 'string' && typeof p.actionLabel === 'string') {
+        actionNode = <ActionButton label={p.actionLabel} prompt={p.prompt} variant="primary" sessionTarget={p.sessionTarget} env={env} nodeId={node.id} />
+      }
+      return <EmptyState title={p.title} description={p.description} tone={p.tone} actionNode={actionNode} />
+    }
+    case 'FollowUp':
+      return <FollowUpCard props={p} env={env} nodeId={node.id} />
+    case 'Sources':
+      return <Sources title={p.title} items={p.items} env={env} />
+    case 'Segmented':
+      return <Segmented label={p.label} title={p.title} bindKey={p.bindKey} defaultValue={p.defaultValue} options={p.options} env={env} nodeId={node.id} />
+    case 'Calendar':
+      return <Calendar {...(p as Omit<CalendarProps, 'callId' | 'nodeId' | 't'>)} callId={env.callId} nodeId={node.id} t={env.t} />
+    case 'Audio':
+      return <Audio key={p.src} {...(p as AudioProps)} policy={env.policy} t={env.t} />
     default:
       return null
   }
@@ -342,6 +370,35 @@ function ActionButton(props: { label: string; prompt: string; variant?: string; 
   )
 }
 
+function FollowUpCard({ props, env, nodeId }: { props: Record<string, any>; env: RenderEnv; nodeId: string }) {
+  const [sendHere, busyHere, noteHere] = useSend(env)
+  const [sendNew, busyNew, noteNew] = useSend({
+    ...env,
+    send: async text => {
+      if (!env.sendNewSession) throw new Error(env.t('session.unavailable'))
+      const payload = new BridgeGuard({ policy: env.policy, armDelayMs: 0, minIntervalMs: 0 }).admitPrompt(text)
+      await env.sendNewSession(payload, nodeId)
+    },
+  }, true)
+  const [lastTarget, setLastTarget] = useState<SessionTarget>('current')
+  const onSendItem = async (item: { id?: string; label: string; prompt: string; sessionTarget?: SessionTarget }, _index: number) => {
+    const target: SessionTarget = item.sessionTarget === 'new' ? 'new' : 'current'
+    setLastTarget(target)
+    return (target === 'new' ? sendNew : sendHere)(item.prompt)
+  }
+  return (
+    <FollowUp
+      title={props.title}
+      items={props.items}
+      env={env}
+      nodeId={nodeId}
+      onSendItem={onSendItem}
+      busy={busyHere || busyNew}
+      note={lastTarget === 'new' ? noteNew : noteHere}
+    />
+  )
+}
+
 interface ChoiceOption { id?: string; label: string; description?: string; prompt: string }
 interface ChoiceProps {
   question: string
@@ -349,30 +406,60 @@ interface ChoiceProps {
   recommended?: string
   submitLabel?: string
   sessionTarget?: SessionTarget
+  multiple?: boolean
+  minSelect?: number
+  maxSelect?: number
+  variant?: 'cards' | 'chips'
 }
 
 function Choice({ props, env, nodeId }: { props: ChoiceProps; env: RenderEnv; nodeId: string }) {
   // Numeric selections and launch ids preserve existing id-less Choice cards.
   const [picked, setPicked] = useUiState<string | number | null>(env.callId, `${nodeId}:picked`, null)
+  const [pickedMulti, setPickedMulti] = useUiState<(string | number)[]>(env.callId, `${nodeId}:pickedMulti`, [])
   const [done, setDone] = useUiState<SessionTarget | null>(env.callId, `${nodeId}:done`, null)
+  const isMulti = props.multiple === true
   const index = props.options.findIndex((option, i) => typeof picked === 'string' ? option.id === picked : i === picked)
   const option = props.options[index]
+  const multiKeys = Array.isArray(pickedMulti) ? pickedMulti : []
+  const selectedIndices = props.options.flatMap((opt, i) => (
+    multiKeys.some(k => typeof k === 'string' ? opt.id === k : i === k) ? [i] : []
+  ))
+  const selectedOptions = selectedIndices.map(i => props.options[i]!)
+  const minReq = props.minSelect ?? 1
+  const maxReq = props.maxSelect ?? props.options.length
+  const hasValidSelection = isMulti
+    ? (selectedOptions.length >= minReq && selectedOptions.length <= maxReq)
+    : Boolean(option)
+  const launchSuffix = isMulti
+    ? selectedOptions.map((o, idx) => o.id ?? selectedIndices[idx]).join('+')
+    : String(option?.id ?? index)
   const [sendHere, busyHere, noteHere] = useSend(env)
   const { send: sendNew, busy: busyNew, note: noteNew, frozen } =
-    useSessionSend(env, nodeId, 'new', true, `${nodeId}#${option?.id ?? index}`)
+    useSessionSend(env, nodeId, 'new', true, `${nodeId}#${launchSuffix}`)
   const [last, setLast] = useState<SessionTarget | null>(null)
   const inFlight = useRef(false)
   const uid = useId()
   const locked = done !== null || busyHere || busyNew || env.streaming || !!env.stopped
   const primaryTarget: SessionTarget = frozen || props.sessionTarget === 'new' ? 'new' : 'current'
   const go = async (target: SessionTarget) => {
-    if (inFlight.current || locked || (!option && !frozen)) return
+    if (inFlight.current || locked || (!hasValidSelection && !frozen)) return
     if (target === 'current' && getUiState(env.callId ?? '', `${nodeId}:launchPrompt`) !== undefined) return
+    const promptPayload = isMulti ? selectedOptions.map(o => o.prompt).join('\n\n') : (option?.prompt ?? '')
     inFlight.current = true
     setLast(target)
     try {
-      if (await (target === 'new' ? sendNew : sendHere)(option?.prompt ?? '')) setDone(target)
+      if (await (target === 'new' ? sendNew : sendHere)(promptPayload)) setDone(target)
     } finally { inFlight.current = false }
+  }
+  const toggleMulti = (item: ChoiceOption, i: number) => {
+    const key = item.id ?? i
+    setPickedMulti(prev => {
+      const list = Array.isArray(prev) ? prev : []
+      const exists = list.some(k => typeof k === 'string' ? item.id === k : i === k)
+      if (exists) return list.filter(k => !(typeof k === 'string' ? item.id === k : i === k))
+      if (selectedOptions.length >= maxReq) return list
+      return [...list, key]
+    })
   }
   const label = done ? env.t(done === 'new' ? 'session.started' : 'choice.sent')
     : frozen ? targetLabel(env.t('session.retry'), env, true)
@@ -384,41 +471,158 @@ function Choice({ props, env, nodeId }: { props: ChoiceProps; env: RenderEnv; no
     <form className="diui-choice" onSubmit={event => { event.preventDefault(); void go(primaryTarget) }}>
       <fieldset disabled={locked || frozen} aria-describedby={`${uid}-hint`}>
         <legend className="diui-choice-question">{props.question}</legend>
-        <div className="diui-choice-options" role="radiogroup">
-          {props.options.map((item, i) => (
-            <label key={item.id ?? i} className="diui-choice-option" data-selected={i === index || undefined}>
-              <input type="radio" name={`${uid}-choice`} value={item.id ?? i} checked={i === index}
-                aria-describedby={item.description ? `${uid}-${i}-description` : undefined}
-                onChange={() => setPicked(item.id ?? i)} />
-              <span className="diui-choice-text">
-                <span className="diui-choice-label">{item.label}
-                  {item.id !== undefined && item.id === props.recommended &&
-                    <span className="diui-choice-recommended">{env.t('choice.recommended')}</span>}
+        <div className="diui-choice-options" role={isMulti ? 'group' : 'radiogroup'} data-variant={props.variant ?? 'cards'}>
+          {props.options.map((item, i) => {
+            const isChecked = isMulti ? selectedIndices.includes(i) : i === index
+            const atCap = isMulti && !isChecked && selectedOptions.length >= maxReq
+            return (
+              <label key={item.id ?? i} className="diui-choice-option" data-selected={isChecked || undefined}>
+                <input
+                  type={isMulti ? 'checkbox' : 'radio'}
+                  name={`${uid}-choice`}
+                  value={item.id ?? i}
+                  checked={isChecked}
+                  disabled={atCap}
+                  aria-describedby={item.description ? `${uid}-${i}-description` : undefined}
+                  onChange={() => (isMulti ? toggleMulti(item, i) : setPicked(item.id ?? i))}
+                />
+                <span className="diui-choice-text">
+                  <span className="diui-choice-label">{item.label}
+                    {item.id !== undefined && item.id === props.recommended &&
+                      <span className="diui-choice-recommended">{env.t('choice.recommended')}</span>}
+                  </span>
+                  {item.description && <span className="diui-choice-desc" id={`${uid}-${i}-description`}>{item.description}</span>}
                 </span>
-                {item.description && <span className="diui-choice-desc" id={`${uid}-${i}-description`}>{item.description}</span>}
-              </span>
-            </label>
-          ))}
+              </label>
+            )
+          })}
         </div>
       </fieldset>
       <div className="diui-choice-actions">
         <button type="submit" className="diui-button diui-choice-submit" data-variant="primary"
-          disabled={locked || (!option && !frozen)} aria-busy={busyHere || busyNew || undefined}>{label}</button>
+          disabled={locked || (!hasValidSelection && !frozen)} aria-busy={busyHere || busyNew || undefined}>{label}</button>
         {!props.sessionTarget && !frozen && env.sendNewSession &&
-          <button type="button" className="diui-button" data-variant="secondary" disabled={locked || !option}
+          <button type="button" className="diui-button" data-variant="secondary" disabled={locked || !hasValidSelection}
             aria-busy={busyNew || undefined} onClick={() => { void go('new') }}>{env.t('choice.newSession')}</button>}
         <span className="diui-note" role="status" aria-live="polite">{note}</span>
       </div>
-      <span className="diui-choice-hint" id={`${uid}-hint`}>{env.t(frozen ? 'session.retryHint' : 'choice.hint')}</span>
+      <span className="diui-choice-hint" id={`${uid}-hint`}>{env.t(frozen ? 'session.retryHint' : isMulti ? 'choice.multiHint' : 'choice.hint')}</span>
     </form>
   )
 }
 
 
-interface FieldSpec { name: string; label: string; type: string; options?: string[]; required?: boolean; placeholder?: string; default?: Cell; min?: number; max?: number; step?: number; bindKey?: string }
+interface FieldSpec { name: string; label: string; type: string; options?: string[]; required?: boolean; placeholder?: string; default?: unknown; min?: number; max?: number; step?: number; maxTags?: number; searchable?: boolean; bindKey?: string }
 
 function initialValue(f: FieldSpec): unknown {
   return fieldInitialValue(f as BoundField)
+}
+
+function TagsFieldInput(props: { id: string; field: FieldSpec; value: readonly string[]; disabled: boolean; env: RenderEnv; onChange: (next: string[]) => void }) {
+  const { id, field, value, disabled, env, onChange } = props
+  const [draft, setDraft] = useState('')
+  const [dup, setDup] = useState<string | null>(null)
+  const maxTags = field.maxTags ?? 20
+  const commitTokens = (raw: string) => {
+    const parts = raw.split(/[,，;\n\r]+/).map(s => s.trim()).filter(Boolean)
+    if (!parts.length) return
+    const next = [...value]
+    let duplicateFound: string | null = null
+    for (const token of parts) {
+      if (next.includes(token)) {
+        duplicateFound = token
+        continue
+      }
+      if (next.length < maxTags) next.push(token)
+    }
+    setDup(duplicateFound)
+    if (next.length !== value.length) onChange(next)
+  }
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',' || e.key === '，') {
+      e.preventDefault()
+      if (draft.trim()) {
+        commitTokens(draft)
+        setDraft('')
+      }
+    } else if (e.key === 'Backspace' && !draft && value.length > 0) {
+      setDup(null)
+      onChange(value.slice(0, -1))
+    }
+  }
+  return (
+    <div className="diui-tags-wrap">
+      <div className="diui-tags" data-duplicate={dup ? 'true' : undefined}>
+        {value.map(tag => (
+          <span key={tag} className="diui-tag-chip">
+            <span>{tag}</span>
+            <button type="button" className="diui-tag-remove" disabled={disabled}
+              aria-label={env.t('form.tagRemove', { tag })}
+              onClick={() => { setDup(null); onChange(value.filter(t => t !== tag)) }}>×</button>
+          </span>
+        ))}
+        <input
+          id={id}
+          name={field.name}
+          type="text"
+          className="diui-tag-input"
+          disabled={disabled || value.length >= maxTags}
+          placeholder={value.length >= maxTags ? env.t('form.tagMax', { max: maxTags }) : (field.placeholder ?? env.t('form.tagPlaceholder'))}
+          value={draft}
+          onChange={e => {
+            const v = e.target.value
+            setDup(null)
+            if (/[,，;\n]/.test(v)) {
+              commitTokens(v)
+              setDraft('')
+            } else {
+              setDraft(v)
+            }
+          }}
+          onKeyDown={onKeyDown}
+          onBlur={() => { if (draft.trim()) { commitTokens(draft); setDraft('') } }}
+          onPaste={e => {
+            const text = e.clipboardData?.getData('text')
+            if (text && /[,，;\n\r]/.test(text)) {
+              e.preventDefault()
+              commitTokens(text)
+            }
+          }}
+        />
+      </div>
+      {dup && <span className="diui-note" role="status">{env.t('form.tagDuplicate', { tag: dup })}</span>}
+    </div>
+  )
+}
+
+function SelectFieldInput(props: { common: { id: string; name: string; required?: boolean; disabled: boolean }; field: FieldSpec; value: string; env: RenderEnv; onChange: (val: string) => void }) {
+  const { common, field, value, env, onChange } = props
+  const options = field.options ?? []
+  const searchable = field.searchable === true || options.length >= 15
+  const [query, setQuery] = useState('')
+  const q = query.trim().toLowerCase()
+  const filtered = q ? options.filter(o => o === value || o.toLowerCase().includes(q)) : options
+  const selectEl = (
+    <select {...common} value={value} onChange={e => onChange(e.target.value)}>
+      <option value="" disabled>{field.placeholder ?? env.t('form.choose')}</option>
+      {filtered.map(o => <option key={o} value={o}>{o}</option>)}
+    </select>
+  )
+  if (!searchable) return selectEl
+  return (
+    <div className="diui-select-wrap">
+      <input
+        type="search"
+        className="diui-input diui-select-search"
+        aria-label={env.t('form.selectSearch')}
+        placeholder={env.t('form.selectSearch')}
+        disabled={common.disabled}
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+      />
+      {selectEl}
+    </div>
+  )
 }
 
 function Form({ props, env, nodeId }: { props: Record<string, any>; env: RenderEnv; nodeId: string }) {
@@ -476,10 +680,31 @@ function Form({ props, env, nodeId }: { props: Record<string, any>; env: RenderE
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (busy || done || env.streaming || env.stopped) return
-    const out: Record<string, unknown> = {}
+    const out: Record<string, unknown> = Object.create(null)
+    const setOut = (key: string, val: unknown) => {
+      Object.defineProperty(out, key, { value: val, enumerable: true, configurable: true, writable: true })
+    }
     for (const f of fields) {
       const v = values[f.name]
-      out[f.name] = f.type === 'number' || f.type === 'range' ? (v === '' || v === undefined ? null : Number(v)) : v
+      if (f.type === 'tags') {
+        const list = Array.isArray(v) ? v.map(String).filter(Boolean) : []
+        if (f.required && list.length === 0) return
+        setOut(f.name, list)
+      } else if (f.type === 'daterange') {
+        const r = v && typeof v === 'object' && !Array.isArray(v) ? (v as { start?: string; end?: string }) : { start: '', end: '' }
+        const start = String(r.start ?? '')
+        const end = String(r.end ?? '')
+        if (f.required && (!start || !end)) return
+        if (start && end && start > end) return
+        setOut(f.name, { start, end })
+      } else if (f.type === 'checkbox' || f.type === 'switch') {
+        if (f.type === 'switch' && f.required && v !== true) return
+        setOut(f.name, v === true)
+      } else if (f.type === 'number' || f.type === 'range') {
+        setOut(f.name, v === '' || v === undefined ? null : Number(v))
+      } else {
+        setOut(f.name, v)
+      }
     }
     if (await send(formatFormSubmission(props.title, props.prompt, out))) setDone(true)
   }
@@ -496,16 +721,64 @@ function Form({ props, env, nodeId }: { props: Record<string, any>; env: RenderE
             input = <textarea {...common} rows={3} placeholder={f.placeholder} value={String(v ?? '')} onChange={e => set(f.name, e.target.value)} />
             break
           case 'select':
-            input = (
-              <select {...common} value={String(v ?? '')} onChange={e => set(f.name, e.target.value)}>
-                <option value="" disabled>{f.placeholder ?? env.t('form.choose')}</option>
-                {(f.options ?? []).map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
-            )
+            input = <SelectFieldInput common={common} field={f} value={String(v ?? '')} env={env} onChange={val => set(f.name, val)} />
             break
           case 'checkbox':
             input = <input {...common} required={false} type="checkbox" checked={v === true} onChange={e => set(f.name, e.target.checked)} />
             break
+          case 'switch':
+            input = (
+              <button id={id} type="button" role="switch" aria-checked={v === true} disabled={common.disabled}
+                className="diui-switch" onClick={() => set(f.name, !(v === true))}>
+                <span className="diui-switch-thumb" aria-hidden="true" />
+              </button>
+            )
+            break
+          case 'tags':
+            input = (
+              <TagsFieldInput
+                id={id}
+                field={f}
+                value={Array.isArray(v) ? v.map(String) : []}
+                disabled={common.disabled}
+                env={env}
+                onChange={next => set(f.name, next)}
+              />
+            )
+            break
+          case 'daterange': {
+            const rangeVal = v && typeof v === 'object' && !Array.isArray(v) ? (v as { start?: string; end?: string }) : { start: '', end: '' }
+            const start = String(rangeVal.start ?? '')
+            const end = String(rangeVal.end ?? '')
+            input = (
+              <div className="diui-daterange" role="group" aria-label={f.label}>
+                <input
+                  id={id}
+                  name={`${f.name}.start`}
+                  type="date"
+                  aria-label={env.t('form.dateStart')}
+                  required={f.required}
+                  disabled={common.disabled}
+                  max={end || undefined}
+                  value={start}
+                  onChange={e => set(f.name, { start: e.target.value, end })}
+                />
+                <span aria-hidden="true">–</span>
+                <input
+                  id={`${id}-end`}
+                  name={`${f.name}.end`}
+                  type="date"
+                  aria-label={env.t('form.dateEnd')}
+                  required={f.required}
+                  disabled={common.disabled}
+                  min={start || undefined}
+                  value={end}
+                  onChange={e => set(f.name, { start, end: e.target.value })}
+                />
+              </div>
+            )
+            break
+          }
           case 'range':
             input = (
               <span className="diui-range">

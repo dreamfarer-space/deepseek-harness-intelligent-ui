@@ -102,7 +102,12 @@ function reachable(root, byId) {
 function publishedFieldKeys(components) {
   const keys = new Set();
   for (const node of components ?? []) {
-    if (!isPlainObject(node) || node.type !== 'Form' || !isPlainObject(node.props)) continue;
+    if (!isPlainObject(node) || !isPlainObject(node.props)) continue;
+    if (node.type === 'Segmented') {
+      if (typeof node.props.bindKey === 'string' && node.props.bindKey) keys.add(node.props.bindKey);
+      continue;
+    }
+    if (node.type !== 'Form') continue;
     const fields = Array.isArray(node.props.fields) ? node.props.fields.filter(isPlainObject) : [];
     for (const field of fields) {
       if (typeof field.bindKey === 'string' && field.bindKey) keys.add(field.bindKey);
