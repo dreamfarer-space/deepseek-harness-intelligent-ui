@@ -339,4 +339,36 @@ describe('Issue #92 composition tolerance and lenient mode', () => {
     expect(patchRes.ui.version).toBe(2)
     expect(patchRes.ui.components.find(c => c.id === 'tl').props.items).toHaveLength(3)
   })
+
+  it('extracts cross-block Form/Segmented field keys after lenient top-level prop lifting', () => {
+    const controls = {
+      id: 'controls',
+      type: 'catalog',
+      root: 's',
+      components: [
+        { id: 's', type: 'Stack', children: ['f', 'seg'] },
+        // Top-level props before lenient lifting into `props`.
+        { id: 'f', type: 'Form', fields: [{ name: 'qty', label: 'Quantity', type: 'range', min: 1, max: 10, default: 2 }] },
+        { id: 'seg', type: 'Segmented', bindKey: 'tier', options: [{ value: 'std', label: 'Standard' }, { value: 'pro', label: 'Pro' }] },
+      ],
+    }
+    const report = {
+      id: 'report',
+      type: 'catalog',
+      root: 'card',
+      computed: [{ id: 'doubled', expr: 'qty * 2' }],
+      components: [
+        { id: 'card', type: 'Card', children: ['p', 't'] },
+        { id: 'p', type: 'Progress', props: { value: { $computed: 'doubled' } } },
+        { id: 't', type: 'Text', props: { text: 'Tier {{tier}} -> {{doubled}}' } },
+      ],
+    }
+    const strictRes = validateComposition(structuredClone({ blocks: [controls, report] }), resolveConfig({ lenientValidation: false }))
+    expect(strictRes.ok).toBe(false)
+
+    const lenientRes = validateComposition(structuredClone({ blocks: [controls, report] }), config)
+    expect(lenientRes.ok).toBe(true)
+    expect(lenientRes.errors).toEqual([])
+    expect(lenientRes.normalized).toBe(true)
+  })
 })

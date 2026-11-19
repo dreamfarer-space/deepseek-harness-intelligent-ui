@@ -99,11 +99,14 @@ export function projectNativeUiEvents(events, { hostId, sessionId }) {
     const args = call.args;
     const policy = object(meta.policy) ? meta.policy : undefined;
     const turn = call.turn === undefined ? undefined : String(call.turn);
-    if (call.kind === 'ui_render' && validTree(args)) {
+    if (call.kind === 'ui_render') {
       if (latest.has(id)) continue;
+      const normalized = object(meta.normalized) ? argumentsOf(meta.normalized) : undefined;
+      const def = normalized && validTree(normalized) ? normalized : (validTree(args) ? args : undefined);
+      if (!def) continue;
       latest.set(id, { kind: 'declarative', hostId, sessionId, uiId: id, version: 1,
-        title: typeof args.title === 'string' ? args.title : undefined,
-        definition: args, policy, turn, seq });
+        title: typeof def.title === 'string' ? def.title : undefined,
+        definition: def, policy, turn, seq });
       continue;
     }
     if (call.kind === 'ui_render_widget' && text(args.html)) {
@@ -117,11 +120,17 @@ export function projectNativeUiEvents(events, { hostId, sessionId }) {
       // The whole answer is one artifact; catalog blocks inside it stay patchable
       // through their derived `<callId>#<blockId>` identity in the latest snapshot.
       if (latest.has(id)) continue;
-      const result = validateComposition(args, { maxWidgetBytes: MAX_ARGUMENT_CHARS }, {});
+      const normalized = object(meta.normalized) ? argumentsOf(meta.normalized) : undefined;
+      let def = normalized ?? args;
+      let result = validateComposition(def, { maxWidgetBytes: MAX_ARGUMENT_CHARS }, {});
+      if (!result.ok && normalized) {
+        def = args;
+        result = validateComposition(def, { maxWidgetBytes: MAX_ARGUMENT_CHARS }, {});
+      }
       if (!result.ok) continue;
       latest.set(id, { kind: 'composition', hostId, sessionId, uiId: id, version: 1,
-        title: typeof args.title === 'string' ? args.title : undefined,
-        definition: args, policy, turn, seq });
+        title: typeof def.title === 'string' ? def.title : undefined,
+        definition: def, policy, turn, seq });
       for (const block of result.blocks) {
         if (block.type === 'catalog') blockVersions.set(`${id}#${block.id}`, 1);
       }

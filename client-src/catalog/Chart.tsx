@@ -420,7 +420,7 @@ function Radar(props: ChartProps & { height: number; width: number; n: number; c
   }
   const ticks = niceTicks(lo, hi, 4)
   const minVal = ticks[0] ?? 0
-  const maxVal = ticks[ticks.length - 1] || 1
+  const maxVal = ticks[ticks.length - 1] ?? 1
   const span = maxVal - minVal || 1
   const cx = W / 2
   const cy = H / 2
@@ -589,7 +589,7 @@ function PieLegend(props: { labels: ChartProps['labels']; values: ChartSeries['v
       {props.labels.map((l, i) => (
         <span key={i} className="diui-legend-item">
           <i style={{ background: PALETTE[i % PALETTE.length] }} />
-          {String(l)} · {plotted(props.values[i]) ? `${((props.values[i]! / total) * 100).toFixed(1)}%` : NO_VALUE}
+          {String(l)} · {plotted(props.values[i]) ? `${((Math.max(0, props.values[i]!) / total) * 100).toFixed(1)}%` : NO_VALUE}
         </span>
       ))}
     </div>

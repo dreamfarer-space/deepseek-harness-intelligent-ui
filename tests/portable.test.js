@@ -106,4 +106,35 @@ describe('native portable artifact contract', () => {
     expect(snapshot[0]).toMatchObject({ uiId: 'rc1:ptc:1', version: 2, turn: '1', updatedTurn: '2' });
     expect(snapshot[0].definition.components[0].props.text).toBe('PTC v2');
   });
+
+  it('projects lenientValidation-normalized ui_render and ui_compose via meta.normalized', () => {
+    const rawRender = { root: 'r', components: [{ id: 'r', type: 'Text', text: 'Lifted text' }] };
+    const normRender = { root: 'r', components: [{ id: 'r', type: 'Text', props: { text: 'Lifted text' } }] };
+    const rawCompose = {
+      blocks: [
+        { id: 'intro', type: 'markdown', text: 'Lead.' },
+        { id: 'box', type: 'catalog', root: 't', components: [{ id: 't', type: 'Text', text: 'Normalized block' }] },
+      ],
+    };
+    const normCompose = {
+      blocks: [
+        { id: 'intro', type: 'markdown', text: 'Lead.' },
+        { id: 'box', type: 'catalog', root: 't', components: [{ id: 't', type: 'Text', props: { text: 'Normalized block' } }] },
+      ],
+    };
+    const list = [
+      call(1, 'r1', 'ui_render', rawRender),
+      result(2, 'r1', { ok: true, normalized: normRender }),
+      call(3, 'c1', 'ui_compose', rawCompose),
+      result(4, 'c1', { ok: true, normalized: normCompose }),
+      // Forged invalid meta.normalized must fall back cleanly to valid args or be rejected.
+      call(5, 'r2', 'ui_render', tree),
+      result(6, 'r2', { ok: true, normalized: { root: 'missing', components: [] } }),
+    ];
+    const snapshot = projectNativeUiEvents(list, { hostId: 'h1', sessionId: 's1' });
+    expect(snapshot.map(a => a.uiId)).toEqual(['r1', 'c1', 'r2']);
+    expect(snapshot[0].definition).toEqual(normRender);
+    expect(snapshot[1].definition).toEqual(normCompose);
+    expect(snapshot[2].definition).toEqual(tree);
+  });
 });

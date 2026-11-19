@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RenderView } from '../client-src/catalog/RenderView.tsx'
 import { PatchView } from '../client-src/catalog/PatchView.tsx'
 import { en } from '../client-src/locales.ts'
-import { getUiState, resetUiStateMemory } from '../client-src/state.ts'
+import { getUiState, resetUiStateMemory, setUiState } from '../client-src/state.ts'
 import { resetUiVersions } from '../client-src/versions.ts'
 import { applyPatch, snapshotOf } from '../src/catalog/patch.js'
 import type { ToolResultNode, ToolViewProps } from '../client-src/types/dsh.ts'
@@ -322,7 +322,7 @@ describe('FollowUp', () => {
     await act(async () => { chips()[1]!.click() })
     expect(sendNew).toHaveBeenCalledTimes(1)
     expect(sendNew.mock.calls[0]![0]).toBe('prompt y')
-    expect(sendNew.mock.calls[0]![2]).toBe('fu')
+    expect(sendNew.mock.calls[0]![2]).toBe('fu#y')
     expect(send).not.toHaveBeenCalled()
     expect(chips()[1]!.dataset.sent).toBe('true')
     expect(chips()[1]!.disabled).toBe(true)
@@ -802,5 +802,106 @@ describe('Audio', () => {
     }, { ok: true, policy: { allowMedia: false } })
     expect(host.querySelector('audio')).toBeNull()
     expect(host.querySelector('.diui-audio-fallback')!.textContent).toContain(en['audio.offline'])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Regressions: FollowUp multi-new-session keys, Radar <=0 maxVal, PieLegend clamp, Calendar mixed dates
+// ---------------------------------------------------------------------------
+
+describe('Catalog client regressions', () => {
+  it('gives each FollowUp chip with sessionTarget="new" its own launch recovery key', async () => {
+    let now = 10_000
+    vi.spyOn(Date, 'now').mockImplementation(() => now)
+    show('fu-multi-new', {
+      root: 'fu',
+      components: [{
+        id: 'fu',
+        type: 'FollowUp',
+        props: {
+          items: [
+            { id: 'first', label: 'First task', prompt: 'run first', sessionTarget: 'new' },
+            { id: 'second', label: 'Second task', prompt: 'run second', sessionTarget: 'new' },
+          ],
+        },
+      }],
+    })
+    const chips = [...host.querySelectorAll<HTMLButtonElement>('.diui-followup-chip')]
+    expect(chips).toHaveLength(2)
+    await act(async () => { chips[0]!.click() })
+    now += 1500
+    await act(async () => { chips[1]!.click() })
+    expect(sendNew).toHaveBeenCalledTimes(2)
+    expect(sendNew).toHaveBeenNthCalledWith(1, 'run first', 'fu-multi-new', 'fu#first')
+    expect(sendNew).toHaveBeenNthCalledWith(2, 'run second', 'fu-multi-new', 'fu#second')
+  })
+
+  it('scales Radar rings accurately when all values are <= 0 (maxVal === 0)', () => {
+    show('radar-neg', {
+      root: 'ch',
+      components: [{
+        id: 'ch',
+        type: 'Chart',
+        props: {
+          kind: 'radar',
+          labels: ['A', 'B', 'C'],
+          series: [{ name: 'Delta', values: [-100, -50, 0] }],
+        },
+      }],
+    })
+    const ringTicks = [...host.querySelectorAll<SVGTextElement>('svg.diui-chart-svg g text.diui-tick')]
+      .slice(0, 4)
+      .map(el => el.textContent)
+    expect(ringTicks).toEqual(['-75', '-50', '-25', '0'])
+    expect(host.innerHTML).not.toContain('NaN')
+  })
+
+  it('clamps negative PieLegend percentages to 0.0% matching the pie slices', () => {
+    show('pie-neg', {
+      root: 'ch',
+      components: [{
+        id: 'ch',
+        type: 'Chart',
+        props: {
+          kind: 'pie',
+          labels: ['Positive', 'Negative'],
+          series: [{ name: 'Share', values: [100, -25] }],
+        },
+      }],
+    })
+    const items = [...host.querySelectorAll('.diui-legend-item')].map(el => el.textContent)
+    expect(items[0]).toContain('100.0%')
+    expect(items[1]).toContain('0.0%')
+    expect(items[1]).not.toContain('-')
+  })
+
+  it('renders Calendar events with date-only start and datetime end across the full span and guards non-array hiddenGroups', () => {
+    setUiState('cal-mixed', 'cal:hiddenGroups', 'corrupted' as unknown as string[])
+    show('cal-mixed', {
+      root: 'cal',
+      components: [{
+        id: 'cal',
+        type: 'Calendar',
+        props: {
+          view: 'agenda',
+          timeZone: 'UTC',
+          start: '2026-11-19',
+          events: [{
+            id: 'span',
+            title: 'Conference',
+            start: '2026-11-19',
+            end: '2026-11-21T12:00',
+            group: 'Travel',
+          }],
+        },
+      }],
+    })
+    const agendaTime = host.querySelector('.diui-calendar-agenda-time')?.textContent ?? ''
+    expect(agendaTime).toContain('2026-11-19 00:00')
+    expect(agendaTime).toContain('2026-11-21 12:00')
+    const legendBtn = host.querySelector<HTMLButtonElement>('.diui-legend-item')!
+    expect(legendBtn.getAttribute('aria-pressed')).toBe('true')
+    click(legendBtn)
+    expect(legendBtn.getAttribute('aria-pressed')).toBe('false')
   })
 })

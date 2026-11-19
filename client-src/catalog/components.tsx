@@ -372,18 +372,20 @@ function ActionButton(props: { label: string; prompt: string; variant?: string; 
 
 function FollowUpCard({ props, env, nodeId }: { props: Record<string, any>; env: RenderEnv; nodeId: string }) {
   const [sendHere, busyHere, noteHere] = useSend(env)
+  const newTargetKeyRef = useRef<string>(nodeId)
   const [sendNew, busyNew, noteNew] = useSend({
     ...env,
     send: async text => {
       if (!env.sendNewSession) throw new Error(env.t('session.unavailable'))
       const payload = new BridgeGuard({ policy: env.policy, armDelayMs: 0, minIntervalMs: 0 }).admitPrompt(text)
-      await env.sendNewSession(payload, nodeId)
+      await env.sendNewSession(payload, newTargetKeyRef.current)
     },
   }, true)
   const [lastTarget, setLastTarget] = useState<SessionTarget>('current')
-  const onSendItem = async (item: { id?: string; label: string; prompt: string; sessionTarget?: SessionTarget }, _index: number) => {
+  const onSendItem = async (item: { id?: string; label: string; prompt: string; sessionTarget?: SessionTarget }, index: number) => {
     const target: SessionTarget = item.sessionTarget === 'new' ? 'new' : 'current'
     setLastTarget(target)
+    if (target === 'new') newTargetKeyRef.current = `${nodeId}#${item.id ?? index}`
     return (target === 'new' ? sendNew : sendHere)(item.prompt)
   }
   return (

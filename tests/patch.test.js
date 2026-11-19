@@ -345,4 +345,54 @@ describe('PTC tool/ptc-dispatch and SessionProjection folding', () => {
     expect(state.uis['__proto__']?.version).toBe(1)
     expect(({}).version).toBeUndefined()
   })
+
+  it('patches lenientValidation-normalized ui_render UIs even when enableCompose is false', async () => {
+    const noComposeConfig = resolveConfig({ enableCompose: false, lenientValidation: true })
+    const rawLenientArgs = {
+      title: 'Lenient card',
+      root: 'c',
+      components: [{ id: 'c', type: 'Text', text: 'Before patch' }],
+    }
+    const messages = [
+      { role: 'user', content: [{ type: 'text', text: 'show card' }] },
+      { role: 'assistant', content: [{ type: 'tool-call', id: 'c-no-compose', name: RENDER_TOOL, arguments: JSON.stringify(rawLenientArgs) }] },
+      { role: 'tool', toolCallId: 'c-no-compose', content: [{ type: 'text', text: 'UI "Lenient card" is now displayed.' }] },
+    ]
+    const patchTool = createPatchTool(noComposeConfig)
+    const res = await patchTool.execute(
+      { uiId: 'c-no-compose', baseVersion: 1, ops: [{ op: 'setProps', id: 'c', props: { text: 'After patch' } }] },
+      { callId: 'p-no-compose', agent: { session: { deriveMessages: () => messages } } },
+    )
+    expect(res.ok).toBe(true)
+    expect(res.ui.version).toBe(2)
+    expect(byId(res.ui).get('c').props.text).toBe('After patch')
+
+    // Also verify the plugin's registered sessionProjection receives config when enableCompose is false.
+    const { apply } = await import('../src/plugin.js')
+    const registeredTools = []
+    let registeredProjection
+    const fakeCtx = {
+      tools: { register: t => registeredTools.push(t) },
+      commands: { register: () => {} },
+      inject: (names, cb) => {
+        if (names.includes('sessionProjections')) {
+          cb({
+            sessionProjections: {
+              register: unit => { registeredProjection = unit; return { stateOf: () => undefined } },
+            },
+            effect: () => {},
+          })
+        }
+      },
+    }
+    apply(fakeCtx, { enableCompose: false, lenientValidation: true })
+    expect(registeredProjection).toBeDefined()
+    let projState = registeredProjection.init()
+    projState = registeredProjection.apply(projState, {
+      type: 'tool/ptc-dispatch',
+      seq: 1,
+      data: { subCallId: 'ptc-lenient', name: RENDER_TOOL, arguments: rawLenientArgs, isError: false, meta: { ok: true } },
+    })
+    expect(projState.uis['ptc-lenient']?.version).toBe(1)
+  })
 })

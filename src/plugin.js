@@ -33,7 +33,8 @@ export function apply(ctx, rawConfig) {
     const unit = createUiSessionProjection({
       render: RENDER_TOOL,
       patch: PATCH_TOOL,
-      ...(config.enableCompose !== false ? { compose: COMPOSE_TOOL, config } : {}),
+      config,
+      ...(config.enableCompose !== false ? { compose: COMPOSE_TOOL } : {}),
     });
     let activePromise;
     ctx.inject(['sessionProjections'], (child) => {
