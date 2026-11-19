@@ -52,8 +52,8 @@ Sort, search, filter, page, export, hover, sliders, rotation and tabs run in the
 <tr>
 <td valign="top">
 
-### 🧩 26 components
-From cards and tabs to data grids, `Scatter`, `Heatmap`, `Plot`, `Math`, `Mermaid`, `CodeDiff` and `Choice`. Every UI is validated before it renders.
+### 🧩 39 components
+From cards, tabs, accordions and steps to data grids, `Chart` (bar/hbar/line/area/pie/radar), `Scatter`, `Heatmap`, `Calendar`, `Map`, `Plot`, `Math`, `Mermaid`, `CodeDiff`, `Audio` and `Choice`. Every UI is validated before it renders.
 
 </td>
 <td valign="top">
@@ -178,6 +178,7 @@ Why these rules were kept after a real-model A/B against a rewritten decision or
 | Tool | Use it for | Rendering |
 |---|---|---|
 | `ui_render` | Structured answers | Native React components from a fixed catalog, rendered progressively as the JSON streams |
+| `ui_compose` | Interleaved prose and UI | One ordered answer mixing Markdown sections, native catalog blocks (patchable as `<uiId>#<blockId>`) and sandboxed widgets |
 | `ui_patch` | Changing a UI shown earlier | Component-level operations; untouched components keep their state ([details](#-updating-a-ui-in-place-ui_patch)) |
 | `ui_render_widget` | Custom visuals, 3D, simulations, mini-apps | HTML/CSS/JS in an opaque-origin sandboxed iframe: CSS first, HTML morphed in live, JS last, all in **one** iframe |
 
@@ -185,15 +186,15 @@ Why these rules were kept after a real-model A/B against a rewritten decision or
 
 | Category | Components |
 |---|---|
-| Layout | `Card`, `Stack`, `Grid`, `Tabs` (keyboard navigable) |
-| Text & callouts | `Text` (markdown subset), `Code`, `Alert`, `Badge`, `Divider` |
-| Data | `Stat`, `Progress`, `List`, `Timeline`, **`Table`** as a data grid: typed sorting (numbers, ISO dates, booleans), search, per-column filters, paging, CSV/Markdown export |
-| Charts | **`Chart`** (bar / line / area / pie, stacked, legend toggles, hover/tap/keyboard tooltips, data export), **`Scatter`** (continuous x/y), **`Heatmap`** (sequential or diverging scale, explicit missing cells) |
+| Layout | `Card`, `Stack`, `Grid` (with optional `gap`), `Tabs` (keyboard navigable), **`Accordion`**, **`Steps`** |
+| Text & callouts | `Text` (markdown subset), `Code`, `Alert`, `Badge`, `Divider`, **`EmptyState`**, **`Sources`** |
+| Data & schedule | `Stat`, `Progress`, `List`, `Timeline`, **`KeyValue`** (1–3 columns, computed-aware), **`Calendar`** (day / week / agenda views, explicit IANA time zone), **`Table`** as a data grid: typed sorting (numbers, ISO dates, booleans), search, per-column filters, paging, CSV/Markdown export |
+| Charts | **`Chart`** (bar / hbar / line / area / pie / radar, stacked, legend toggles, hover/tap/keyboard tooltips, data export), **`Scatter`** (continuous x/y), **`Heatmap`** (sequential or diverging scale, explicit missing cells) |
 | Maps | **`Map`** (markers, routes, groups; drag/keyboard pan and zoom; a built-in offline world outline, or the tile basemap you configure) |
-| Media | **`Image`** and **`Gallery`** (photos from https URLs, lazy and without a Referer, captions and linked credits, a modal full-size viewer with arrow keys; a broken photo shows its description); **`Video`** (YouTube / Bilibili / Vimeo links in the official player, loaded only after the user presses play, or a direct https .mp4/.webm with native controls; always a link to the original) |
+| Media | **`Image`** and **`Gallery`** (photos from https URLs, lazy and without a Referer, captions and linked credits, a modal full-size viewer with arrow keys; a broken photo shows its description); **`Video`** (YouTube / Bilibili / Vimeo links in the official player, loaded only after the user presses play, or a direct https .mp4/.webm with native controls; always a link to the original); **`Audio`** (https audio clip with native controls and fallback link) |
 | Math & diagrams | **`Plot`** (y = f(x) with sliders that redraw instantly; a safe expression compiler, never `eval`), **`Math`** (KaTeX), **`Mermaid`** |
 | Code & structure | **`CodeDiff`** (multi-file before/after or unified patch), **`FileTree`** (status badges), **`JsonView`** (JSONPath, copy) |
-| Interaction | `Button`, **`Choice`** (single-choice card), `Form` (text, number, range slider, select, checkbox, date, textarea) |
+| Interaction | `Button`, **`Choice`** (single or multi-select, `cards` or `chips`), **`FollowUp`** (suggested next prompts, current or new session), **`Segmented`** (local shared-state selector), `Form` (text, number, range slider, select/searchable select, checkbox, switch, tags, date, daterange, textarea) |
 
 - **Validated before it renders.** A UI travels as a flat node list with id references (DSH's tool schema has no recursion). The Host rejects unknown types or props, dangling or duplicate ids, cycles, shape mismatches (chart series, heatmap rows), non-finite numbers, uncompilable `Plot` expressions, out-of-range map coordinates and oversized data, returning `ok:false` with paths so the model fixes and retries.
 - **Text, never HTML.** Cells, code, JSON and labels render as React text. CSV export neutralises spreadsheet formula injection and is RFC 4180 with a UTF-8 BOM.
@@ -204,7 +205,7 @@ Why these rules were kept after a real-model A/B against a rewritten decision or
 
 `Choice` shows a question with option cards and two buttons. **Continue in this session** sends the picked option's prompt as your next message. **Start new session** creates a session in the same workspace, submits that prompt there and opens it; nothing from the current conversation is copied, so each option's prompt is self-contained. `Button` can do the same with `sessionTarget: "new"`. The launch is idempotent: a double click, a retry after a failure or a reload never starts the task twice.
 
-Roadmap and design notes for upcoming components (`Map`, `Calendar`): [docs/component-roadmap.md](docs/component-roadmap.md).
+Component roadmap and design notes: [docs/component-roadmap.md](docs/component-roadmap.md).
 
 ## 🔁 Updating a UI in place (`ui_patch`)
 
@@ -282,7 +283,9 @@ The bundle patch inserts the plugin row automatically. To change settings, add t
 |---|---|---|
 | `enableCatalog` | `true` | Register `ui_render` and `ui_patch` |
 | `enableWidget` | `true` | Register `ui_render_widget` |
+| `enableCompose` | `true` | Register `ui_compose` (requires at least one UI capability) |
 | `injectGuidance` | `true` | Add the "when to use UI" system-prompt section |
+| `lenientValidation` | `true` | Automatically normalize deterministic, lossless model schema mistakes (such as top-level props, option-level `sessionTarget` on `Choice`, `Alert.items`, or `Timeline.children`) with warnings instead of rejecting the whole UI |
 | `cdnAllowlist` | esm.sh, jsdelivr, unpkg | Origins widgets (and Math/Mermaid) may load resources from |
 | `allowNetwork` | `false` | Let widgets `fetch` and use WebSocket to those origins. Off still allows resource elements to reach them; use an empty `cdnAllowlist` to block external resource requests (self-navigation is still possible) |
 | `maxWidgetHeight` | `2400` | Maximum frame height (px) |
@@ -292,7 +295,7 @@ The bundle patch inserts the plugin row automatically. To change settings, add t
 | `mapTileUrl` | `''` | Raster tile template for `Map`, e.g. `https://tile.openstreetmap.org/{z}/{x}/{y}.png` (https with `{z}`/`{x}`/`{y}`). Empty: the offline outline. Follow the provider's tile usage policy |
 | `mapTileAttribution` | `''` | Attribution always shown on tiled maps, e.g. `© OpenStreetMap contributors` |
 | `mapTileMaxZoom` | `19` | Highest zoom the tile provider serves |
-| `mediaAllowedOrigins` | `[]` | If non-empty, the only https origins `Image`/`Gallery`/`Video` may load from (for platform videos, the player origin, e.g. `https://www.youtube-nocookie.com`, `https://player.bilibili.com`); others show a placeholder. Empty: any https source |
+| `mediaAllowedOrigins` | `[]` | If non-empty, the only https origins `Image`/`Gallery`/`Video`/`Audio` may load from (for platform videos, the player origin, e.g. `https://www.youtube-nocookie.com`, `https://player.bilibili.com`); others show a placeholder. Empty: any https source |
 
 ## 📊 Real-model quality baseline
 

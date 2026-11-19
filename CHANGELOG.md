@@ -6,6 +6,35 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.16]
+
+### Added
+
+- Issue #93 catalog component packages and upgrades (#95):
+  - Nine new built-in components (39 total): `Accordion`, `Steps`, `KeyValue` (1–3 columns, computed-aware), `EmptyState`, `FollowUp` (suggested next prompts in current or new sessions), `Sources` (cited https links), `Segmented` (shared-state selector driving `computed` formulas), `Calendar` (day/week/agenda views with explicit IANA time zones), and `Audio` (https audio player with `mediaAllowedOrigins` / offline fallback).
+  - Upgraded `Chart` with horizontal bars (`hbar`) and `radar`, `Choice` with multi-select (`multiple`, `minSelect`, `maxSelect`) and `chips` variant, and `Form` with `switch`, `tags`, `daterange` and searchable `select` fields.
+- DeepSeek Harness `0.2.2-rc.2` – `0.2.2-rc.5` (`latest`) compatibility verification (`src/compat.js`, `docs/compatibility.md`): added `0.2.2-rc.2`, `0.2.2-rc.3`, `0.2.2-rc.4` and `0.2.2-rc.5` to `TESTED_DSH_VERSIONS`, verified install smoke tests on all four and full browser E2E (including PTC `17a`/`17b` and `e2e:extensions:dsh`) on `0.2.2-rc.4` and `0.2.2-rc.5` (local Windows + 3-OS GitHub Actions CI).
+
+### Changed
+
+- CI streamlining and Node 24 engine alignment (#97):
+  - `.github/workflows/ci.yml` (`compat`) and `.github/workflows/release.yml` (`verify-published`) now run DSH `0.2.2+` (`latest`/`next`/`alpha`) on Node 24 (matching DSH `>=24.9.0`), keeping Node 22 for legacy pinned `0.1.7-rc.2` and `0.2.0-rc.1`.
+  - Standalone non-DSH browser suites (`e2e:controlled`, `e2e:security`, `e2e:extensions`) run once per OS inside `test · <os> · node 24` instead of repeating across every `compat` matrix cell.
+  - Streamlined pull-request `compat` jobs (moving non-gating `next`/`alpha` and legacy Windows cells to nightly, manual and release workflows) while keeping the full 3-OS × all-DSH matrix on nightly and release tags.
+- Synchronized `README.md`, `README.zh-CN.md`, `CONTRIBUTING.md`, `docs/compatibility.md` and `docs/controlled-data-actions.md` with the 39-component catalog, `ui_compose`, `enableCompose`, `lenientValidation`, linked fields and streamlined CI checks.
+
+### Fixed
+
+- Core, portable and client catalog fixes (#98):
+  - `src/portable/artifacts.js`: `projectNativeUiEvents` now consumes validated `meta.normalized` for `ui_render` and `ui_compose` so `lenientValidation`-normalized UIs are preserved for portable/remote clients instead of being silently dropped.
+  - `src/plugin.js` & `src/tools/patch.js`: always pass `config` to `createUiSessionProjection` and `collectUis` even when `enableCompose: false`, keeping `lenientValidation`-normalized `ui_render` UIs patchable.
+  - `src/compose/compose.js`: `compositionFieldKeys` now reads top-level `Form`/`Segmented` fields when `lenientValidation` is enabled so cross-block `computed` formulas resolve sibling lifted inputs.
+  - `client-src/catalog/components.tsx`: `FollowUpCard` passes per-chip launch recovery keys (`${nodeId}#${item.id ?? index}`) so clicking a second `sessionTarget: "new"` chip no longer collides in `new-session.ts`.
+  - `client-src/catalog/Chart.tsx`: `Radar` preserves `maxVal = 0` for all-`<= 0` series instead of replacing `0` with `1`, and `PieLegend` clamps negative values with `Math.max(0, v)` to match slice arcs.
+  - `client-src/catalog/Calendar.tsx`: resolves mixed date-only `start` + datetime `end` (including offset timestamps) consistently with Host `checkCalendar`, clamps inverted date-only spans, and guards non-array `hiddenGroups` state on legend buttons.
+  - `client-src/styles.ts`, `src/tools/render.js`, `src/config.js`: added `.diui-compose-salvaged` styles for salvaged Markdown prose in `ComposeView`, clarified `Table.filterValue` (`{{id}}`) vs `$computed` targets in `ui_render`, and listed `Audio` in `mediaAllowedOrigins` descriptions.
+- E2E reliability and DSH 0.2.2+ test coverage (#97): eliminated the `13j` YouTube iframe focus-steal flake and `7a` stop-generation race, stripped DSH 0.2.2+ injected runtime/system-reminder blocks in `mock-deepseek.mjs`, fixed DSH 0.2.2+ PTC (`17a`/`17b`, fail-closed `>= 0.2.2-0` SessionProjection gate) and Plugin Manager (`18`) E2E selectors, and adapted `tests/compat.test.js` for `dsh-app-boot@0.2.2` `issue.requirements`.
+
 ## [0.2.15]
 
 ### Added
@@ -266,7 +295,14 @@ All notable changes to this project are documented here. The format follows
   - The declarative component catalog (`ui_render`) and sandboxed streaming HTML widgets (`ui_render_widget`).
   - The `/ui` command and the guidance system-prompt section.
 
-[Unreleased]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.9...HEAD
+[Unreleased]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.16...HEAD
+[0.2.16]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.15...v0.2.16
+[0.2.15]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.14...v0.2.15
+[0.2.14]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.13...v0.2.14
+[0.2.13]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.12...v0.2.13
+[0.2.12]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.11...v0.2.12
+[0.2.11]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.10...v0.2.11
+[0.2.10]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.9...v0.2.10
 [0.2.9]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.6...v0.2.7

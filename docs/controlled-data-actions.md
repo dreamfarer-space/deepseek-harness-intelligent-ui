@@ -13,7 +13,7 @@ python3 -m http.server 8080 --bind 127.0.0.1
 
 Open `http://127.0.0.1:8080/examples/controlled-dashboard.html`. The example reads JSON once, registers it once, and uses the same `dataRef` in Table and Chart. Search, exact column filtering and ascending/descending sort update both locally. Table pagination does not truncate Chart data. Export downloads the filtered/sorted rows as CSV. Retry is a simulated write with a native confirmation and refreshes the registered dataset. It does not call GitHub or a model. A prompt Button still demonstrates the original host callback.
 
-After building, `npm run e2e:controlled` checks real Chromium clicks, parent approval, repeated filtered exports, cancellation recovery and uncertain-write deduplication. It starts its own loopback server; set `CHROME_PATH` if Chrome is not installed in a standard location. The compatibility CI runs this alongside the existing browser suite.
+After building, `npm run e2e:controlled` checks real Chromium clicks, parent approval, repeated filtered exports, cancellation recovery and uncertain-write deduplication. It starts its own loopback server; set `CHROME_PATH` if Chrome is not installed in a standard location. CI runs this once per OS in the Node 24 `test` jobs.
 
 ## Host contract
 
