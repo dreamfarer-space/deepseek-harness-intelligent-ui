@@ -31,7 +31,7 @@ describe('DSH compatibility range', () => {
   it.each(['0.1.5-rc.3', '0.1.6-alpha.2', '0.3.0-alpha.1', '0.3.0', '1.0.0'])('DSH %s refuses the plugin', (runtime) => {
     const issue = evaluatePluginCompatibility(manifest, {}, runtime)
     expect(issue?.exempted).toBe(false)
-    expect(Object.keys(issue.peers)).toContain('@deepseek-ai/dsh')
+    expect(Object.keys(issue.requirements ?? issue.peers)).toContain('@deepseek-ai/dsh')
   })
 
   it('keeps the package installable without a build step', () => {

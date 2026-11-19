@@ -114,8 +114,19 @@ async function moveMouse(x, y, steps = 1) {
 // ---- DSH helpers ---------------------------------------------------------------
 async function send(text) {
   const box = await page.waitForSelector('textarea, [contenteditable="true"]', { timeout: 15000 })
-  await box.click()
-  await page.keyboard.type(text, { delay: RECORD ? 18 : 0 })
+  const read = () => box.evaluate(el => (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') ? el.value : (el.textContent || ''))
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await box.click()
+    if (attempt > 0) {
+      const mod = process.platform === 'darwin' ? 'Meta' : 'Control'
+      await page.keyboard.down(mod)
+      await page.keyboard.press('a')
+      await page.keyboard.up(mod)
+      await page.keyboard.press('Backspace')
+    }
+    await page.keyboard.type(text, { delay: RECORD ? 18 : 0 })
+    if ((await read()).trim() === text.trim()) break
+  }
   await page.keyboard.press('Enter')
 }
 const busy = () => page.evaluate(() => !!document.querySelector('button[aria-label="停止生成"], button[aria-label="Stop generating"]'))
@@ -306,7 +317,16 @@ async function checkDataTools() {
     const before = await talk.evaluate(f => ({ frames: f.querySelectorAll('iframe').length, link: f.querySelector('.diui-video-open')?.href }))
     await (await talk.$('.diui-video-facade')).click()
     await sleep(200)
-    const after = await talk.evaluate(f => { const i = f.querySelector('iframe'); return i && { src: i.getAttribute('src'), sandbox: i.getAttribute('sandbox') } })
+    const after = await talk.evaluate(f => {
+      const i = f.querySelector('iframe')
+      if (!i) return null
+      const info = { src: i.getAttribute('src'), sandbox: i.getAttribute('sandbox') }
+      // Unmount the cross-origin autoplay iframe after inspecting its contract so it
+      // cannot finish loading mid-typing and steal focus from later composer inputs.
+      i.setAttribute('src', 'about:blank')
+      i.remove()
+      return info
+    })
     videoState = { played, before, after }
   }
   check('13j. video plays a direct file natively and loads a platform player only after play', videoState && videoState.played.width === 32 && videoState.played.time > 0 && !videoState.played.autoplay && videoState.played.preload === 'metadata'
@@ -489,8 +509,8 @@ async function checkPtcAndPluginManager() {
   // Click "New conversation" / "新对话" in the sidebar to return to the Hero screen where the preset chip lives.
   const newChatClicked = await page.evaluate(() => {
     const btn = [...document.querySelectorAll('button, a')].find(el =>
-      /^(New chat|New conversation|新对话|新建对话|开启新对话)$/i.test((el.textContent || '').trim())
-      || /New chat|New conversation|新对话|新建会话/i.test(el.getAttribute('aria-label') || el.getAttribute('title') || ''))
+      /^(New chat|New conversation|New Session|新对话|新建对话|开启新对话|新会话|新建会话)$/i.test((el.textContent || '').trim())
+      || /New chat|New conversation|New Session|新对话|新会话|新建会话/i.test(el.getAttribute('aria-label') || el.getAttribute('title') || ''))
     if (!btn) return false
     btn.click()
     return true
@@ -555,12 +575,17 @@ async function checkPtcAndPluginManager() {
     console.log('SKIP  17 · PTC preset chip not found (pre-0.2.2 DSH)')
   }
 
-  // Open the Settings / Plugin Inventory view if present in this DSH version (DSH 0.2.2+).
+  // Open the Plugin Manager (preferred on DSH 0.2.2+) or Settings view if present.
   const openedPlugins = await page.evaluate(() => {
-    const btn = [...document.querySelectorAll('button, [role="tab"], a, [role="menuitem"]')].find(el => {
-      const label = ((el.textContent || '') + ' ' + (el.getAttribute('aria-label') || '') + ' ' + (el.getAttribute('title') || '')).trim()
-      return /^(Plugins|插件|Settings|设置)$/i.test(label) || /插件|Plugins|设置|Settings/i.test(el.getAttribute('aria-label') || el.getAttribute('title') || '')
-    })
+    const candidates = [...document.querySelectorAll('button, [role="tab"], a, [role="menuitem"]')]
+    const matches = (el, exactRe, attrRe) => {
+      const txt = (el.textContent || '').trim()
+      const aria = (el.getAttribute('aria-label') || '').trim()
+      const title = (el.getAttribute('title') || '').trim()
+      return exactRe.test(txt) || exactRe.test(aria) || exactRe.test(title) || attrRe.test(aria) || attrRe.test(title)
+    }
+    const btn = candidates.find(el => matches(el, /^(Plugins|插件)$/i, /\bPlugins\b|插件/i))
+      || candidates.find(el => matches(el, /^(Settings|设置)$/i, /\bSettings\b|设置/i))
     if (!btn) return false
     btn.click()
     return true
@@ -568,26 +593,39 @@ async function checkPtcAndPluginManager() {
   if (openedPlugins) {
     await sleep(600)
     await page.evaluate(() => {
-      const tab = [...document.querySelectorAll('button, [role="tab"], a, li')].find(el =>
-        /^(插件|Plugins)$/i.test((el.textContent || '').trim()))
+      // Only click an inner Plugins tab (e.g. inside Settings); never re-click
+      // the sidebar Plugins panel button, which would toggle the panel closed.
+      if (document.querySelector('[data-plugin-bar], [data-plugin-package]')) return
+      const tab = [...document.querySelectorAll('[role="tab"]')].find(el =>
+        /^(插件|Plugins|已安装|Installed)$/i.test((el.textContent || '').trim()))
       tab?.click()
     })
     await caption('18 · DSH 0.2.2 Plugin / Settings UI showing deepseek-harness-intelligent-ui active')
     const pluginState = await waitFor(() => page.evaluate(() => {
-      const entry = [...document.querySelectorAll('h2, h3, div, span, section, li')].find(el =>
+      const pkgCard = document.querySelector('[data-plugin-package="deepseek-harness-intelligent-ui"]')
+      if (pkgCard) {
+        const status = pkgCard.getAttribute('data-plugin-status') || ''
+        const text = (pkgCard.textContent || '').replace(/\s+/g, ' ').trim()
+        const active = status
+          ? /^(running|active|enabled)$/i.test(status)
+          : !/已禁用|未运行|异常|Disabled|Not running|Problem/i.test(text)
+        return { ok: active, detail: `${status ? `[${status}] ` : ''}${text}`.slice(0, 160) }
+      }
+      const entry = [...document.querySelectorAll('h2, h3, button, div, span, section, li')].find(el =>
         /deepseek-harness-intelligent-ui|智能界面 Intelligent UI|DeepSeek Harness 智能 UI|DeepSeek Harness Intelligent UI/i.test((el.textContent || '').trim())
         && (el.textContent || '').length < 240)
       if (!entry) return null
       const card = entry.closest('li, article, section, div') || entry
       const text = (card.textContent || '').replace(/\s+/g, ' ').trim()
-      const active = !/已禁用|Disabled/i.test(text)
+      const active = !/已禁用|未运行|异常|Disabled|Not running|Problem/i.test(text)
       return { ok: active, detail: text.slice(0, 160) }
-    }), 5000)
+    }), 10000)
     if (pluginState) {
       await page.evaluate(() => {
-        const target = [...document.querySelectorAll('h2, h3, div, span, section')].find(el =>
-          /deepseek-harness-intelligent-ui|智能界面 Intelligent UI|DeepSeek Harness 智能 UI|DeepSeek Harness Intelligent UI|已安装插件|Installed plugins/i.test((el.textContent || '').trim())
-          && (el.textContent || '').length < 120)
+        const target = document.querySelector('[data-plugin-package="deepseek-harness-intelligent-ui"]')
+          || [...document.querySelectorAll('h2, h3, button, div, span, section')].find(el =>
+            /deepseek-harness-intelligent-ui|智能界面 Intelligent UI|DeepSeek Harness 智能 UI|DeepSeek Harness Intelligent UI|已安装插件|Installed plugins/i.test((el.textContent || '').trim())
+            && (el.textContent || '').length < 120)
         target?.scrollIntoView({ block: 'center' })
       })
       check('18. DSH Settings / Plugin UI lists deepseek-harness-intelligent-ui as installed and active',
@@ -871,16 +909,25 @@ check('6c. earlier widgets/UIs keep their state while new ones arrive', keptR.R 
 // 7) Interrupted generation.
 await caption('6 · Stopping mid-generation keeps a static preview and offers to regenerate')
 await send('Animate the solar system orbits')
-await waitFor(() => page.$('iframe.diui-frame[title="Solar system orbits"][data-mode=preview]'), 20000, 100)
-await sleep(1200)
-await page.evaluate(() => document.querySelector('button[aria-label="停止生成"], button[aria-label="Stop generating"]')?.click())
-await waitIdle()
+const slowPreview = await waitFor(() => page.$('iframe.diui-frame[title="Solar system orbits"][data-mode=preview]'), 20000, 100)
+await waitFor(busy, 5000, 50)
+const stopClicked = await page.evaluate(() => {
+  const btn = document.querySelector('button[aria-label="停止生成"], button[aria-label="Stop generating"]')
+  if (!btn) return false
+  btn.click()
+  return true
+})
+try {
+  await waitIdle()
+} finally {
+  writeFileSync(`${mockLog}.slow-preview`, 'stopped')
+}
 await sleep(600)
 const stopped = await page.evaluate(() => {
   const s = [...document.querySelectorAll('.diui-shell')].find(x => x.querySelector('.diui-shell-title')?.textContent === 'Solar system orbits' && x.querySelector('.diui-shell-body'))
   return s && { state: s.dataset.state, notice: s.querySelector('.diui-shell-notice')?.textContent ?? '', frame: s.querySelector('iframe')?.dataset.mode ?? null, regenerate: !!s.querySelector('.diui-head-button') }
 })
-check('7a. stopped generation degrades gracefully (static preview + notice + regenerate)', stopped && stopped.state === 'stopped' && stopped.regenerate, JSON.stringify(stopped))
+check('7a. stopped generation degrades gracefully (static preview + notice + regenerate)', !!slowPreview && stopClicked && stopped && stopped.state === 'stopped' && stopped.regenerate, `${JSON.stringify(stopped)} preview=${!!slowPreview} stopClicked=${stopClicked}`)
 await shot('10-stopped.png')
 await page.evaluate(() => [...document.querySelectorAll('.diui-shell')].find(x => x.dataset.state === 'stopped')?.querySelector('.diui-head-button')?.click())
 await waitIdle()

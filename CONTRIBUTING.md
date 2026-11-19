@@ -56,16 +56,16 @@ CI also runs `scripts/ci/check-pack.mjs`, which enforces the packed-package cont
 - Keep a PR focused. Describe the problem and the resulting behaviour, list what you ran to verify it, and disclose anything you did not verify.
 - Link an issue with `Closes #123` when the PR resolves one.
 - Do not force-push a branch someone is reviewing, and never move or delete a release tag.
-- `main` is protected: the repository rules reject direct pushes and require a pull request. Twelve status checks are required for merge.
+- `main` is protected: the repository rules reject direct pushes and require a pull request. Ten status checks are required for merge.
 
 ## Required checks
 
-Pull requests run a reduced matrix; the same names appear on every PR.
+Pull requests run a streamlined matrix; the same names appear on every PR.
 
-- Five `test · <os> · node <version>` jobs: Ubuntu and Windows on Node 22.13.0 and 24, macOS on Node 24.
-- Seven `dsh` compatibility jobs: `0.1.7-rc.2`, `0.2.0-rc.1` and `latest` on Ubuntu, the same three on Windows, and `latest` on macOS.
+- Five `test · <os> · node <version>` jobs: Ubuntu and Windows on Node 22.13.0 and 24, macOS on Node 24. The Node 24 jobs also run the standalone browser suites (`e2e:controlled`, `e2e:security`, `e2e:extensions`) once per OS.
+- Five `dsh` compatibility jobs: `0.1.7-rc.2`, `0.2.0-rc.1` and `latest` on Ubuntu, plus `latest` on Windows and macOS.
 
-`dsh next` and `dsh alpha` also run on Ubuntu and Windows but are allowed to fail; they are an early warning, not a merge gate. Nightly, manual and release runs expand to the full matrix.
+Legacy Windows cells (`0.1.7-rc.2`, `0.2.0-rc.1`), `macos-latest` on Node 22.13.0, and prerelease `dsh next` / `dsh alpha` cells (which are allowed to fail as an early warning) run on nightly, manual and release workflows.
 
 When adding DSH support, keep `SUPPORTED_DSH_RANGE` and the `package.json` peer ranges aligned, and update `TESTED_DSH_VERSIONS` together with the CI matrix — see `docs/compatibility.md`.
 

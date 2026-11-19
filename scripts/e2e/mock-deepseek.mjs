@@ -13,14 +13,15 @@ const LOG = process.argv[3]
 const WAIT_FOR_PREVIEW = process.argv.includes('--wait-for-preview')
 const log = (o) => { const s = JSON.stringify(o); console.log(s); if (LOG) appendFileSync(LOG, s + '\n') }
 
-function previewDelay(kind) {
+function previewDelay(kind, isClosed = () => false) {
   if (!WAIT_FOR_PREVIEW || !LOG) return 1500
-  // Hold only the mock stream until the driver observes the real partial UI.
+  // Hold only the mock stream until the driver observes the real partial UI
+  // (or cancels the request, e.g. Stop generating in the `slow` scenario).
   // Bound the wait so a missing preview remains a test failure, not a hang.
   return new Promise(resolve => {
     const deadline = Date.now() + 20000
     const poll = () => {
-      if (existsSync(`${LOG}.${kind}-preview`) || Date.now() >= deadline) resolve(40)
+      if (isClosed() || existsSync(`${LOG}.${kind}-preview`) || Date.now() >= deadline) resolve(40)
       else setTimeout(poll, 100)
     }
     poll()
@@ -61,6 +62,16 @@ function toolEvents(model, name, input, chunk = 40) {
 }
 
 const textOf = content => typeof content === 'string' ? content : (content || []).map(b => b.type === 'text' ? b.text : '').join('')
+// DSH 0.2.2+ appends synthetic "Current runtime context." and "<system-reminder>"
+// blocks (workspace paths, installed skills, etc.) to user messages; exclude them
+// when matching scripted user prompts.
+const stripInjected = s => String(s || '').replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '')
+const userTextOf = content => typeof content === 'string'
+  ? stripInjected(content)
+  : (content || [])
+      .filter(b => b.type === 'text' && !/^(Current runtime context\.|<system-reminder>)/.test(String(b.text || '').trimStart()))
+      .map(b => stripInjected(b.text))
+      .join('')
 
 /** Pick the scripted answer for the latest user text. */
 function decide(lastText, tools) {
@@ -128,7 +139,7 @@ createServer((req, res) => {
     const tools = (b.tools || []).map(t => t.name)
     const system = typeof b.system === 'string' ? b.system : (b.system || []).map(s => s.text).join('\n')
     const last = b.messages[b.messages.length - 1]
-    const lastText = textOf(last.content)
+    const lastText = userTextOf(last.content)
     const toolResult = Array.isArray(last.content) && last.content.find(c => c.type === 'tool_result')
     // The most recent tool call, to phrase the closing sentence.
     const prev = b.messages[b.messages.length - 2]
@@ -201,7 +212,21 @@ createServer((req, res) => {
           return 40
         })
       }
-      case 'slow': return sse(res, toolEvents(model, 'ui_render_widget', SLOW, 24), 220)
+      case 'slow': {
+        // Hold the stream open once the previewable HTML has arrived so the
+        // driver can reliably click Stop before the tool call finishes.
+        const checkpoint = JSON.stringify(SLOW).indexOf(',"jsFunctions":')
+        let streamed = 0
+        let paused = false
+        return sse(res, toolEvents(model, 'ui_render_widget', SLOW, 40), event => {
+          streamed += event.delta.partial_json.length
+          if (!paused && streamed >= checkpoint) {
+            paused = true
+            return previewDelay('slow', () => res.writableEnded || res.destroyed)
+          }
+          return 40
+        })
+      }
       case 'explain-sphere': return sse(res, textEvents(model, explainSphere(lastText)), 20)
       case 'regenerate': return sse(res, toolEvents(model, 'ui_render_widget', SLOW, 80), 15)
       case 'after-tool': return sse(res, textEvents(model, AFTER[lastTool] ?? 'Shown above.'), 20)
