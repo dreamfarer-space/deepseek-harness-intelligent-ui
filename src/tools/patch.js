@@ -55,7 +55,8 @@ async function conversationUis(exec, config, getProjection) {
       derived = collectUis(session.deriveMessages(), {
         render: RENDER_TOOL,
         patch: PATCH_TOOL,
-        ...(config.enableCompose !== false ? { compose: COMPOSE_TOOL, config } : {}),
+        config,
+        ...(config.enableCompose !== false ? { compose: COMPOSE_TOOL } : {}),
       });
     } catch { /* preserve projected state if deriveMessages fails */ }
   }

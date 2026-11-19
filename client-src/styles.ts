@@ -306,6 +306,7 @@ export const STYLES = `
 .diui-compose>.diui-render{padding:0}
 .diui-compose-widget-head{font-weight:600;font-size:13px;margin-bottom:6px}
 .diui-compose-pointer{font-size:12px;color:var(--ui-muted);border:1px dashed var(--ui-border);border-radius:var(--ui-radius);padding:6px 10px}
+.diui-compose-salvaged{display:flex;flex-direction:column;gap:10px;padding:10px 14px 12px;border-bottom:1px solid var(--ui-border)}
 .diui-md{font-size:14px;line-height:1.65;overflow-wrap:anywhere}
 .diui-md>:first-child{margin-top:0}
 .diui-md>:last-child{margin-bottom:0}
@@ -327,7 +328,7 @@ export const STYLES = `
 .diui-md a{color:var(--ui-accent)}
 .diui-md hr{border:0;border-top:1px solid var(--ui-border);margin:1em 0}
 .diui-md img{max-width:100%}
-@media (max-width:560px){.diui-compose{padding:2px 10px 10px}}
+@media (max-width:560px){.diui-compose{padding:2px 10px 10px}.diui-compose-salvaged{padding:8px 10px 10px}}
 .diui-node-error{font-size:12px;color:var(--ui-error);border:1px dashed var(--ui-error);border-radius:var(--ui-radius);padding:6px 8px}
 .diui-sort{margin-left:4px;opacity:.45;font-size:11px}
 th[aria-sort] .diui-sort{opacity:1;color:var(--ui-accent)}

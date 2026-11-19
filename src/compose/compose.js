@@ -70,18 +70,30 @@ const BLOCK_FIELDS = Object.freeze({
  * @param {unknown} components
  * @param {Set<string>} into
  */
-function collectFieldKeys(components, into) {
+function collectFieldKeys(components, into, lenient = false) {
   if (!Array.isArray(components)) return into;
   for (const node of components) {
-    if (!isPlainObject(node) || !isPlainObject(node.props)) continue;
+    if (!isPlainObject(node)) continue;
+    const rawProps = isPlainObject(node.props) ? node.props : undefined;
+    if (!rawProps && !lenient) continue;
+    const hasId = (typeof node.id === 'string' && node.id !== '')
+      || (lenient && ((typeof node.key === 'string' && node.key.trim() !== '') || (typeof node.name === 'string' && node.name.trim() !== '')));
+    const propOf = (key) => {
+      if (rawProps && Object.hasOwn(rawProps, key) && rawProps[key] !== undefined) return rawProps[key];
+      if (lenient && hasId && Object.hasOwn(node, key)) return node[key];
+      return undefined;
+    };
     if (node.type === 'Segmented') {
-      if (typeof node.props.bindKey === 'string' && node.props.bindKey) into.add(node.props.bindKey);
+      const bindKey = propOf('bindKey');
+      if (typeof bindKey === 'string' && bindKey) into.add(bindKey);
       continue;
     }
     if (node.type !== 'Form') continue;
-    const fields = Array.isArray(node.props.fields) ? node.props.fields : [];
+    const rawFields = propOf('fields');
+    const fields = Array.isArray(rawFields) ? rawFields : [];
+    const formBindKey = propOf('bindKey');
     // A form-level bindKey names the value of a single-field form only.
-    if (fields.length === 1 && typeof node.props.bindKey === 'string' && node.props.bindKey) into.add(node.props.bindKey);
+    if (fields.length === 1 && typeof formBindKey === 'string' && formBindKey) into.add(formBindKey);
     for (const field of fields) {
       if (!isPlainObject(field)) continue;
       if (typeof field.bindKey === 'string' && field.bindKey) into.add(field.bindKey);
@@ -95,13 +107,14 @@ function collectFieldKeys(components, into) {
  * Field keys readable by every catalog block of a composition, i.e. the shared
  * scope a block's formulas may name even when the Form lives in another block.
  * @param {readonly any[]} blocks
+ * @param {boolean} [lenient]
  * @returns {Set<string>}
  */
-export function compositionFieldKeys(blocks) {
+export function compositionFieldKeys(blocks, lenient = false) {
   const keys = new Set();
   if (!Array.isArray(blocks)) return keys;
   for (const block of blocks) {
-    if (isPlainObject(block) && block.type === 'catalog') collectFieldKeys(block.components, keys);
+    if (isPlainObject(block) && block.type === 'catalog') collectFieldKeys(block.components, keys, lenient);
   }
   return keys;
 }
@@ -156,7 +169,7 @@ export function validateComposition(args, config, capabilities = {}) {
   let total = 0;
   // One scope for the whole answer: a formula in any catalog block may read the
   // form fields another block publishes (Issue #84, Phase 2).
-  const fieldKeys = compositionFieldKeys(args.blocks);
+  const fieldKeys = compositionFieldKeys(args.blocks, lenient);
   // ... and one `computed` scope too: a repeated id would be resolved by the
   // first block that declared it, so the second block's formula would silently
   // show the sibling's number. Reject the ambiguity instead.

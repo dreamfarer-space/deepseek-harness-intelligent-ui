@@ -82,6 +82,16 @@ function inZone(ms: number, timeZone: string): Moment | undefined {
   }
 }
 
+function parseTimed(raw: string, timeZone: string): Moment | undefined {
+  const m = DATE_TIME.exec(raw)
+  if (!m) return undefined
+  if (ABSOLUTE.test(raw)) {
+    const ms = instantOf(raw)
+    return ms === undefined ? undefined : inZone(ms, timeZone)
+  }
+  return { date: `${m[1]}-${m[2]}-${m[3]}`, min: Number(m[4]) * 60 + Number(m[5]) }
+}
+
 /**
  * Resolve one event into the calendar's time zone.
  * A date-only event is all-day. A timed event without an offset is a
@@ -93,27 +103,21 @@ function resolve(ev: CalendarEvent, timeZone: string): Resolved | undefined {
   const endRaw = String(ev.end ?? '').trim()
   if (!startRaw) return undefined
   if (DATE_ONLY.test(startRaw)) {
-    const endDate = DATE_ONLY.test(endRaw) ? endRaw : startRaw
-    return { ev, allDay: true, start: { date: startRaw, min: 0 }, end: { date: endDate, min: 1440 } }
+    if (!endRaw || DATE_ONLY.test(endRaw)) {
+      const endDate = DATE_ONLY.test(endRaw) && endRaw >= startRaw ? endRaw : startRaw
+      return { ev, allDay: true, start: { date: startRaw, min: 0 }, end: { date: endDate, min: 1440 } }
+    }
+    const timedEnd = parseTimed(endRaw, timeZone)
+    if (timedEnd && (timedEnd.date > startRaw || (timedEnd.date === startRaw && timedEnd.min > 0))) {
+      return { ev, allDay: false, start: { date: startRaw, min: 0 }, end: timedEnd }
+    }
+    return { ev, allDay: true, start: { date: startRaw, min: 0 }, end: { date: startRaw, min: 1440 } }
   }
-  const m = DATE_TIME.exec(startRaw)
-  if (!m) return undefined
-  let start: Moment | undefined
-  if (ABSOLUTE.test(startRaw)) {
-    const ms = instantOf(startRaw)
-    if (ms !== undefined) start = inZone(ms, timeZone)
-  } else start = { date: `${m[1]}-${m[2]}-${m[3]}`, min: Number(m[4]) * 60 + Number(m[5]) }
+  const start = parseTimed(startRaw, timeZone)
   if (!start) return undefined
   let end: Moment
   if (DATE_ONLY.test(endRaw)) end = { date: endRaw, min: 1440 }
-  else {
-    const em = DATE_TIME.exec(endRaw)
-    if (!em) end = { date: start.date, min: Math.min(1440, start.min + 30) }
-    else if (ABSOLUTE.test(endRaw)) {
-      const ms = instantOf(endRaw)
-      end = ms === undefined ? { date: start.date, min: Math.min(1440, start.min + 30) } : (inZone(ms, timeZone) ?? { date: start.date, min: Math.min(1440, start.min + 30) })
-    } else end = { date: `${em[1]}-${em[2]}-${em[3]}`, min: Number(em[4]) * 60 + Number(em[5]) }
-  }
+  else end = parseTimed(endRaw, timeZone) ?? { date: start.date, min: Math.min(1440, start.min + 30) }
   // A range that ends before it starts (or on an earlier day) still needs a
   // visible length, otherwise the event would collapse to nothing.
   if (end.date < start.date || (end.date === start.date && end.min <= start.min)) end = { date: start.date, min: Math.min(1440, start.min + 30) }
@@ -376,9 +380,12 @@ export function Calendar(props: CalendarProps) {
               key={g}
               type="button"
               className="diui-legend-item"
-              aria-pressed={!hiddenGroups.includes(g)}
-              data-off={hiddenGroups.includes(g) ? '' : undefined}
-              onClick={() => setHiddenGroups(h => (h.includes(g) ? h.filter(x => x !== g) : [...h, g]))}
+              aria-pressed={!hiddenList.includes(g)}
+              data-off={hiddenList.includes(g) ? '' : undefined}
+              onClick={() => setHiddenGroups(h => {
+                const list = Array.isArray(h) ? h : []
+                return list.includes(g) ? list.filter(x => x !== g) : [...list, g]
+              })}
             >
               <i style={{ background: PALETTE[i % PALETTE.length] }} />{g}
             </button>
