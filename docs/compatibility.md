@@ -15,16 +15,16 @@ The peers are marked optional in `peerDependenciesMeta` because DSH itself provi
 
 Every push and pull request, and a nightly run (`.github/workflows/ci.yml`), cover:
 
-- **Unit and component tests, typecheck, bundle freshness, package contents.** Matrix: Windows, Linux, macOS × Node 22.13 and 24. `tests/compat.test.js` runs DSH's real compatibility gate against `package.json` for every tested version, plus versions just outside the range.
-- **Compatibility matrix.** Matrix: Windows, Linux, macOS × DSH `0.1.7-rc.2`, `0.2.0-rc.1`, `latest`, `next`, `alpha`. Each cell:
+- **Unit and component tests, typecheck, bundle freshness, package contents, standalone browser suites.** Matrix: Windows, Linux, macOS × Node 22.13 and 24. `tests/compat.test.js` runs DSH's real compatibility gate against `package.json` for every tested version, plus versions just outside the range. The Node 24 job runs `e2e:controlled`, `e2e:security` and `e2e:extensions` once per OS.
+- **Compatibility matrix.** Matrix: Windows, Linux, macOS × DSH `0.1.7-rc.2`, `0.2.0-rc.1`, `latest`, `next`, `alpha` (Node 22 for `<= 0.2.0-rc.1`, Node 24 for `latest`/`next`/`alpha`). Each cell:
   1. installs that DSH globally;
   2. runs `npm pack`;
   3. runs `scripts/ci/smoke.mjs`, which installs the tarball with `dsh plugin add`, checks the version gate, profile manifest, bundle row (`--dump-config`) and shipped client bundle, then boots DSH Web and scans the log;
-  4. runs the full browser E2E (`scripts/e2e/run-all.mjs --spec <tgz>`): 24 checks against real DSH Web with the scripted mock model.
+  4. runs the full browser E2E (`scripts/e2e/run-all.mjs --spec <tgz>`): 51–52 checks against real DSH Web with the scripted mock model, plus `e2e:extensions:dsh`.
 
   `latest`, `next` and `alpha` resolve at run time, so the nightly run catches new DSH releases. `next` and `alpha` cells are allowed to fail; they are an early warning, not a gate.
 
-  macOS runners are scarce, so pull requests and pushes to `main` run macOS only on Node 24 and DSH `latest`. The nightly run, manual runs and the Release workflow run every cell.
+  Pull requests and pushes to `main` run a streamlined matrix (macOS on Node 24 + DSH `latest`, Windows on DSH `latest`, Ubuntu on `0.1.7-rc.2`, `0.2.0-rc.1` and `latest`). The nightly run, manual runs and the Release workflow run every cell.
 
 Each release also installs the **published** package from npm on all three OSes (`.github/workflows/release.yml`).
 
@@ -59,6 +59,15 @@ Each release also installs the **published** package from npm on all three OSes 
 |---|---|---|---|---|
 | 0.2.2-rc.1 (`latest`, cordis 4.1.0) | pass | pass (52/52) | pass | pass |
 | `master` source (`fcc0ad4621`, cordis 4.1.0) | pass | pass (51/51) | pass | pass |
+
+### Local & CI verification (2026-11-19, Node 24.22.2 on Windows + GitHub Actions 3-OS CI)
+
+| DSH (cordis) | Install smoke test (9 checks) | Browser E2E (incl. PTC `17a`/`17b`) | DSH extension E2E |
+|---|---|---|---|
+| 0.2.2-rc.2 (cordis 4.1.0) | pass (local Windows) | — | — |
+| 0.2.2-rc.3 (cordis 4.1.0) | pass (local Windows) | — | — |
+| 0.2.2-rc.4 (cordis 4.1.0) | pass (local Windows) | pass (51/51 local Windows) | pass (local Windows) |
+| 0.2.2-rc.5 (`latest`/`next`, cordis 4.1.0) | pass (local Windows + 3-OS CI) | pass (51/51 local Windows; 52/52 Ubuntu/macOS/Windows CI) | pass (local Windows + 3-OS CI) |
 
 **Known API differences between DSH versions:**
 

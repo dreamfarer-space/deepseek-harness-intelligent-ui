@@ -52,8 +52,8 @@ JSON 还在生成，组件就已出现。实时组件在**同一个** iframe 中
 <tr>
 <td valign="top">
 
-### 🧩 26 种组件
-从卡片、标签页到数据表格、`Scatter`、`Heatmap`、`Plot`、`Math`、`Mermaid`、`CodeDiff` 和 `Choice`，渲染前先校验。
+### 🧩 39 种组件
+从卡片、标签页、折叠面板与步骤条到数据表格、`Chart`（柱状/横向柱状/折线/面积/饼图/雷达）、`Scatter`、`Heatmap`、`Calendar`、`Map`、`Plot`、`Math`、`Mermaid`、`CodeDiff`、`Audio` 和 `Choice`，渲染前先校验。
 
 </td>
 <td valign="top">
@@ -178,6 +178,7 @@ npx deepseek-harness-intelligent-ui doctor      # 只诊断，不做修改
 | 工具 | 适用场景 | 渲染方式 |
 |---|---|---|
 | `ui_render` | 结构化回答 | 固定目录中的原生 React 组件，随 JSON 流式渐进渲染 |
+| `ui_compose` | 图文混排回答 | 在单条回答中按顺序穿插 Markdown 正文、原生组件块（可通过 `<uiId>#<blockId>` 增量更新）与沙箱组件 |
 | `ui_patch` | 修改之前显示的界面 | 组件级操作，未改动的组件保留交互状态（[详情](#-原位增量更新ui_patch)） |
 | `ui_render_widget` | 自定义可视化、三维、模拟、小应用 | 不透明源沙箱 iframe 中的 HTML/CSS/JS：先 CSS，再实时 morph HTML，最后执行 JS，全程**一个** iframe |
 
@@ -185,15 +186,15 @@ npx deepseek-harness-intelligent-ui doctor      # 只诊断，不做修改
 
 | 类别 | 组件 |
 |---|---|
-| 布局 | `Card`、`Stack`、`Grid`、`Tabs`（支持键盘操作） |
-| 文本与提示 | `Text`（markdown 子集）、`Code`、`Alert`、`Badge`、`Divider` |
-| 数据 | `Stat`、`Progress`、`List`、`Timeline`；**`Table`** 数据表格：按类型排序（数值、ISO 日期、布尔）、搜索、按列筛选、分页、CSV/Markdown 导出 |
-| 图表 | **`Chart`**（柱状、折线、面积、饼图；可堆叠，图例显隐，悬停/点按/键盘提示，数据导出）、**`Scatter`**（连续坐标散点图）、**`Heatmap`**（顺序或发散色标，缺失值单独标识） |
+| 布局 | `Card`、`Stack`、`Grid`（支持 `gap`）、`Tabs`（支持键盘操作）、**`Accordion`**、**`Steps`** |
+| 文本与提示 | `Text`（markdown 子集）、`Code`、`Alert`、`Badge`、`Divider`、**`EmptyState`**、**`Sources`** |
+| 数据与日程 | `Stat`、`Progress`、`List`、`Timeline`、**`KeyValue`**（1–3 列，支持 `computed` 联动）、**`Calendar`**（日/周/日程视图，显式 IANA 时区）；**`Table`** 数据表格：按类型排序（数值、ISO 日期、布尔）、搜索、按列筛选、分页、CSV/Markdown 导出 |
+| 图表 | **`Chart`**（柱状、横向柱状 `hbar`、折线、面积、饼图、雷达 `radar`；可堆叠，图例显隐，悬停/点按/键盘提示，数据导出）、**`Scatter`**（连续坐标散点图）、**`Heatmap`**（顺序或发散色标，缺失值单独标识） |
 | 地图 | **`Map`**（地点标记、路线、分组；拖动/键盘平移缩放；内置离线世界轮廓，或使用你配置的瓦片底图） |
-| 媒体 | **`Image`** 与 **`Gallery`**（https 图片，懒加载且不发送 Referer，说明文字与可点击署名，模态大图查看器支持方向键；加载失败时显示图片描述）；**`Video`**（YouTube / Bilibili / Vimeo 链接用官方播放器，用户点击播放后才加载；或 https 直链 .mp4/.webm 原生播放；始终附原视频链接） |
+| 媒体 | **`Image`** 与 **`Gallery`**（https 图片，懒加载且不发送 Referer，说明文字与可点击署名，模态大图查看器支持方向键；加载失败时显示图片描述）；**`Video`**（YouTube / Bilibili / Vimeo 链接用官方播放器，用户点击播放后才加载；或 https 直链 .mp4/.webm 原生播放；始终附原视频链接）；**`Audio`**（https 音频原生播放与降级链接） |
 | 数学与图示 | **`Plot`**（y = f(x)，拖动滑块即时重绘；安全表达式编译器，不用 `eval`）、**`Math`**（KaTeX）、**`Mermaid`** |
 | 代码与结构 | **`CodeDiff`**（多文件新旧对比或 unified patch）、**`FileTree`**（状态徽标）、**`JsonView`**（JSONPath、复制） |
-| 交互 | `Button`、**`Choice`**（选择题卡片）、`Form`（文本、数字、范围滑块、下拉、勾选、日期、多行文本） |
+| 交互 | `Button`、**`Choice`**（单选/多选，`cards`/`chips` 样式）、**`FollowUp`**（后续探索建议芯片，支持当前或新开会话）、**`Segmented`**（本地共享状态分段切换）、`Form`（文本、数字、范围滑块、下拉/可搜索下拉、勾选、开关 `switch`、标签 `tags`、日期、日期区间 `daterange`、多行文本） |
 
 - **先校验再渲染。** DSH 的工具 schema 不支持递归，所以界面以扁平节点列表加 id 引用传输。Host 会拒绝未知类型或属性、悬空或重复的 id、环、形状不一致（图表系列、热力图行列）、非有限数值、无法编译的 `Plot` 表达式、越界的地图坐标和超限数据，返回 `ok:false` 并附出错路径，模型据此修正后重试。
 - **只渲染文本。** 单元格、代码、JSON 和标签都作为 React 文本渲染，不作为 HTML。CSV 导出遵循 RFC 4180，带 UTF-8 BOM，并防止表格公式注入。
@@ -204,7 +205,7 @@ npx deepseek-harness-intelligent-ui doctor      # 只诊断，不做修改
 
 `Choice` 显示一个问题、若干选项卡片和两个按钮。**在当前会话中继续**会把选中项的 prompt 作为下一条消息发送；**新开会话**会在同一工作区创建新会话、提交该 prompt 并跳转过去。新会话不会复制当前对话历史，所以每个选项的 prompt 都是自包含的。`Button` 设置 `sessionTarget: "new"` 也能做到同样的事。启动过程是幂等的：双击、失败后重试或刷新页面都不会把任务启动两次。
 
-后续组件（`Map`、`Calendar`）的路线图与设计说明：[docs/component-roadmap.md](docs/component-roadmap.md)。
+组件路线图与设计说明：[docs/component-roadmap.md](docs/component-roadmap.md)。
 
 ## 🔁 原位增量更新（`ui_patch`）
 
@@ -215,6 +216,7 @@ npx deepseek-harness-intelligent-ui doctor      # 只诊断，不做修改
 - **并发：** `baseVersion` 为必填；基于旧版本的补丁会被拒绝并告知当前版本，补丁不会并行执行。
 - **作用范围：** Host 不保存状态，而是重放本会话自己的历史来重建当前版本，所以补丁只能作用于同一会话中的界面。
 - **交互状态：** 组件 id 在各版本间不变，未被替换的组件保留排序、筛选、标签页、表单输入、提交锁定和滑块位置；被替换的组件状态重置。
+- **联动字段：** 补丁后的块会继续读取整条回答共享的字段池（`scope`），因此公式仍可跟随兄弟块发布的滑块或分段控件。只有当没有任何活跃输入再发布某个键时，被移除的字段才会失效；兄弟块仍在发布的键会保持活跃，已无生产者的键也不会再把旧值读成幽灵值。补丁不能引入*新的*字段键（可能与兄弟块的 `computed` id 冲突）——这类变更请重新渲染整个回答。
 - **显示：** 补丁流式生成时，上一版本保持可用；成功后新版本显示在回复下方，旧副本收起为“已更新为第 N 版”。被拒绝、失败或中断的补丁不改动任何内容。
 - **沙箱组件**会被重新渲染而不是打补丁，`UI.state` 依然保留。
 
@@ -281,7 +283,9 @@ npx deepseek-harness-intelligent-ui doctor      # 只诊断，不做修改
 |---|---|---|
 | `enableCatalog` | `true` | 注册 `ui_render` 和 `ui_patch` |
 | `enableWidget` | `true` | 注册 `ui_render_widget` |
+| `enableCompose` | `true` | 注册 `ui_compose`（至少需要开启一种 UI 能力） |
 | `injectGuidance` | `true` | 注入“何时使用 UI”的系统提示 |
+| `lenientValidation` | `true` | 宽容校验模式：对可恢复的模型结构偏差（如顶层属性平铺、Choice 选项级 `sessionTarget`、`Alert.items`、`Timeline.children`）自动归一化并降级为警告，避免整篇回答被拒重发 |
 | `cdnAllowlist` | esm.sh、jsdelivr、unpkg | 组件（以及 Math/Mermaid）可加载资源的来源 |
 | `allowNetwork` | `false` | 允许组件对上述来源发起 `fetch` 和 WebSocket。关闭时资源类元素仍可访问这些来源；要阻止外部资源请求（仍可发生自身导航）请把 `cdnAllowlist` 设为空 |
 | `maxWidgetHeight` | `2400` | iframe 最大高度（px） |
@@ -291,7 +295,7 @@ npx deepseek-harness-intelligent-ui doctor      # 只诊断，不做修改
 | `mapTileUrl` | `''` | `Map` 的栅格瓦片模板，例如 `https://tile.openstreetmap.org/{z}/{x}/{y}.png`（https，含 `{z}`/`{x}`/`{y}`）。留空则显示离线轮廓。请遵守瓦片服务商的使用政策 |
 | `mapTileAttribution` | `''` | 瓦片地图上始终显示的署名，例如 `© OpenStreetMap contributors` |
 | `mapTileMaxZoom` | `19` | 瓦片服务商提供的最大缩放级别 |
-| `mediaAllowedOrigins` | `[]` | 非空时，`Image`/`Gallery`/`Video` 只从这些 https 来源加载（平台视频按播放器来源，如 `https://www.youtube-nocookie.com`、`https://player.bilibili.com`），其他来源显示占位提示。留空：允许任意 https 来源 |
+| `mediaAllowedOrigins` | `[]` | 非空时，`Image`/`Gallery`/`Video`/`Audio` 只从这些 https 来源加载（平台视频按播放器来源，如 `https://www.youtube-nocookie.com`、`https://player.bilibili.com`），其他来源显示占位提示。留空：允许任意 https 来源 |
 
 ## 📊 真实模型质量基线
 

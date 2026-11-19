@@ -17,7 +17,7 @@ export const SUPPORTED_DSH_RANGE = '>=0.1.7-rc.1 <0.3.0-0 || >=0.2.0-0 <0.2.0 ||
 export const SUPPORTED_CORDIS_RANGE = '~4.0.4 || >=4.0.5-alpha.0 <5.0.0-0 || >=4.0.6-0 <4.0.6 || >=4.1.0-0 <4.1.0 || >=4.2.0-0 <4.2.0';
 
 /** Versions the CI compatibility matrix installs the packed plugin into. */
-export const TESTED_DSH_VERSIONS = Object.freeze(['0.1.7-rc.2', '0.2.0-rc.1', '0.2.0-rc.2', '0.2.1-alpha.2', '0.2.1-alpha.4', '0.2.1-alpha.5', '0.2.1-rc.2', '0.2.1-rc.3', '0.2.1-rc.4', '0.2.1-rc.5', '0.2.2-alpha.2', '0.2.2-alpha.3', '0.2.2-rc.1']);
+export const TESTED_DSH_VERSIONS = Object.freeze(['0.1.7-rc.2', '0.2.0-rc.1', '0.2.0-rc.2', '0.2.1-alpha.2', '0.2.1-alpha.4', '0.2.1-alpha.5', '0.2.1-rc.2', '0.2.1-rc.3', '0.2.1-rc.4', '0.2.1-rc.5', '0.2.2-alpha.2', '0.2.2-alpha.3', '0.2.2-rc.1', '0.2.2-rc.2', '0.2.2-rc.3', '0.2.2-rc.4', '0.2.2-rc.5']);
 
 /** Lowest Node.js version the plugin and DSH 0.1.7–0.2.1 require. */
 export const MIN_NODE_VERSION = '22.13.0';
