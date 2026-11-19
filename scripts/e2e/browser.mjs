@@ -9,6 +9,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import puppeteer from 'puppeteer-core'
+import semver from 'semver'
 import { gotoWithRetry, launchBrowser } from './dsh-web.mjs'
 
 const [url, outDir, mockLog] = process.argv.slice(2)
@@ -551,23 +552,31 @@ async function checkPtcAndPluginManager() {
         !!ptcRendered && ptcRendered.stats.includes('tool/ptc-dispatch') && ptcRendered.bars >= 3,
         JSON.stringify(ptcRendered))
 
-      await send('E2E ptc patch')
-      await waitIdle()
-      const ptcPatched = await waitFor(() => page.evaluate(() => {
-        const live = [...document.querySelectorAll('.diui-tail .diui-shell[data-state=ready]')].filter(x =>
-          x.querySelector('.diui-shell-body') && x.querySelector('.diui-shell-title')?.textContent === 'PTC pipeline monitor')
-        const s = live.at(-1)
-        return s && {
-          live: live.length,
-          status: s.querySelector('.diui-shell-status')?.textContent ?? '',
-          lines: s.querySelectorAll('.diui-chart-svg path[fill=none]').length,
-          bars: s.querySelectorAll('.diui-chart-svg rect[rx="2"]').length,
-        }
-      }), 25000)
-      check('17b. PTC mode ui_patch updates the PTC-created UI in place via SessionProjection',
-        !!ptcPatched && ptcPatched.live === 1 && /Version 2|第 2 版/.test(ptcPatched.status) && ptcPatched.lines >= 1 && ptcPatched.bars === 0,
-        JSON.stringify(ptcPatched))
-      if (ptcPatched) await shellShot('20-ptc-mode.png', 'PTC pipeline monitor')
+      // `sessionProjections` (required for `ui_patch` across PTC sub-calls) was added in DSH 0.2.2+.
+      const dshVersion = (process.env.E2E_DSH_VERSION || '').trim()
+      const supportsSessionProjection = !dshVersion || !semver.valid(dshVersion) || semver.gte(dshVersion, '0.2.2-0', { includePrerelease: true })
+      if (supportsSessionProjection) {
+        await send('E2E ptc patch')
+        await waitIdle()
+        const ptcPatched = await waitFor(() => page.evaluate(() => {
+          const live = [...document.querySelectorAll('.diui-tail .diui-shell[data-state=ready]')].filter(x =>
+            x.querySelector('.diui-shell-body') && x.querySelector('.diui-shell-title')?.textContent === 'PTC pipeline monitor')
+          const s = live.at(-1)
+          return s && {
+            live: live.length,
+            status: s.querySelector('.diui-shell-status')?.textContent ?? '',
+            lines: s.querySelectorAll('.diui-chart-svg path[fill=none]').length,
+            bars: s.querySelectorAll('.diui-chart-svg rect[rx="2"]').length,
+          }
+        }), 25000)
+        check('17b. PTC mode ui_patch updates the PTC-created UI in place via SessionProjection',
+          !!ptcPatched && ptcPatched.live === 1 && /Version 2|第 2 版/.test(ptcPatched.status) && ptcPatched.lines >= 1 && ptcPatched.bars === 0,
+          JSON.stringify(ptcPatched))
+        if (ptcPatched) await shellShot('20-ptc-mode.png', 'PTC pipeline monitor')
+      } else {
+        console.log(`SKIP  17b · SessionProjection requires DSH >= 0.2.2 (got ${dshVersion})`)
+        if (ptcRendered) await shellShot('20-ptc-mode.png', 'PTC pipeline monitor')
+      }
     } else {
       console.log('SKIP  17 · PTC menu item not found (pre-0.2.2 DSH)')
     }

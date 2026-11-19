@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { freePorts, installPlugin, kill, run, start, startDshWeb } from './dsh-web.mjs'
+import { DSH, capture, freePorts, installPlugin, kill, run, start, startDshWeb } from './dsh-web.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const arg = (name, fallback) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : fallback }
@@ -51,7 +51,11 @@ try {
   await new Promise(r => setTimeout(r, 1500))
 
   console.log('[4/5] browser checks')
-  const driver = run(process.execPath, [path.join(root, 'scripts/e2e/browser.mjs'), web.url, out, mockLog, ...(RECORD ? ['--record'] : [])], { check: false })
+  const dshVersion = String(capture(DSH, ['--version'], { env: { ...process.env, DSH_HOME: dshHome } }).stdout || '').trim()
+  const driver = run(process.execPath, [path.join(root, 'scripts/e2e/browser.mjs'), web.url, out, mockLog, ...(RECORD ? ['--record'] : [])], {
+    check: false,
+    env: { ...process.env, ...(dshVersion ? { E2E_DSH_VERSION: dshVersion } : {}) },
+  })
 
   if (RECORD && existsSync(path.join(out, 'frames', 'frames.txt'))) {
     console.log('[5/5] encode demo video')
