@@ -101,7 +101,16 @@ export function startDshWeb({ dshHome, port, mockPort, patches = [], timeoutMs =
   mkdirSync(documents, { recursive: true })
   const patch = path.join(dshHome, 'e2e-workspace.patch.yml')
   writeFileSync(patch, JSON.stringify([{ id: 'workspace-controller', config: { documentsDirectory: documents } }, ...patches]))
-  const model = mockPort ? { DEEPSEEK_API_KEY: 'mock', DEEPSEEK_BASE_URL: `http://127.0.0.1:${mockPort}` } : {}
+  const model = mockPort
+    ? {
+        DEEPSEEK_API_KEY: 'mock',
+        DEEPSEEK_BASE_URL: `http://127.0.0.1:${mockPort}`,
+        // Scripted mock E2E runs only our own fixture `run_code` snippets; bypass OS-level
+        // process sandboxing (e.g. bwrap / windows-acl restricted tokens) that headless CI
+        // and non-interactive Windows runners cannot always initialize.
+        DSH_PERMISSION_MODE: process.env.DSH_PERMISSION_MODE || 'danger-full-access',
+      }
+    : {}
   const child = start(DSH, ['--profile', 'web', '--patch', patch, '--no-open', '--port', String(port)], {
     env: { ...process.env, DSH_HOME: dshHome, ...model },
   })
