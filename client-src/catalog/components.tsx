@@ -225,7 +225,7 @@ function Component({ node, env, children }: { node: UiNode; env: RenderEnv; chil
     case 'Mermaid':
       return env.streaming
         ? <pre className="diui-code diui-src-preview">{p.code}</pre>
-        : <LibFrame kind="mermaid" source={p.code} surfaceId={`${env.callId ?? ''}:${node.id}`} policy={env.policy} title={env.t('lib.diagram')} />
+        : <LibFrame kind="mermaid" source={p.code} surfaceId={`${env.callId ?? ''}:${node.id}`} policy={env.policy} title={env.t('lib.diagram')} loadingText={env.t('lib.diagramLoading')} />
     case 'Accordion':
       return <Accordion title={p.title} multiple={p.multiple} items={p.items} env={env} nodeId={node.id}>{children}</Accordion>
     case 'Steps':

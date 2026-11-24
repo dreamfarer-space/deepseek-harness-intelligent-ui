@@ -43,8 +43,140 @@ export function libSources(policy: WidgetPolicy): (typeof SOURCES)[string] | und
   return origin ? SOURCES[origin] : undefined
 }
 
+const DEFAULT_DIAGRAM_LOADING = 'Rendering diagram…'
+const MERMAID_LOADING_DELAY_MS = 180
+
+interface MermaidModule {
+  initialize: (opts: { startOnLoad: boolean; securityLevel: string; theme: string; fontFamily: string }) => void
+  render: (id: string, source: string) => Promise<{ svg?: string } | undefined>
+}
+
+interface FrameUiApi {
+  scheme: string
+  css: (name: string) => string
+  onTheme: (cb: () => void) => void
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]!))
+}
+
+/**
+ * Self-contained Mermaid lifecycle executed inside the opaque-origin iframe
+ * (serialized via `.toString()`) and called directly in unit tests.
+ * Must stay free of module-level imports or closure references.
+ */
+export function runMermaidFrame(
+  doc: Document,
+  ui: FrameUiApi,
+  load: () => Promise<MermaidModule | { default?: MermaidModule }>,
+  source: string,
+  delayMs = 180,
+): Promise<void> {
+  var root = doc.getElementById('ui-root')
+  var out = doc.getElementById('out')
+  var status = doc.getElementById('lib-status')
+  var loading = doc.getElementById('lib-loading')
+  var seq = 0
+  var settled = false
+  var timer: ReturnType<typeof setTimeout> | null = null
+
+  function setState(state: 'loading' | 'ready' | 'fallback') {
+    if (root) root.setAttribute('data-lib-state', state)
+  }
+
+  function clearLoading() {
+    settled = true
+    if (timer !== null) {
+      clearTimeout(timer)
+      timer = null
+    }
+    if (loading && loading.parentNode) {
+      loading.parentNode.removeChild(loading)
+    }
+    loading = null
+  }
+
+  function fallback(e: unknown) {
+    clearLoading()
+    setState('fallback')
+    if (out) {
+      out.className = 'src'
+      out.textContent = source
+    }
+    if (status) {
+      var msg = e && typeof e === 'object' && 'message' in e ? (e as { message?: unknown }).message : ''
+      status.textContent = 'Static fallback: library could not render. ' + (msg || '')
+    }
+    if (e) console.warn(e)
+  }
+
+  setState('loading')
+  if (loading) {
+    if (delayMs > 0) {
+      timer = setTimeout(function () {
+        timer = null
+        if (!settled && loading) loading.hidden = false
+      }, delayMs)
+    } else {
+      loading.hidden = false
+    }
+  }
+
+  return Promise.resolve()
+    .then(function () {
+      return load()
+    })
+    .then(function (m) {
+      var mm = (m && 'default' in m && m.default ? m.default : m) as MermaidModule
+      function draw() {
+        var mySeq = ++seq
+        return Promise.resolve()
+          .then(function () {
+            mm.initialize({
+              startOnLoad: false,
+              securityLevel: 'strict',
+              theme: ui.scheme === 'dark' ? 'dark' : 'default',
+              fontFamily: ui.css('font'),
+            })
+            return mm.render('m' + mySeq, source)
+          })
+          .then(function (r) {
+            if (mySeq !== seq) return
+            if (!r || typeof r.svg !== 'string' || !r.svg) {
+              throw new Error('Mermaid returned empty SVG')
+            }
+            clearLoading()
+            if (out) {
+              out.className = ''
+              out.innerHTML = r.svg
+            }
+            if (status) status.textContent = ''
+            setState('ready')
+          })
+          .catch(function (e) {
+            if (mySeq !== seq) return
+            fallback(e)
+          })
+      }
+
+      ui.onTheme(function () {
+        draw()
+      })
+      return draw()
+    })
+    .catch(function (e) {
+      fallback(e)
+    })
+}
+
 /** Frame payload for one library render. Exported for tests. */
-export function libPayload(kind: 'math' | 'mermaid', source: string, opts: { display?: boolean }, src: (typeof SOURCES)[string]) {
+export function libPayload(
+  kind: 'math' | 'mermaid',
+  source: string,
+  opts: { display?: boolean; loadingText?: string },
+  src: (typeof SOURCES)[string],
+) {
   const fallback = 'function fallback(e){var r=document.getElementById("out");r.className="src";r.textContent=SRC;var status=document.getElementById("lib-status");status.textContent="Static fallback: library could not render. "+(e&&e.message||"");if(e)console.warn(e)}'
   const status = '<div id="lib-status" role="status" style="font-size:12px;color:var(--ui-muted)"></div>'
   if (kind === 'math') {
@@ -55,12 +187,23 @@ export function libPayload(kind: 'math' | 'mermaid', source: string, opts: { dis
 function render(){import(${JSON.stringify(src.katexJs)}).then(function(m){var k=m.default||m;k.render(SRC,document.getElementById("out"),{displayMode:${opts.display !== false},throwOnError:false,output:"htmlAndMathml"})}).catch(fallback)}`,
     }
   }
+  const loadingText = typeof opts.loadingText === 'string' && opts.loadingText.trim()
+    ? opts.loadingText
+    : DEFAULT_DIAGRAM_LOADING
   return {
-    css: '#ui-root{padding:8px;overflow-x:auto}#out{display:flex;justify-content:center}#out svg{max-width:100%;height:auto}.src{font-family:var(--ui-mono);white-space:pre-wrap;color:var(--ui-muted);display:block}',
-    html: '<div id="out" role="img"></div>' + status,
-    js: `var SRC=${JSON.stringify(source)},n=0;${fallback}
-function render(){import(${JSON.stringify(src.mermaid)}).then(function(m){var mm=m.default||m;function draw(){mm.initialize({startOnLoad:false,securityLevel:"strict",theme:UI.scheme==="dark"?"dark":"default",fontFamily:UI.css("font")});return mm.render("m"+(++n),SRC).then(function(r){document.getElementById("out").innerHTML=r.svg})}
-UI.onTheme(function(){draw().catch(fallback)});return draw()}).catch(fallback)}`,
+    css: [
+      '#ui-root{padding:8px;overflow-x:auto}',
+      '#out{display:flex;justify-content:center}',
+      '#out svg{max-width:100%;height:auto}',
+      '.src{font-family:var(--ui-mono);white-space:pre-wrap;color:var(--ui-muted);display:block}',
+      '.lib-loading[hidden]{display:none}',
+      '.lib-loading{display:flex;align-items:center;justify-content:center;gap:8px;min-height:min(160px,calc(100vh - 16px));color:var(--ui-muted);font-size:13px}',
+      '.lib-spinner{width:14px;height:14px;flex:none;border-radius:50%;border:2px solid var(--ui-border);border-top-color:var(--ui-accent);animation:lib-spin .75s linear infinite}',
+      '@keyframes lib-spin{to{transform:rotate(360deg)}}',
+      '@media (prefers-reduced-motion:reduce){.lib-spinner{animation:none;border-color:var(--ui-accent);opacity:.65}}',
+    ].join(''),
+    html: `<div id="lib-loading" class="lib-loading" role="status" aria-live="polite" hidden><span class="lib-spinner" aria-hidden="true"></span><span>${escapeHtml(loadingText)}</span></div><div id="out" role="img"></div>${status}`,
+    js: `var SRC=${JSON.stringify(source)};function render(){return (${runMermaidFrame.toString()})(document,UI,function(){return import(${JSON.stringify(src.mermaid)})},SRC,${MERMAID_LOADING_DELAY_MS})}`,
   }
 }
 
@@ -68,13 +211,14 @@ export function LibFrame(props: {
   kind: 'math' | 'mermaid'
   source: string
   display?: boolean
+  loadingText?: string
   surfaceId: string
   policy: WidgetPolicy
   title: string
 }) {
   const src = libSources(props.policy)
-  const payload = useMemo(() => src && libPayload(props.kind, props.source, { display: props.display }, src),
-    [src, props.kind, props.source, props.display])
+  const payload = useMemo(() => src && libPayload(props.kind, props.source, { display: props.display, loadingText: props.loadingText }, src),
+    [src, props.kind, props.source, props.display, props.loadingText])
   if (!payload) return <div data-resource-status="static-fallback"><span role="status">Static fallback: no rendering library allowed.</span><pre className="diui-code">{props.source}</pre></div>
   return (
     <div className="diui-lib" data-kind={props.kind}>
