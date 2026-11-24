@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.17]
+
+### Added
+
+- Catalog `Mermaid` delayed loading state inside `LibFrame` (#101, #103): shows a localized (`en` / `zh`) loading indicator (`Rendering diagram…` / `正在渲染图表…`) inside the sandboxed iframe after a 180 ms delay so fast/offline renders never flash, preserves the existing SVG across `UI.onTheme` redraws with sequence-guarded concurrency, and cleanly removes the indicator on render or `Static fallback`.
+
+### Changed
+
+- Raised the `compat` job `timeout-minutes` in `.github/workflows/ci.yml` from `30` to `45` so uncached Windows DSH installs do not hit the 30-minute cutoff (#104).
+- Updated `devDependencies` (`puppeteer-core`, `tar`, `vitest`) (#102).
+
+### Fixed
+
+- Updated E2E PTC `run_code` mock snippets in `scripts/e2e/mock-deepseek.mjs` to emit `console.log((await tools.ui_*(...)).summary);` without top-level `return` or variable redeclarations, restoring compatibility with DSH `0.2.3-alpha.2` (`scoped-repl` + `discardCompletion: true`) alongside `0.2.2` (#104).
+
 ## [0.2.16]
 
 ### Added
@@ -295,7 +310,8 @@ All notable changes to this project are documented here. The format follows
   - The declarative component catalog (`ui_render`) and sandboxed streaming HTML widgets (`ui_render_widget`).
   - The `/ui` command and the guidance system-prompt section.
 
-[Unreleased]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.16...HEAD
+[Unreleased]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.17...HEAD
+[0.2.17]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.16...v0.2.17
 [0.2.16]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.15...v0.2.16
 [0.2.15]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.14...v0.2.15
 [0.2.14]: https://github.com/dreamfarer-space/deepseek-harness-intelligent-ui/compare/v0.2.13...v0.2.14
