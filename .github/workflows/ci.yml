@@ -67,7 +67,7 @@ jobs:
     name: dsh ${{ matrix.dsh }} · ${{ matrix.os }}
     # Keep compatibility checks independent of queued test runners.
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     # Prerelease DSH lines are an early warning, not a merge gate.
     continue-on-error: ${{ matrix.dsh == 'alpha' || matrix.dsh == 'next' }}
     strategy:

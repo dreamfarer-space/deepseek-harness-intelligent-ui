@@ -155,13 +155,13 @@ createServer((req, res) => {
       case 'slash-inspector': return sse(res, toolEvents(model, 'ui_render', SYSTEM_INSPECTOR, 36), 20)
       case 'ptc-render': return sse(res, toolEvents(model, 'run_code', {
         description: 'Render PTC pipeline monitor card',
-        code: `const res = await tools.ui_render(${JSON.stringify(PTC_CARD)}); return res.summary;`,
+        code: `console.log((await tools.ui_render(${JSON.stringify(PTC_CARD)})).summary);`,
       }, 48), 15)
       case 'ptc-patch': {
         const id = ptcRenderId(b.messages) || 'missing'
         return sse(res, toolEvents(model, 'run_code', {
           description: 'Patch PTC pipeline monitor chart to line',
-          code: `const res = await tools.ui_patch(${JSON.stringify(ptcPatch(id))}); return res.summary;`,
+          code: `console.log((await tools.ui_patch(${JSON.stringify(ptcPatch(id))})).summary);`,
         }, 48), 15)
       }
       case 'data-tools': return sse(res, toolEvents(model, 'ui_render', DATA_TOOLS, 36), 20)
