@@ -120,7 +120,7 @@
     "@deepseek-ai/cordis": "4.0.4",
     "@deepseek-ai/dsh": "0.2.0-rc.1",
     "@deepseek-ai/dsh-llm": "0.2.0-rc.1",
-    "@types/react": "19.3.0",
+    "@types/react": "19.3.2",
     "@types/react-dom": "19.3.0",
     "canvas-confetti": "1.9.3",
     "chart.js": "4.4.4",
@@ -138,7 +138,7 @@
     "tar": "7.5.23",
     "three": "0.169.0",
     "typescript": "7.0.2",
-    "vitest": "5.1.1",
+    "vitest": "5.1.2",
     "world-atlas": "2.0.2"
   },
   "engines": {
